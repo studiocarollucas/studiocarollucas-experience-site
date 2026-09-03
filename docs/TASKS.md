@@ -25,7 +25,7 @@
 
 | ID | Tarefa | Prioridade | Área | Status | Owner | Depends on |
 |---|---|---:|---|---|---|---|
-| SCL-001 | Inicializar repositório | P0 | infra | READY | unassigned | none |
+| SCL-001 | Inicializar repositório | P0 | infra | DONE | agent:claude-code | none |
 | SCL-002 | Lint/format/typecheck/tests | P0 | infra | BACKLOG | unassigned | SCL-001 |
 | SCL-003 | CI + preview deploys | P0 | infra | BACKLOG | unassigned | SCL-001,SCL-002 |
 | SCL-004 | Projeto Supabase + ambientes | P0 | db | READY | unassigned | none |
@@ -101,10 +101,10 @@ Descrever o resultado esperado, não apenas a atividade.
 
 ### SCL-001 — Inicializar repositório
 
-- Status: READY
+- Status: DONE
 - Priority: P0
 - Area: infra
-- Owner: unassigned
+- Owner: agent:claude-code
 - Branch: —
 - PR: —
 - Depends on: none
