@@ -26,7 +26,7 @@
 | ID | Tarefa | Prioridade | Área | Status | Owner | Depends on |
 |---|---|---:|---|---|---|---|
 | SCL-001 | Inicializar repositório | P0 | infra | DONE | agent:claude-code | none |
-| SCL-002 | Lint/format/typecheck/tests | P0 | infra | BACKLOG | unassigned | SCL-001 |
+| SCL-002 | Lint/format/typecheck/tests | P0 | infra | DONE | agent:claude-code | SCL-001 |
 | SCL-003 | CI + preview deploys | P0 | infra | BACKLOG | unassigned | SCL-001,SCL-002 |
 | SCL-004 | Projeto Supabase + ambientes | P0 | db | READY | unassigned | none |
 | SCL-005 | Drizzle + migrations | P0 | db | BACKLOG | unassigned | SCL-001,SCL-004 |
