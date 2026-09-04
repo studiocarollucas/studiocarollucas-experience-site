@@ -83,3 +83,11 @@ Onde uma coluna sensível precisar ficar protegida mesmo de quem só tem acesso 
 **Motivo:** `createClientSchema.marketingConsent` usa `.default(false)`. `z.infer`/`z.output` descreve o formato **depois** do parse, onde esse campo já foi preenchido e portanto é obrigatório no tipo — o que faria `createClient({ name: "..." })` (uso pretendido, e exatamente o que o teste de integração de SCL-100 faz) falhar em `npm run typecheck` mesmo passando em runtime, já que `.parse()` de fato aceita a omissão. `z.input` descreve o formato **antes** do parse, onde um campo com `.default()` é opcional — batendo com o comportamento real do Zod.
 
 **Consequência:** qualquer schema futuro deste plano que use `.default()` em algum campo deve exportar seu tipo de input com `z.input`, não `z.infer`, para evitar essa mesma divergência entre o que o TypeScript exige e o que o Zod realmente aceita.
+
+## 2026-09-04 — Testes de integração contra o banco real são opt-in (skip automático sem `DATABASE_URL`)
+
+**Decisão:** `tests/domain/clients.test.ts` (primeiro arquivo de teste do repositório a importar `@/db/client` e abrir uma conexão real) usa `describeIfLiveDb = process.env.DATABASE_URL ? describe : describe.skip` para envolver o `describe` do teste de integração `createClient / getClientById`. Sem `DATABASE_URL` no ambiente, esse bloco inteiro é pulado (`skipped`), não falha.
+
+**Motivo:** `.github/workflows/ci.yml` roda `npm run test` sem nenhum `DATABASE_URL` (diferente do passo `build`, que define um placeholder), e `.env.local` nunca é commitado — não há como esse teste alcançar um banco real em CI hoje. Sem esse guard, o teste falharia com erro de conexão (`ECONNREFUSED`) todo run de CI assim que a SCL-003 conectar este repositório a um remoto GitHub real, bloqueando `IN_REVIEW → MERGE_READY` de toda task subsequente. Os 5 testes Zod (`createClientSchema`, que não tocam o banco) continuam rodando incondicionalmente.
+
+**Consequência:** enquanto este projeto não tiver um banco de CI/teste dedicado (decisão maior, de infraestrutura, fora do escopo desta task), qualquer teste futuro que precise de uma conexão real com o Postgres deve seguir o mesmo padrão — `describe.skip` condicional a `DATABASE_URL` (ou variável equivalente), nunca assumir que a variável está presente em CI só porque está presente em `.env.local` local.

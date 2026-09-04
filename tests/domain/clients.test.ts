@@ -32,7 +32,14 @@ describe("createClientSchema", () => {
   });
 });
 
-describe("createClient / getClientById (integration)", () => {
+// CI (.github/workflows/ci.yml) runs `npm run test` with no DATABASE_URL, and
+// .env.local is never committed, so there's no way for this suite to reach a real
+// database there. Skip the live-DB integration test entirely when DATABASE_URL is
+// unset rather than letting it fail with a connection error — opt-in until this
+// project has a dedicated CI/test database (see docs/DECISIONS.md).
+const describeIfLiveDb = process.env.DATABASE_URL ? describe : describe.skip;
+
+describeIfLiveDb("createClient / getClientById (integration)", () => {
   afterAll(async () => {
     await db.delete(clients).where(eq(clients.name, "Teste Epic1 SCL-100"));
   });
