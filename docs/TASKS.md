@@ -28,7 +28,7 @@
 | SCL-001 | Inicializar repositório | P0 | infra | DONE | agent:claude-code | none |
 | SCL-002 | Lint/format/typecheck/tests | P0 | infra | DONE | agent:claude-code | SCL-001 |
 | SCL-003 | CI + preview deploys | P0 | infra | BACKLOG | unassigned | SCL-001,SCL-002 |
-| SCL-004 | Projeto Supabase + ambientes | P0 | db | READY | unassigned | none |
+| SCL-004 | Projeto Supabase + ambientes | P0 | db | BLOCKED | agent:claude-code | none |
 | SCL-005 | Drizzle + migrations | P0 | db | BACKLOG | unassigned | SCL-001,SCL-004 |
 | SCL-006 | Auth base | P0 | auth | BACKLOG | unassigned | SCL-004,SCL-005 |
 | SCL-007 | RBAC/RLS base | P0 | auth | BACKLOG | unassigned | SCL-006 |
@@ -134,15 +134,15 @@ Criar a base do projeto Next.js + TypeScript, pronta para desenvolvimento em equ
 
 ### SCL-004 — Criar Supabase e ambientes
 
-- Status: READY
+- Status: BLOCKED
 - Priority: P0
 - Area: db
-- Owner: unassigned
+- Owner: agent:claude-code
 - Branch: —
 - PR: —
 - Depends on: none
 - Blocks: SCL-005, SCL-006
-- Files/Scope: Supabase project + env docs
+- Files/Scope: `lib/supabase/client.ts`, `lib/supabase/server.ts`, `docs/runbooks/supabase-setup.md`, `tests/lib/supabase-env.test.ts`
 - Migration: no
 - Updated at: 2026-09-03
 
@@ -153,10 +153,14 @@ Disponibilizar banco/Auth para desenvolvimento com separação clara de configur
 **Acceptance criteria**
 
 - [ ] projeto criado;
-- [ ] URL/keys configuradas via environment variables;
-- [ ] nenhuma service role key no frontend;
+- [x] URL/keys configuradas via environment variables;
+- [x] nenhuma service role key no frontend;
 - [ ] conexão testada;
-- [ ] procedimento de setup documentado.
+- [x] procedimento de setup documentado.
+
+**Blocker/Hand-off notes**
+
+aguardando o usuário criar o projeto Supabase real e preencher .env.local — código e docs prontos, falta verificação com credenciais reais.
 
 ---
 
