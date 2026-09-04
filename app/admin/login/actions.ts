@@ -2,21 +2,25 @@
 
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { safeRedirect } from "@/lib/auth/safe-redirect";
 
 export async function signInWithPassword(formData: FormData) {
+  const target = safeRedirect(formData.get("redirect"), "/admin");
+  const redirectQuery = `&redirect=${encodeURIComponent(target)}`;
+
   const email = formData.get("email");
   const password = formData.get("password");
 
   if (typeof email !== "string" || typeof password !== "string") {
-    return { error: "Informe e-mail e senha." };
+    redirect(`/admin/login?error=${encodeURIComponent("Informe e-mail e senha.")}${redirectQuery}`);
   }
 
   const supabase = await createSupabaseServerClient();
   const { error } = await supabase.auth.signInWithPassword({ email, password });
 
   if (error) {
-    return { error: error.message };
+    redirect(`/admin/login?error=${encodeURIComponent(error.message)}${redirectQuery}`);
   }
 
-  redirect("/admin");
+  redirect(target);
 }
