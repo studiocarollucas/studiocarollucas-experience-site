@@ -1133,8 +1133,8 @@ import { createShootSchema } from "@/domain/shoots/schema";
 
 describe("createShootSchema", () => {
   const validBase = {
-    clientId: "00000000-0000-0000-0000-000000000001",
-    experiencePackageId: "00000000-0000-0000-0000-000000000002",
+    clientId: "00000000-0000-4000-8000-000000000001",
+    experiencePackageId: "00000000-0000-4000-8000-000000000002",
     shootDate: "2026-12-01",
     agreedPrice: "1200.00",
   };
@@ -1522,7 +1522,7 @@ import { createPaymentSchema } from "@/domain/payments/schema";
 
 describe("createPaymentSchema", () => {
   const validBase = {
-    shootId: "00000000-0000-0000-0000-000000000001",
+    shootId: "00000000-0000-4000-8000-000000000001",
     amount: "300.00",
   };
 
@@ -1740,7 +1740,7 @@ import { createPreparationTaskSchema } from "@/domain/preparation/schema";
 
 describe("createPreparationTaskSchema", () => {
   const validBase = {
-    shootId: "00000000-0000-0000-0000-000000000001",
+    shootId: "00000000-0000-4000-8000-000000000001",
     type: "moodboard",
     title: "Enviar moodboard de referência",
   };
@@ -2036,7 +2036,7 @@ import { createProductionJobSchema } from "@/domain/production/schema";
 
 describe("createProductionJobSchema", () => {
   const validBase = {
-    shootId: "00000000-0000-0000-0000-000000000001",
+    shootId: "00000000-0000-4000-8000-000000000001",
   };
 
   it("accepts a minimal valid job", () => {
