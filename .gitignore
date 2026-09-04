@@ -44,6 +44,7 @@ next-env.d.ts
 # SDD tooling scratch space (task briefs, reports, progress ledger) — not part of the app
 .superpowers/
 
-# Claude Code harness scratch state — only the lock files, so shared settings/hooks/skills
-# under .claude/ stay committable.
+# Claude Code harness scratch state — only lock files and per-developer local overrides,
+# so shared settings/hooks/skills under .claude/ stay committable.
 .claude/*.lock
+.claude/settings.local.json
