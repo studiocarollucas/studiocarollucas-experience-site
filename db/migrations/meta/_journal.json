@@ -50,6 +50,20 @@
       "when": 1788549915034,
       "tag": "0006_clients_rls",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1788561670696,
+      "tag": "0007_lazy_nick_fury",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1788561720793,
+      "tag": "0008_leads_rls",
+      "breakpoints": true
     }
   ]
 }
