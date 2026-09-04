@@ -13,6 +13,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "db:generate": "node --env-file-if-exists=.env.local node_modules/drizzle-kit/bin.cjs generate",
+    "predb:migrate": "node scripts/check-migration-journal.mjs",
     "db:migrate": "node --env-file-if-exists=.env.local node_modules/drizzle-kit/bin.cjs migrate",
     "db:seed:experiences": "node --env-file-if-exists=.env.local --experimental-strip-types db/seeds/experience-packages.ts"
   },
