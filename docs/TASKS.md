@@ -32,7 +32,7 @@
 | SCL-005 | Drizzle + migrations | P0 | db | BACKLOG | unassigned | SCL-001,SCL-004 |
 | SCL-006 | Auth base | P0 | auth | BACKLOG | unassigned | SCL-004,SCL-005 |
 | SCL-007 | RBAC/RLS base | P0 | auth | BACKLOG | unassigned | SCL-006 |
-| SCL-009 | Design tokens + layout base | P0 | ui | BACKLOG | unassigned | SCL-001 |
+| SCL-009 | Design tokens + layout base | P0 | ui | DONE | agent:claude-code | SCL-001 |
 | SCL-100 | Schema Client | P0 | db | BACKLOG | unassigned | SCL-005 |
 | SCL-102 | Schema ExperiencePackage | P0 | db | BACKLOG | unassigned | SCL-005 |
 | SCL-103 | Schema Shoot | P0 | db | BACKLOG | unassigned | SCL-100,SCL-102 |
