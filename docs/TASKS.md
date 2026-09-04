@@ -31,7 +31,7 @@
 | SCL-004 | Projeto Supabase + ambientes | P0 | db | BLOCKED | agent:claude-code | none |
 | SCL-005 | Drizzle + migrations | P0 | db | BLOCKED | agent:claude-code | SCL-001,SCL-004 |
 | SCL-006 | Auth base | P0 | auth | BLOCKED | agent:claude-code | SCL-004,SCL-005 |
-| SCL-007 | RBAC/RLS base | P0 | auth | BACKLOG | unassigned | SCL-006 |
+| SCL-007 | RBAC/RLS base | P0 | auth | BLOCKED | agent:claude-code | SCL-006 |
 | SCL-009 | Design tokens + layout base | P0 | ui | DONE | agent:claude-code | SCL-001 |
 | SCL-100 | Schema Client | P0 | db | BACKLOG | unassigned | SCL-005 |
 | SCL-102 | Schema ExperiencePackage | P0 | db | BACKLOG | unassigned | SCL-005 |
@@ -235,6 +235,47 @@ Dar a toda a aplicação (Admin e Minha Experiência) uma única forma server-si
 - arquivos alterados: `lib/auth/session.ts`, `proxy.ts`, `app/(client)/login/actions.ts`, `app/(client)/login/page.tsx`, `app/admin/login/actions.ts`, `app/admin/login/page.tsx`, `tests/lib/session.test.ts`.
 - testes: `tests/lib/session.test.ts` (2 casos, `resolveRole`) — únicos testáveis sem sessão/banco real; `getCurrentUser()` e o `proxy.ts` continuam sem cobertura de integração até existir um projeto Supabase real.
 - próximo passo: assim que SCL-004/SCL-005 forem desbloqueadas (projeto Supabase real disponível), rodar o fluxo de login manualmente (cliente via magic link, staff via senha), confirmar `getCurrentUser()` e o redirecionamento do `proxy.ts`, então marcar SCL-006 `DONE`.
+
+---
+
+### SCL-007 — RBAC/RLS base
+
+- Status: BLOCKED
+- Priority: P0
+- Area: auth
+- Owner: agent:claude-code
+- Branch: —
+- PR: —
+- Depends on: SCL-006
+- Blocks: SCL-200, SCL-300
+- Files/Scope: `lib/auth/rbac.ts`, `db/migrations/0001_profiles_rls.sql`, `db/migrations/meta/_journal.json`, `tests/lib/rbac.test.ts`
+- Migration: yes
+- Updated at: 2026-09-03
+
+**Goal**
+
+Dar a toda Server Action/Route Handler admin uma checagem de papel padronizada (`hasMinimumRole`/`requireRole`) e reforçar essa checagem na camada de dados via Row Level Security na tabela `profiles` — esconder UI não é controle de acesso (PRD §3.6).
+
+**Acceptance criteria**
+
+- [x] `hasMinimumRole(role, minimum)` e `requireRole(user, minimum)` implementados em `lib/auth/rbac.ts`, reaproveitando `Role`/`CurrentUser` de `lib/auth/session.ts` (Task 6) sem redefini-los;
+- [x] testes unitários cobrindo hierarquia de papéis (admin ⊇ staff ⊇ client) e os casos de exceção `requireRole` (papel insuficiente, usuário nulo);
+- [x] migration `0001_profiles_rls.sql` escrita: `enable row level security` em `profiles`, políticas `select`/`update own` via `auth.uid() = id`, e bypass de admin via `exists` contra a própria `profiles`;
+- [x] migration registrada em `db/migrations/meta/_journal.json` para que `db:migrate` a aplique e `db:generate` continue a numeração a partir do próximo índice;
+- [ ] migration aplicada e verificada em um projeto Supabase real (Table Editor → profiles → RLS mostrando as 3 políticas).
+
+**Implementation notes**
+
+- Políticas de RLS não fazem parte do DSL de schema do Drizzle, então essa migration é escrita à mão (não gerada por `npm run db:generate`) e aplicada da mesma forma que as geradas — por isso a entrada manual em `_journal.json` (idx 1, tag `0001_profiles_rls`), sem `0001_snapshot.json` correspondente (não há mudança estrutural rastreada pelo Drizzle nesta migration).
+- Esse é o padrão (enable RLS, `select`/`update own`, bypass admin via `exists` em `profiles`) que as próximas tabelas do Epic 1 (`clients`, `shoots`, `payments`, ...) devem reaproveitar.
+
+**Blocker/Hand-off notes**
+
+- concluído: `lib/auth/rbac.ts` e `tests/lib/rbac.test.ts` completos (lógica pura, sem dependência de sessão/banco real); migration `db/migrations/0001_profiles_rls.sql` escrita e registrada no journal; `npm run test`, `npm run typecheck`, `npm run lint` e `npm run build` verdes.
+- falta: RLS migration escrita e pronta em `db/migrations/0001_profiles_rls.sql`, aguardando projeto Supabase real para aplicar via `npm run db:migrate` — mesmo bloqueio de SCL-004/SCL-005/SCL-006 (instabilidade parcial do Supabase relatada pelo usuário, nenhum projeto real criado ainda).
+- arquivos alterados: `lib/auth/rbac.ts`, `tests/lib/rbac.test.ts`, `db/migrations/0001_profiles_rls.sql`, `db/migrations/meta/_journal.json`.
+- testes: `tests/lib/rbac.test.ts` (6 casos: `hasMinimumRole` e `requireRole`) — únicos testáveis sem banco real; a aplicação e o comportamento das políticas de RLS em si só podem ser verificados contra um projeto Supabase real.
+- próximo passo: assim que SCL-004/SCL-005/SCL-006 forem desbloqueadas (projeto Supabase real disponível), rodar `npm run db:migrate`, confirmar as 3 políticas em `profiles` no dashboard do Supabase, então marcar SCL-007 `DONE`.
 
 ---
 
