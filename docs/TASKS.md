@@ -210,7 +210,7 @@ aguardando o usuário criar o projeto Supabase real e preencher .env.local — c
 - PR: —
 - Depends on: SCL-001, SCL-004
 - Blocks: SCL-100, SCL-102, SCL-103, SCL-104, SCL-105, SCL-106
-- Files/Scope: `drizzle.config.ts`, `db/schema/profiles.ts`, `db/schema/index.ts`, `db/client.ts`, `db/migrations/0000_lazy_pete_wisdom.sql`, `tests/db/schema.test.ts`
+- Files/Scope: `drizzle.config.ts`, `db/schema/profiles.ts`, `db/schema/index.ts`, `db/client.ts`, `db/migrations/0000_lazy_pete_wisdom.sql`, `db/migrations/0002_handle_new_user_trigger.sql`, `db/migrations/meta/_journal.json`, `package.json` (scripts `db:generate`/`db:migrate`), `tests/db/schema.test.ts`
 - Migration: yes
 - Updated at: 2026-09-03
 
@@ -242,7 +242,7 @@ Drizzle configurado, schema `profiles` (com `roleEnum`) e client escritos, e a m
 - PR: —
 - Depends on: SCL-004, SCL-005
 - Blocks: SCL-007, SCL-300
-- Files/Scope: `lib/auth/session.ts`, `proxy.ts`, `app/(client)/login/`, `app/admin/login/`, `tests/lib/session.test.ts`
+- Files/Scope: `lib/auth/session.ts`, `lib/auth/safe-redirect.ts`, `proxy.ts`, `app/(client)/login/`, `app/admin/login/`, `app/auth/callback/route.ts`, `app/admin/(protected)/layout.tsx` (substitui os removidos `app/admin/layout.tsx` e `app/admin/page.tsx`), `tests/lib/session.test.ts`, `tests/lib/safe-redirect.test.ts`
 - Migration: no
 - Updated at: 2026-09-03
 
@@ -325,7 +325,7 @@ Dar a toda Server Action/Route Handler admin uma checagem de papel padronizada (
 - PR: —
 - Depends on: SCL-001
 - Blocks: SCL-220 (e futuras tasks do Epic 1 com mutação financeira)
-- Files/Scope: `sentry.client.config.ts`, `sentry.server.config.ts`, `sentry.edge.config.ts`, `next.config.ts`, `lib/observability/logger.ts`, `tests/lib/logger.test.ts`
+- Files/Scope: `instrumentation.ts`, `instrumentation-client.ts`, `sentry.server.config.ts`, `sentry.edge.config.ts`, `app/global-error.tsx`, `next.config.ts`, `lib/observability/logger.ts`, `tests/lib/logger.test.ts`
 - Migration: no
 - Updated at: 2026-09-03
 
@@ -336,7 +336,7 @@ Instrumentar erros com Sentry nos três runtimes do Next.js (client/server/edge)
 **Acceptance criteria**
 
 - [x] `@sentry/nextjs` instalado;
-- [x] `sentry.client.config.ts`, `sentry.server.config.ts`, `sentry.edge.config.ts` criados, cada um com `enabled: !!dsn` — inertes sem DSN real;
+- [x] `instrumentation-client.ts`, `sentry.server.config.ts`, `sentry.edge.config.ts` criados, cada um com `enabled: !!dsn` — inertes sem DSN real; `instrumentation.ts` carrega os dois últimos conforme `NEXT_RUNTIME` e exporta `onRequestError`;
 - [x] `next.config.ts` envolvido com `withSentryConfig`;
 - [x] `logger.debug/info/warn/error(message, context)` implementado emitindo JSON estruturado (`level`, `message`, `timestamp`, ...context), roteando `error`→`console.error`, `warn`→`console.warn`, demais→`console.log`;
 - [x] teste (`tests/lib/logger.test.ts`) escrito antes da implementação (TDD: RED confirmado — módulo inexistente — depois GREEN);
@@ -346,7 +346,8 @@ Instrumentar erros com Sentry nos três runtimes do Next.js (client/server/edge)
 **Implementation notes**
 
 - Não depende de projeto Supabase nem de credenciais reais — diferente de SCL-004/005/006/007, este task fica genuinamente `DONE` sem infraestrutura externa, já que `enabled: !!dsn` torna o Sentry um no-op sem DSN.
-- `@sentry/nextjs@10.73.0` emite um aviso de depreciação no build (`Importing withSentryConfig from @sentry/nextjs is deprecated ... import from '@sentry/nextjs/config' instead`, removido no v11) — mantido o import de `@sentry/nextjs` conforme o brief da task (verbatim); revisitar quando a v11 for adotada.
+- `next.config.ts` importa `withSentryConfig` de `@sentry/nextjs/config`. O import a partir da raiz do pacote (`@sentry/nextjs`) é depreciado no v10 e emitia aviso a cada build; foi migrado durante a rodada de correções de revisão do P0. O build agora não emite nenhum aviso do Sentry.
+- Os arquivos `sentry.client.config.ts` / carregamento implícito de `sentry.server.config.ts` e `sentry.edge.config.ts` não funcionam com o Turbopack (bundler padrão do Next 16), o que deixava o Sentry inerte nos três runtimes. A instrumentação foi migrada para a convenção `instrumentation.ts` + `instrumentation-client.ts` (esta última exportando `onRouterTransitionStart`, exigido pelo SDK), com `app/global-error.tsx` reportando erros de render não capturados.
 - `.env.example` já continha `SENTRY_DSN`/`NEXT_PUBLIC_SENTRY_DSN` desde a SCL-001, nenhuma alteração necessária ali.
 
 **Blocker/Hand-off notes**
