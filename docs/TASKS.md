@@ -28,10 +28,10 @@
 | SCL-001 | Inicializar repositório | P0 | infra | DONE | agent:claude-code | none |
 | SCL-002 | Lint/format/typecheck/tests | P0 | infra | DONE | agent:claude-code | SCL-001 |
 | SCL-003 | CI + preview deploys | P0 | infra | BLOCKED | agent:claude-code | SCL-001,SCL-002 |
-| SCL-004 | Projeto Supabase + ambientes | P0 | db | BLOCKED | agent:claude-code | none |
-| SCL-005 | Drizzle + migrations | P0 | db | BLOCKED | agent:claude-code | SCL-001,SCL-004 |
-| SCL-006 | Auth base | P0 | auth | BLOCKED | agent:claude-code | SCL-004,SCL-005 |
-| SCL-007 | RBAC/RLS base | P0 | auth | BLOCKED | agent:claude-code | SCL-006 |
+| SCL-004 | Projeto Supabase + ambientes | P0 | db | DONE | agent:claude-code + human:Hudson | none |
+| SCL-005 | Drizzle + migrations | P0 | db | DONE | agent:claude-code | SCL-001,SCL-004 |
+| SCL-006 | Auth base | P0 | auth | DONE | agent:claude-code + human:Hudson | SCL-004,SCL-005 |
+| SCL-007 | RBAC/RLS base | P0 | auth | DONE | agent:claude-code | SCL-006 |
 | SCL-008 | Observabilidade (Sentry + logging) | P0 | infra | DONE | agent:claude-code | SCL-001 |
 | SCL-009 | Design tokens + layout base | P0 | ui | DONE | agent:claude-code | SCL-001 |
 | SCL-100 | Schema Client | P0 | db | BACKLOG | unassigned | SCL-005 |
@@ -170,17 +170,17 @@ Dar todo PR um sinal de CI (lint, typecheck, test, build) e documentar o procedi
 
 ### SCL-004 — Criar Supabase e ambientes
 
-- Status: BLOCKED
+- Status: DONE
 - Priority: P0
 - Area: db
-- Owner: agent:claude-code
+- Owner: agent:claude-code + human:Hudson
 - Branch: —
 - PR: —
 - Depends on: none
 - Blocks: SCL-005, SCL-006
 - Files/Scope: `lib/supabase/client.ts`, `lib/supabase/server.ts`, `docs/runbooks/supabase-setup.md`, `tests/lib/supabase-env.test.ts`
 - Migration: no
-- Updated at: 2026-09-03
+- Updated at: 2026-09-04
 
 **Goal**
 
@@ -188,21 +188,21 @@ Disponibilizar banco/Auth para desenvolvimento com separação clara de configur
 
 **Acceptance criteria**
 
-- [ ] projeto criado;
+- [x] projeto criado (região Americas; criação estava bloqueada por instabilidade parcial do Supabase — resolvida em 2026-09-04);
 - [x] URL/keys configuradas via environment variables;
 - [x] nenhuma service role key no frontend;
-- [ ] conexão testada;
+- [x] conexão testada — `npm run build` e `npm run dev` verdes com `.env.local` real; queries diretas ao Postgres confirmaram schema/policies (ver SCL-005/SCL-007);
 - [x] procedimento de setup documentado.
 
 **Blocker/Hand-off notes**
 
-aguardando o usuário criar o projeto Supabase real e preencher .env.local — código e docs prontos, falta verificação com credenciais reais.
+Projeto Supabase real criado pelo usuário em 2026-09-04 assim que o incidente "Project Lifecycle Actions" do status.supabase.com foi resolvido. `.env.local` preenchido pelo usuário (nunca commitado). Nenhuma pendência restante.
 
 ---
 
 ### SCL-005 — Configurar Drizzle e migrations
 
-- Status: BLOCKED
+- Status: DONE
 - Priority: P0
 - Area: db
 - Owner: agent:claude-code
@@ -212,7 +212,7 @@ aguardando o usuário criar o projeto Supabase real e preencher .env.local — c
 - Blocks: SCL-100, SCL-102, SCL-103, SCL-104, SCL-105, SCL-106
 - Files/Scope: `drizzle.config.ts`, `db/schema/profiles.ts`, `db/schema/index.ts`, `db/client.ts`, `db/migrations/0000_lazy_pete_wisdom.sql`, `db/migrations/0002_handle_new_user_trigger.sql`, `db/migrations/meta/_journal.json`, `package.json` (scripts `db:generate`/`db:migrate`), `tests/db/schema.test.ts`
 - Migration: yes
-- Updated at: 2026-09-03
+- Updated at: 2026-09-04
 
 **Goal**
 
@@ -221,30 +221,30 @@ Definir a fonte de verdade do schema e o procedimento serializado de migrations.
 **Acceptance criteria**
 
 - [x] Drizzle configurado;
-- [ ] migration inicial executa em banco limpo;
+- [x] migration inicial executa em banco limpo — `npm run db:migrate` aplicado com sucesso em 2026-09-04 contra o projeto Supabase real (`0000_lazy_pete_wisdom.sql`, `0001_profiles_rls.sql`, `0002_handle_new_user_trigger.sql`, todas em sequência; segunda execução confirmou idempotência — "migrations applied successfully!" sem reaplicar nada);
 - [x] scripts de generate/migrate definidos;
 - [x] política de migrations documentada (ver PRD §19.7 — serializadas, uma por vez);
-- [ ] CI consegue validar schema/migrations conforme estratégia definida.
+- [ ] CI consegue validar schema/migrations conforme estratégia definida (ainda não há CI rodando de verdade — depende de SCL-003/remoto GitHub; ver nota da SCL-003).
 
 **Blocker/Hand-off notes**
 
-Drizzle configurado, schema `profiles` (com `roleEnum`) e client escritos, e a migration inicial (`db/migrations/0000_lazy_pete_wisdom.sql`, com `CREATE TYPE "role"` e `CREATE TABLE "profiles"`) já foi gerada via `npm run db:generate` — isso não exige conexão com banco real, só faz diff do schema TypeScript contra os snapshots em `db/migrations/meta/`. Falta aplicar a migration (`npm run db:migrate`) contra um banco Supabase real: aguardando o mesmo projeto Supabase do SCL-004, bloqueado pela instabilidade parcial do Supabase relatada pelo usuário. Assim que o projeto SCL-004 estiver disponível, rodar `npm run db:migrate` e confirmar a tabela `profiles` no Table Editor antes de marcar DONE.
+Todas as três migrations aplicadas com sucesso contra o projeto Supabase real em 2026-09-04. Verificado diretamente via query (não só pelo log do drizzle-kit): tabela `profiles` existe com as 5 colunas esperadas, RLS habilitada (`relrowsecurity = true`), FK `profiles_id_fkey` → `auth.users` presente, trigger `on_auth_user_created` presente. `auth.users`/`profiles` com contagem 1:1 após o primeiro signup real, confirmando que o trigger dispara corretamente. Único item não fechado (CI validando migrations) depende de SCL-003, não desta task.
 
 ---
 
 ### SCL-006 — Auth base
 
-- Status: BLOCKED
+- Status: DONE
 - Priority: P0
 - Area: auth
-- Owner: agent:claude-code
+- Owner: agent:claude-code + human:Hudson
 - Branch: —
 - PR: —
 - Depends on: SCL-004, SCL-005
 - Blocks: SCL-007, SCL-300
 - Files/Scope: `lib/auth/session.ts`, `lib/auth/safe-redirect.ts`, `proxy.ts`, `app/(client)/login/`, `app/admin/login/`, `app/auth/callback/route.ts`, `app/admin/(protected)/layout.tsx` (substitui os removidos `app/admin/layout.tsx` e `app/admin/page.tsx`), `tests/lib/session.test.ts`, `tests/lib/safe-redirect.test.ts`
 - Migration: no
-- Updated at: 2026-09-03
+- Updated at: 2026-09-04
 
 **Goal**
 
@@ -257,7 +257,7 @@ Dar a toda a aplicação (Admin e Minha Experiência) uma única forma server-si
 - [x] `proxy.ts` (convenção atual do Next 16 para o antigo `middleware.ts`) faz refresh de sessão e redireciona requisições não autenticadas em `/admin` (exceto `/admin/login`) e `/minha-experiencia` para o login correspondente;
 - [x] login do cliente via magic link (`signInWithOtp`) em `app/(client)/login`;
 - [x] login de staff/admin via email+senha (`signInWithPassword`) em `app/admin/login`;
-- [ ] fluxo de autenticação real (sessão de usuário de verdade, redirecionamento pós-login, RLS aplicada) verificado contra um projeto Supabase real.
+- [x] fluxo de autenticação real verificado contra um projeto Supabase real em 2026-09-04: signup via magic link disparou o trigger `handle_new_user` (1 linha em `profiles` para 1 linha em `auth.users`), `/admin` corretamente bloqueado até o bootstrap de admin, `/admin` acessível e renderizando após a promoção via SQL Editor.
 
 **Implementation notes**
 
@@ -266,17 +266,17 @@ Dar a toda a aplicação (Admin e Minha Experiência) uma única forma server-si
 
 **Blocker/Hand-off notes**
 
-- concluído: código completo (`lib/auth/session.ts`, `proxy.ts`, páginas/ações de login do cliente e do admin) e teste unitário de `resolveRole()` passando; `npm run test`, `npm run typecheck` e `npm run build` verdes.
-- falta: verificar o fluxo de autenticação real (magic link entregue por email, login com senha, `getCurrentUser()` retornando o papel correto, redirecionamento do proxy) contra um projeto Supabase real — mesmo bloqueio de SCL-004/SCL-005 (instabilidade parcial do Supabase relatada pelo usuário, nenhum projeto real criado ainda).
-- arquivos alterados: `lib/auth/session.ts`, `proxy.ts`, `app/(client)/login/actions.ts`, `app/(client)/login/page.tsx`, `app/admin/login/actions.ts`, `app/admin/login/page.tsx`, `tests/lib/session.test.ts`.
-- testes: `tests/lib/session.test.ts` (2 casos, `resolveRole`) — únicos testáveis sem sessão/banco real; `getCurrentUser()` e o `proxy.ts` continuam sem cobertura de integração até existir um projeto Supabase real.
-- próximo passo: assim que SCL-004/SCL-005 forem desbloqueadas (projeto Supabase real disponível), rodar o fluxo de login manualmente (cliente via magic link, staff via senha), confirmar `getCurrentUser()` e o redirecionamento do `proxy.ts`, então marcar SCL-006 `DONE`.
+- concluído: código completo (`lib/auth/session.ts`, `proxy.ts`, `lib/auth/safe-redirect.ts`, páginas/ações de login do cliente e do admin, `app/auth/callback/route.ts`, `app/admin/(protected)/layout.tsx`) e testes unitários passando; `npm run test`, `npm run typecheck`, `npm run build` verdes com credenciais reais carregadas via `.env.local`. Fluxo real verificado manualmente em 2026-09-04 pelo usuário: login por magic link em `/login` completou (rota de callback PKCE funcionou), acesso a `/admin` sem papel suficiente foi bloqueado, e após bootstrap de admin via SQL Editor o `/admin` renderizou corretamente (`Studio OS` / "Dashboard real chega em SCL-201").
+- falta: nada pendente nesta task. `getCurrentUser()`/`proxy.ts` ainda não têm teste de integração automatizado (só verificação manual) — considerar para uma task futura de qualidade, não bloqueante para o P0.
+- arquivos alterados (acumulado, incluindo as rodadas de correção da revisão final): `lib/auth/session.ts`, `proxy.ts`, `lib/auth/safe-redirect.ts`, `app/(client)/login/actions.ts`, `app/(client)/login/page.tsx`, `app/admin/login/actions.ts`, `app/admin/login/page.tsx`, `app/auth/callback/route.ts`, `app/admin/(protected)/layout.tsx`, `tests/lib/session.test.ts`, `tests/lib/safe-redirect.test.ts`.
+- testes: `tests/lib/session.test.ts`, `tests/lib/safe-redirect.test.ts` (automatizados) + verificação manual completa do fluxo real em 2026-09-04.
+- próximo passo: nenhum para esta task. SCL-300 (passwordless cliente na Minha Experiência) e SCL-200 (shell Admin) já podem começar.
 
 ---
 
 ### SCL-007 — RBAC/RLS base
 
-- Status: BLOCKED
+- Status: DONE
 - Priority: P0
 - Area: auth
 - Owner: agent:claude-code
@@ -286,7 +286,7 @@ Dar a toda a aplicação (Admin e Minha Experiência) uma única forma server-si
 - Blocks: SCL-200, SCL-300
 - Files/Scope: `lib/auth/rbac.ts`, `db/migrations/0001_profiles_rls.sql`, `db/migrations/meta/_journal.json`, `tests/lib/rbac.test.ts`
 - Migration: yes
-- Updated at: 2026-09-03
+- Updated at: 2026-09-04
 
 **Goal**
 
@@ -298,7 +298,7 @@ Dar a toda Server Action/Route Handler admin uma checagem de papel padronizada (
 - [x] testes unitários cobrindo hierarquia de papéis (admin ⊇ staff ⊇ client) e os casos de exceção `requireRole` (papel insuficiente, usuário nulo);
 - [x] migration `0001_profiles_rls.sql` escrita: `enable row level security` em `profiles`, políticas `select`/`update own` via `auth.uid() = id`, e bypass de admin via `exists` contra a própria `profiles`;
 - [x] migration registrada em `db/migrations/meta/_journal.json` para que `db:migrate` a aplique e `db:generate` continue a numeração a partir do próximo índice;
-- [ ] migration aplicada e verificada em um projeto Supabase real (Table Editor → profiles → RLS mostrando as 3 políticas).
+- [x] migration aplicada e verificada em um projeto Supabase real em 2026-09-04: `select public.is_admin()` executa sem erro `42P17` (a policy de admin não é mais autorrecursiva — corrigida na revisão final via helper `security definer`); as 3 policies aparecem em `pg_policies` com o `qual` esperado; `authenticated` não tem `UPDATE` em nível de tabela em `profiles` e, em nível de coluna, só tem `UPDATE` em `full_name` — a escalação de privilégio (cliente alterando o próprio `role`) está bloqueada, confirmado por query direta ao Postgres, não só pelo código.
 
 **Implementation notes**
 
@@ -307,11 +307,11 @@ Dar a toda Server Action/Route Handler admin uma checagem de papel padronizada (
 
 **Blocker/Hand-off notes**
 
-- concluído: `lib/auth/rbac.ts` e `tests/lib/rbac.test.ts` completos (lógica pura, sem dependência de sessão/banco real); migration `db/migrations/0001_profiles_rls.sql` escrita e registrada no journal; `npm run test`, `npm run typecheck`, `npm run lint` e `npm run build` verdes.
-- falta: RLS migration escrita e pronta em `db/migrations/0001_profiles_rls.sql`, aguardando projeto Supabase real para aplicar via `npm run db:migrate` — mesmo bloqueio de SCL-004/SCL-005/SCL-006 (instabilidade parcial do Supabase relatada pelo usuário, nenhum projeto real criado ainda).
-- arquivos alterados: `lib/auth/rbac.ts`, `tests/lib/rbac.test.ts`, `db/migrations/0001_profiles_rls.sql`, `db/migrations/meta/_journal.json`.
-- testes: `tests/lib/rbac.test.ts` (6 casos: `hasMinimumRole` e `requireRole`) — únicos testáveis sem banco real; a aplicação e o comportamento das políticas de RLS em si só podem ser verificados contra um projeto Supabase real.
-- próximo passo: assim que SCL-004/SCL-005/SCL-006 forem desbloqueadas (projeto Supabase real disponível), rodar `npm run db:migrate`, confirmar as 3 políticas em `profiles` no dashboard do Supabase, então marcar SCL-007 `DONE`.
+- concluído: `lib/auth/rbac.ts` e `tests/lib/rbac.test.ts` completos; migration `db/migrations/0001_profiles_rls.sql` aplicada e verificada contra o projeto Supabase real em 2026-09-04, incluindo os dois fixes que saíram da revisão final do branch (policy de admin autorrecursiva → helper `security definer` `public.is_admin()`; revoke de coluna que era no-op contra o grant padrão de tabela do Supabase → `revoke update` em nível de tabela seguido de `grant update ("full_name")` de volta). Decisão de arquitetura registrada em `docs/DECISIONS.md` (RLS como defesa em profundidade; `lib/auth/rbac.ts` como fronteira autoritativa da aplicação, via `app/admin/(protected)/layout.tsx`).
+- falta: nada pendente nesta task. Como recomendação de qualidade (não bloqueante): um teste de migration automatizado (PGlite/Testcontainers) aplicando `db/migrations/` inteiro contra um Postgres descartável pegaria esse tipo de bug de RLS mecanicamente, em vez de depender de revisão manual.
+- arquivos alterados: `lib/auth/rbac.ts`, `tests/lib/rbac.test.ts`, `db/migrations/0001_profiles_rls.sql`, `db/migrations/meta/_journal.json`, `docs/DECISIONS.md`.
+- testes: `tests/lib/rbac.test.ts` (6 casos) + verificação por query direta ao Postgres real (policies, ACL de tabela/coluna) em 2026-09-04.
+- próximo passo: nenhum para esta task. SCL-200 e SCL-300 já podem começar.
 
 ---
 
