@@ -32,6 +32,7 @@
 | SCL-005 | Drizzle + migrations | P0 | db | BLOCKED | agent:claude-code | SCL-001,SCL-004 |
 | SCL-006 | Auth base | P0 | auth | BLOCKED | agent:claude-code | SCL-004,SCL-005 |
 | SCL-007 | RBAC/RLS base | P0 | auth | BLOCKED | agent:claude-code | SCL-006 |
+| SCL-008 | Observabilidade (Sentry + logging) | P0 | infra | DONE | agent:claude-code | SCL-001 |
 | SCL-009 | Design tokens + layout base | P0 | ui | DONE | agent:claude-code | SCL-001 |
 | SCL-100 | Schema Client | P0 | db | BACKLOG | unassigned | SCL-005 |
 | SCL-102 | Schema ExperiencePackage | P0 | db | BACKLOG | unassigned | SCL-005 |
@@ -276,6 +277,46 @@ Dar a toda Server Action/Route Handler admin uma checagem de papel padronizada (
 - arquivos alterados: `lib/auth/rbac.ts`, `tests/lib/rbac.test.ts`, `db/migrations/0001_profiles_rls.sql`, `db/migrations/meta/_journal.json`.
 - testes: `tests/lib/rbac.test.ts` (6 casos: `hasMinimumRole` e `requireRole`) — únicos testáveis sem banco real; a aplicação e o comportamento das políticas de RLS em si só podem ser verificados contra um projeto Supabase real.
 - próximo passo: assim que SCL-004/SCL-005/SCL-006 forem desbloqueadas (projeto Supabase real disponível), rodar `npm run db:migrate`, confirmar as 3 políticas em `profiles` no dashboard do Supabase, então marcar SCL-007 `DONE`.
+
+---
+
+### SCL-008 — Observabilidade (Sentry + structured logging)
+
+- Status: DONE
+- Priority: P0
+- Area: infra
+- Owner: agent:claude-code
+- Branch: —
+- PR: —
+- Depends on: SCL-001
+- Blocks: SCL-220 (e futuras tasks do Epic 1 com mutação financeira)
+- Files/Scope: `sentry.client.config.ts`, `sentry.server.config.ts`, `sentry.edge.config.ts`, `next.config.ts`, `lib/observability/logger.ts`, `tests/lib/logger.test.ts`
+- Migration: no
+- Updated at: 2026-09-03
+
+**Goal**
+
+Instrumentar erros com Sentry nos três runtimes do Next.js (client/server/edge) e fornecer um logger estruturado (`lib/observability/logger.ts`) que as tasks futuras de mutação financeira (registrar pagamento, recalcular saldo) devem usar em vez de `console.log` puro, por PRD §14 e §10.8.
+
+**Acceptance criteria**
+
+- [x] `@sentry/nextjs` instalado;
+- [x] `sentry.client.config.ts`, `sentry.server.config.ts`, `sentry.edge.config.ts` criados, cada um com `enabled: !!dsn` — inertes sem DSN real;
+- [x] `next.config.ts` envolvido com `withSentryConfig`;
+- [x] `logger.debug/info/warn/error(message, context)` implementado emitindo JSON estruturado (`level`, `message`, `timestamp`, ...context), roteando `error`→`console.error`, `warn`→`console.warn`, demais→`console.log`;
+- [x] teste (`tests/lib/logger.test.ts`) escrito antes da implementação (TDD: RED confirmado — módulo inexistente — depois GREEN);
+- [x] `npm run build` bem-sucedido sem `SENTRY_DSN`/`NEXT_PUBLIC_SENTRY_DSN` configurados (Sentry fica desabilitado, não quebra o build);
+- [x] `npm run test`, `npm run typecheck`, `npm run lint` verdes.
+
+**Implementation notes**
+
+- Não depende de projeto Supabase nem de credenciais reais — diferente de SCL-004/005/006/007, este task fica genuinamente `DONE` sem infraestrutura externa, já que `enabled: !!dsn` torna o Sentry um no-op sem DSN.
+- `@sentry/nextjs@10.73.0` emite um aviso de depreciação no build (`Importing withSentryConfig from @sentry/nextjs is deprecated ... import from '@sentry/nextjs/config' instead`, removido no v11) — mantido o import de `@sentry/nextjs` conforme o brief da task (verbatim); revisitar quando a v11 for adotada.
+- `.env.example` já continha `SENTRY_DSN`/`NEXT_PUBLIC_SENTRY_DSN` desde a SCL-001, nenhuma alteração necessária ali.
+
+**Blocker/Hand-off notes**
+
+—
 
 ---
 
