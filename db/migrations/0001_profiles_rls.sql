@@ -24,8 +24,15 @@ create policy "profiles_update_own"
 create policy "profiles_admin_full_access"
   on "profiles" for all
   using (public.is_admin());--> statement-breakpoint
--- RLS restricts rows, not columns: without this revoke, `profiles_update_own` would let
--- any logged-in user run `update profiles set role = 'admin' where id = auth.uid()`.
--- `authenticated` is the Postgres role Supabase's Data API (PostgREST) assumes for a
--- logged-in user; `anon` has no UPDATE grant on this table, so it needs no revoke.
-revoke update (role) on table "profiles" from "authenticated";
+-- RLS restricts rows, not columns: without this, `profiles_update_own` would let any logged-in
+-- user run `update profiles set role = 'admin' where id = auth.uid()`.
+--
+-- This MUST revoke at table level first. Per the PostgreSQL docs, "if a role has been granted
+-- privileges on a table, then revoking the same privileges from individual columns will have no
+-- effect" — and Supabase grants `authenticated` table-level UPDATE on everything in `public`
+-- through ALTER DEFAULT PRIVILEGES configured outside this repo, so a column-level revoke alone
+-- is silently a no-op. Both API roles are revoked explicitly rather than assuming what `anon`
+-- was granted, since those defaults are not visible anywhere in this repository.
+revoke update on table "profiles" from "authenticated", "anon";--> statement-breakpoint
+-- Grant back only the column a user may legitimately change about themselves.
+grant update ("full_name") on table "profiles" to "authenticated";

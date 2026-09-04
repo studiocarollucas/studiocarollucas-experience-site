@@ -10,8 +10,12 @@ security definer
 set search_path = public
 as $$
 begin
+  -- profiles.email is NOT NULL. The MVP only uses email-based auth (magic link for clients,
+  -- e-mail + password for staff), so new.email is always present today; the coalesce is a
+  -- defensive guard so that enabling phone or anonymous sign-in later — where auth.users.email
+  -- is NULL — degrades to an empty string instead of aborting signup with an opaque DB error.
   insert into public.profiles (id, email, role)
-  values (new.id, new.email, 'client')
+  values (new.id, coalesce(new.email, ''), 'client')
   on conflict (id) do nothing;
   return new;
 end;
@@ -20,6 +24,9 @@ drop trigger if exists on_auth_user_created on auth.users;--> statement-breakpoi
 create trigger on_auth_user_created
   after insert on auth.users
   for each row execute function public.handle_new_user();--> statement-breakpoint
+-- Dropped first so the whole file stays re-runnable, matching the create-or-replace /
+-- drop-if-exists / on-conflict convention used by every other statement here.
+alter table "profiles" drop constraint if exists profiles_id_fkey;--> statement-breakpoint
 alter table "profiles"
   add constraint profiles_id_fkey
   foreign key (id) references auth.users(id) on delete cascade;
