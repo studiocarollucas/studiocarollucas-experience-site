@@ -18,6 +18,21 @@ describe("isSafeRedirect", () => {
     expect(isSafeRedirect(null)).toBe(false);
     expect(isSafeRedirect(undefined)).toBe(false);
   });
+
+  // Browsers normalize a backslash, tab or newline after the leading "/" into an authority
+  // separator when resolving a Location header, so each of these resolves to https://evil.com/
+  // despite starting with a single "/". A startsWith("//") check does not catch them.
+  it("rejects a backslash authority bypass", () => {
+    expect(isSafeRedirect("/\\evil.com")).toBe(false);
+  });
+
+  it("rejects a tab-separated authority bypass", () => {
+    expect(isSafeRedirect("/\t/evil.com")).toBe(false);
+  });
+
+  it("rejects a newline-separated authority bypass", () => {
+    expect(isSafeRedirect("/\n/evil.com")).toBe(false);
+  });
 });
 
 describe("safeRedirect", () => {
