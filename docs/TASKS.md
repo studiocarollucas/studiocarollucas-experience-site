@@ -41,7 +41,7 @@
 | SCL-103 | Schema Shoot | P0 | db | DONE | agent:claude-code | SCL-100,SCL-102 |
 | SCL-104 | Schema Payment/Expense | P0 | db | DONE | agent:claude-code | SCL-103 |
 | SCL-106 | Schema ProductionJob | P0 | db | BACKLOG | unassigned | SCL-103 |
-| SCL-105 | Schema PreparationTask | P1 | db | BACKLOG | unassigned | SCL-103 |
+| SCL-105 | Schema PreparationTask | P1 | db | DONE | agent:claude-code | SCL-103 |
 | SCL-200 | Shell Admin | P1 | admin | BACKLOG | unassigned | SCL-007,SCL-009 |
 | SCL-202 | Lista de clientes | P1 | admin | BACKLOG | unassigned | SCL-100,SCL-200 |
 | SCL-203 | Ficha da cliente | P1 | admin | BACKLOG | unassigned | SCL-100,SCL-200 |
@@ -583,6 +583,53 @@ Criar as tabelas `payments` (com FK obrigatória para `shoots`) e `expenses` (in
 - arquivos alterados: ver Files/Scope acima.
 - testes: `tests/domain/balance.test.ts` (8 casos, TDD RED→GREEN, cobrindo full-balance/parcial/exato/overpayment para `calculateBalance` e os 3 estados + caso "ignora pendente/estornado" para `deriveShootPaymentStatus`) + `tests/domain/payments.test.ts` (4 casos, TDD RED→GREEN) + verificação por query direta ao Postgres real em 2026-09-04.
 - próximo passo: SCL-220 (Registrar pagamento) já pode começar, importando `calculateBalance()`/`deriveShootPaymentStatus()` de `domain/payments/balance.ts` diretamente (ver nota de implementação acima) em vez de reimplementar a aritmética.
+
+---
+
+### SCL-105 — Schema PreparationTask
+
+- Status: DONE
+- Priority: P1
+- Area: db
+- Owner: agent:claude-code
+- Branch: —
+- PR: —
+- Depends on: SCL-103
+- Blocks: SCL-211, SCL-302
+- Files/Scope: `db/schema/preparation-tasks.ts`, `db/schema/index.ts`, `db/migrations/0013_empty_donald_blake.sql`, `db/migrations/0014_preparation_tasks_rls.sql`, `db/migrations/meta/_journal.json`, `domain/preparation/schema.ts`, `domain/preparation/service.ts`, `tests/domain/preparation-tasks.test.ts`
+- Migration: yes
+- Updated at: 2026-09-04
+
+**Goal**
+
+Criar a tabela `preparation_tasks` (com FK obrigatória para `shoots`), representando o checklist de preparação de cada ensaio (moodboard, figurino, clutch, make, pagamento, etc. — PRD §7.6/§7.7). Cada linha é uma tarefa avulsa com `status` (`pendente`/`em_andamento`/`concluida`) e uma flag `visible_to_client` que controla o que aparece no futuro portal da cliente (Epic 3).
+
+**Acceptance criteria**
+
+- [x] `preparation_tasks` com `shoot_id` `NOT NULL` + FK `preparation_tasks_shoot_id_fkey` → `shoots.id`;
+- [x] `status` como enum Postgres (`preparation_task_status`: `pendente`/`em_andamento`/`concluida`), default `'pendente'`;
+- [x] `visible_to_client` boolean, default `true`;
+- [x] `due_at`/`completed_at` como `timestamp with time zone`, nulável, tratados como string ISO ponta a ponta (Zod `z.string().optional()`), mesmo padrão de `paidAt` em `domain/payments`;
+- [x] validação de input (`createPreparationTaskSchema`, Zod, testado via TDD, 4 casos);
+- [x] `createPreparationTask()` é um insert puro (parse + insert + returning), sem nenhuma regra de transição de status — esta task não define regras de negócio para `PreparationTask`, só o schema e o CRUD mínimo (create + list);
+- [x] `getPreparationTasksByShootId()` retorna um array (`PreparationTask[]`), não uma linha única — primeira função de leitura em lista do plano até aqui, já que um ensaio tem várias tarefas de preparação;
+- [x] RLS habilitada com policy `preparation_tasks_staff_access` (`public.is_staff_or_admin()`), verificada por query direta ao Postgres real. (Uma cliente lendo só as tarefas do próprio ensaio com `visible_to_client = true` é escopo do Epic 3, mesma lógica de adiamento das Tasks 2 e 4.)
+
+**Implementation notes**
+
+- Mesmo padrão de FK explícita das tasks anteriores: `npm run db:generate` confirmou "0 fks" para `preparation_tasks`, então `preparation_tasks_shoot_id_fkey` foi acrescentada como statement escrito à mão no arquivo gerado (`0013_empty_donald_blake.sql`).
+- `db/migrations/meta/_journal.json`: `idx 13` (`0013_empty_donald_blake`, gerada) recebeu `when` automático do próprio `drizzle-kit generate`; `idx 14` (`0014_preparation_tasks_rls`, RLS escrita à mão) recebeu `Date.now()` capturado manualmente, estritamente maior que o `when` do `idx 13`. Ambos monotônicos e não futuros, confirmados pelo hook `predb:migrate` antes de cada `db:migrate`.
+- Desvio pontual do brief, aplicado proativamente desde o início (mesma classe de bug já diagnosticada na Task 5/SCL-104, não redescoberta aqui): o brief especificava `dueAt`/`completedAt` como `timestamp(..., { withTimezone: true })` sem `mode`, o que o Drizzle infere como `Date` no TypeScript, enquanto `domain/preparation/schema.ts` trata os dois campos como `z.string().optional()` (ISO string) ponta a ponta. Corrigido acrescentando `mode: "string"` às duas colunas (`db/schema/preparation-tasks.ts`) antes de rodar `npm run typecheck` pela primeira vez. Confirmado que o fix é realmente necessário (não só assumido): removendo `mode: "string"` temporariamente, `npm run typecheck` falha com `Type 'string' is not assignable to type 'SQL<unknown> | Date | Placeholder<...> | null | undefined'` em `domain/preparation/service.ts`, exatamente o erro visto em SCL-104 para `paidAt`; restaurado o fix, typecheck volta a passar limpo. `mode` é só anotação de tipo do lado do driver/TS — a coluna SQL gerada (`timestamp with time zone`) e o diff de migration não mudam com ou sem `mode` (confirmado: `0013_empty_donald_blake.sql` gerado com o fix já em vigor bate exatamente com o SQL literal do brief).
+- `domain/preparation/schema.ts` exporta `CreatePreparationTaskInput` como `z.input<typeof createPreparationTaskSchema>`, não `z.infer` (mesmo padrão de `docs/DECISIONS.md`, 2026-09-04) — `status` e `visibleToClient` têm `.default()`.
+- Sem teste de integração contra o banco real nesta task (mesmo padrão de SCL-101/SCL-103/SCL-104) e sem função pura de lógica de negócio — `PreparationTask` não tem regras de transição de status nesta task, só `createPreparationTask()`/`getPreparationTasksByShootId()`. Verificação contra o Supabase real feita por query direta (colunas, FK, RLS, policy, `drizzle.__drizzle_migrations`), não só pelo exit code do `db:migrate`.
+
+**Blocker/Hand-off notes**
+
+- concluído: schema (`preparationTasks`), migrations (0013 gerada + FK manual, 0014 RLS manual), módulo de domínio (`schema.ts`/`service.ts`) e teste (TDD RED→GREEN) completos. `npm run test` (70/70), `npm run typecheck`, `npm run lint` (0 erros, 5 warnings pré-existentes do mesmo padrão de desestruturação já visto em SCL-103/SCL-104), `npm run build` verdes. Verificado contra o Supabase real: 9 colunas de `preparation_tasks`, FK `preparation_tasks_shoot_id_fkey` → `shoots(id)` presente em `pg_constraint`, RLS habilitada (`relrowsecurity = true`), policy `preparation_tasks_staff_access` presente em `pg_policies`, e ambas as entradas de migration (`idx 13`/`idx 14`) registradas em `drizzle.__drizzle_migrations`.
+- falta: nada pendente nesta task. Nenhuma regra de transição de status nem orquestração com `shoots`/`ProductionJob` — essa composição é escopo de SCL-211 (Epic 2), que vai chamar `createPreparationTask()` junto com os helpers de Task 5/7 dentro de uma transação, quando a UI de Admin de fato precisar disso (mesma nota de escopo já registrada em SCL-103 para `createShoot()`).
+- arquivos alterados: ver Files/Scope acima.
+- testes: `tests/domain/preparation-tasks.test.ts` (4 casos: aceita mínimo válido, aplica defaults de `status`/`visibleToClient`, rejeita `title`/`shootId` ausentes — TDD RED→GREEN) + verificação por query direta ao Postgres real em 2026-09-04.
+- próximo passo: SCL-211 (Criar ensaio ponta a ponta) e SCL-302 (Home cliente + progresso) já podem começar, importando `createPreparationTask()`/`getPreparationTasksByShootId()` de `domain/preparation/service.ts` diretamente.
 
 ---
 
