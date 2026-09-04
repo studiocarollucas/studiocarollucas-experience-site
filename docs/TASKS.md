@@ -27,7 +27,7 @@
 |---|---|---:|---|---|---|---|
 | SCL-001 | Inicializar repositório | P0 | infra | DONE | agent:claude-code | none |
 | SCL-002 | Lint/format/typecheck/tests | P0 | infra | DONE | agent:claude-code | SCL-001 |
-| SCL-003 | CI + preview deploys | P0 | infra | BACKLOG | unassigned | SCL-001,SCL-002 |
+| SCL-003 | CI + preview deploys | P0 | infra | BLOCKED | agent:claude-code | SCL-001,SCL-002 |
 | SCL-004 | Projeto Supabase + ambientes | P0 | db | BLOCKED | agent:claude-code | none |
 | SCL-005 | Drizzle + migrations | P0 | db | BLOCKED | agent:claude-code | SCL-001,SCL-004 |
 | SCL-006 | Auth base | P0 | auth | BLOCKED | agent:claude-code | SCL-004,SCL-005 |
@@ -130,6 +130,41 @@ Criar a base do projeto Next.js + TypeScript, pronta para desenvolvimento em equ
 **Blocker/Hand-off notes**
 
 —
+
+---
+
+### SCL-003 — CI + preview deploys
+
+- Status: BLOCKED
+- Priority: P0
+- Area: infra
+- Owner: agent:claude-code
+- Branch: —
+- PR: —
+- Depends on: SCL-001, SCL-002
+- Blocks: `IN_REVIEW → MERGE_READY` transition (PRD §19.3) para todas as tasks dos Epics 1–6
+- Files/Scope: `.github/workflows/ci.yml`, `docs/runbooks/deploy.md`
+- Migration: no
+- Updated at: 2026-09-03
+
+**Goal**
+
+Dar todo PR um sinal de CI (lint, typecheck, test, build) e documentar o procedimento de deploy via Vercel.
+
+**Acceptance criteria**
+
+- [x] `.github/workflows/ci.yml` criado rodando lint, typecheck, test e build em `push`/`pull_request`, com env vars placeholder no passo de build (nenhum segredo real commitado);
+- [ ] branch enviada para um remoto GitHub e workflow confirmado rodando verde na aba Actions;
+- [ ] repositório conectado a um projeto Vercel, com env vars reais configuradas separadamente em Production e Preview;
+- [x] `docs/runbooks/deploy.md` documentando o procedimento de deploy.
+
+**Blocker/Hand-off notes**
+
+- concluído: workflow CI e runbook de deploy prontos; falta o usuário conectar um remoto GitHub e um projeto Vercel para validar o pipeline de verdade — mesma categoria de bloqueio de SCL-004/005/006/007, mas por falta de remoto/conta, não pela indisponibilidade do Supabase.
+- falta: `git push -u origin HEAD` para um remoto GitHub real, confirmação visual do workflow `CI` verde na aba Actions, e a conexão do repositório a um projeto Vercel (import, framework preset, env vars de Production/Preview, deploy, e um PR de teste confirmando o Preview Deployment).
+- arquivos alterados: `.github/workflows/ci.yml`, `docs/runbooks/deploy.md`.
+- testes: verificação local equivalente aos passos do workflow — `npm run lint`, `npm run typecheck`, `npm run test` e `npm run build` (com as mesmas env vars placeholder do workflow) todos verdes na working tree atual.
+- próximo passo: assim que o usuário criar/conectar o remoto GitHub e o projeto Vercel, fazer o push, confirmar o workflow `CI` verde na aba Actions, conectar o repositório no dashboard da Vercel conforme `docs/runbooks/deploy.md`, então marcar SCL-003 `DONE`.
 
 ---
 
