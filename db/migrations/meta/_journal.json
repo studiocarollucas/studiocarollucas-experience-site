@@ -15,6 +15,13 @@
       "when": 1788555600000,
       "tag": "0001_profiles_rls",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1788642000000,
+      "tag": "0002_handle_new_user_trigger",
+      "breakpoints": true
     }
   ]
 }
