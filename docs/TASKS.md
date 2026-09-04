@@ -38,7 +38,7 @@
 | SCL-101 | Schema Lead + transições de status | P0 | db | DONE | agent:claude-code | SCL-005,SCL-100 |
 | SCL-102 | Schema ExperiencePackage | P0 | db | DONE | agent:claude-code | SCL-005 |
 | SCL-108 | Seeds de experiências | P0 | db | DONE | agent:claude-code | SCL-102 |
-| SCL-103 | Schema Shoot | P0 | db | BACKLOG | unassigned | SCL-100,SCL-102 |
+| SCL-103 | Schema Shoot | P0 | db | DONE | agent:claude-code | SCL-100,SCL-102 |
 | SCL-104 | Schema Payment/Expense | P0 | db | BACKLOG | unassigned | SCL-103 |
 | SCL-106 | Schema ProductionJob | P0 | db | BACKLOG | unassigned | SCL-103 |
 | SCL-105 | Schema PreparationTask | P1 | db | BACKLOG | unassigned | SCL-103 |
@@ -490,31 +490,50 @@ Criar a tabela `leads` (funil de captação: Instagram, indicação, quiz, Whats
 
 ### SCL-103 — Implementar contrato de Shoot
 
-- Status: BACKLOG
+- Status: DONE
 - Priority: P0
 - Area: db
-- Owner: unassigned
+- Owner: agent:claude-code
 - Branch: —
 - PR: —
 - Depends on: SCL-100, SCL-102
 - Blocks: SCL-104, SCL-105, SCL-106, SCL-210, SCL-211, SCL-302
-- Files/Scope: db/schema/shoot*, domain/shoots/**
+- Files/Scope: `db/schema/shoots.ts`, `db/schema/index.ts`, `db/migrations/0009_happy_pixie.sql`, `db/migrations/0010_shoots_rls.sql`, `db/migrations/meta/_journal.json`, `domain/shoots/schema.ts`, `domain/shoots/service.ts`, `domain/shoots/status.ts`, `tests/domain/shoots.test.ts`, `tests/domain/shoot-status.test.ts`
 - Migration: yes
-- Updated at: 2026-09-03
+- Updated at: 2026-09-04
 
 **Goal**
 
-Criar a entidade operacional central usada por Admin e Minha Experiência.
+Criar a entidade operacional central usada por Admin e Minha Experiência — a tabela `shoots` — com FKs obrigatórias para `clients` e `experience_packages`, e as regras puras de transição de status do pipeline operacional (`reserva → preparacao → realizado → edicao → finalizado → reveal → entregue`, com `cancelado` alcançável a partir de quase todos os estágios não-terminais, `reagendado` alcançável só a partir de estágios pré-ensaio, e `reagendado → reserva` como o único caminho de volta ao pipeline).
 
 **Acceptance criteria**
 
-- [ ] vínculo obrigatório com Client;
-- [ ] vínculo com ExperiencePackage;
-- [ ] data/horário/status/valor acordado persistidos;
-- [ ] estados de domínio documentados;
-- [ ] validação de input;
-- [ ] testes do serviço/contrato;
-- [ ] nenhuma regra financeira derivada duplicada no Shoot.
+- [x] vínculo obrigatório com Client (`client_id` `NOT NULL`, FK `shoots_client_id_fkey` → `clients.id`);
+- [x] vínculo com ExperiencePackage (`experience_package_id` `NOT NULL`, FK `shoots_experience_package_id_fkey` → `experience_packages.id`);
+- [x] data/horário/status/valor acordado persistidos (`shoot_date` `date` obrigatório, `start_time` `time` opcional, `status` via `pgEnum` com default `reserva`, `agreed_price` `numeric(10,2)` obrigatório como string, nunca `number`);
+- [x] estados de domínio documentados (`canTransitionShootStatus()` em `domain/shoots/status.ts`, com comentário explicando por que `reagendado` só é possível pré-`realizado`);
+- [x] validação de input (`createShootSchema`, Zod, testado via TDD);
+- [x] testes do serviço/contrato (`tests/domain/shoot-status.test.ts`: 6 casos; `tests/domain/shoots.test.ts`: 5 casos; ambos TDD RED→GREEN);
+- [x] nenhuma regra financeira derivada duplicada no Shoot — `payment_status` é explicitamente um cache denormalizado, não fonte de verdade (ver Implementation notes abaixo); `createShoot()` é um insert puro, sem nenhuma orquestração de `ProductionJob`/`PreparationTask` (deliberadamente adiada para SCL-211, Epic 2).
+
+**Implementation notes**
+
+- **Nota de design para o implementador de SCL-104 (Payment) / SCL-220 (Registrar pagamento)**: `shoots.payment_status` é um cache/denormalizado, **não** uma segunda fonte de verdade. Essa coluna existe só para que telas de listagem do Admin não precisem re-somar as linhas de `Payment` a cada render. Ela só pode ser escrita pela função de domínio de registro de pagamento (SCL-220, que chama `deriveShootPaymentStatus()` de `domain/payments`, Task 5 deste plano) — nunca editável diretamente pelo usuário. A fonte de verdade real é sempre a soma das linhas `Payment` confirmadas deste ensaio; ver PRD §7.5 e a função de derivação da task de Payment para o cálculo real. Este mesmo comentário está reproduzido verbatim em `db/schema/shoots.ts`.
+- Mesmo padrão de FK explícita das tasks anteriores (SCL-100, SCL-101): `npm run db:generate` confirmou "0 fks" gerados para as 5 tabelas do schema (`shoots` incluída), então ambas as constraints (`shoots_client_id_fkey`, `shoots_experience_package_id_fkey`) foram acrescentadas como statements escritos à mão no mesmo arquivo gerado (`0009_happy_pixie.sql`), e verificadas por query direta a `pg_constraint` no projeto Supabase real (não só pelo exit code do `db:migrate`).
+- `db/migrations/meta/_journal.json`: `idx 9` (`0009_happy_pixie`) recebeu `when` gerado automaticamente pelo próprio `drizzle-kit generate`; `idx 10` (`0010_shoots_rls`, migration de RLS escrita à mão) recebeu `Date.now()` capturado manualmente no momento da edição. Ambos monotônicos e não futuros, confirmados pelo hook `predb:migrate` antes de cada `db:migrate` — nenhuma recorrência do bug de timestamp futuro descoberto em SCL-102.
+- `canTransitionShootStatus()` (`domain/shoots/status.ts`) não toca o banco — `ShootStatus` é derivado do próprio `shootStatusEnum.enumValues` do Drizzle (`db/schema/shoots.ts`), mesmo padrão de `domain/leads/status.ts`. A regra é mais complexa que a de Lead: pipeline linear de 7 estágios, `cancelado` alcançável de qualquer estágio não-terminal (inclusive pós-`realizado`, já que o cliente pode cancelar edição/entrega), `reagendado` alcançável só de `reserva`/`preparacao` (pré-ensaio — depois que o ensaio aconteceu, "reagendar" deixa de fazer sentido), e `reagendado → reserva` como único caminho de volta ao pipeline principal.
+- `domain/shoots/schema.ts` exporta `CreateShootInput` como `z.input<typeof createShootSchema>`, não `z.infer` (o brief citava `z.infer` no snippet, mas a decisão registrada em `docs/DECISIONS.md`, 2026-09-04, já cobre "qualquer schema futuro deste plano" com campo `.default()`) — aqui há três campos assim (`status`, `paymentStatus`, `portalEnabled`).
+- Desvio pontual do brief, restrito às strings de fixture do teste: os testes de UUID do brief usavam literais como `"00000000-0000-0000-0000-000000000001"`, que a versão de `zod` instalada neste repositório (4.5.4) rejeita — seu validador `.uuid()` exige um nibble de versão `1-8` na terceira posição (exceto os casos especiais all-zero/all-f), e `...0001` não satisfaz isso. Trocado por UUIDs v4-válidos (`"00000000-0000-4000-8000-000000000001"`/`"...002"`) em `tests/domain/shoots.test.ts` — mesma estrutura de teste do brief, só a string do fixture mudou; `createShootSchema`/`domain/shoots/schema.ts` permanecem exatamente como especificado (`z.string().uuid()`).
+- `agreedPrice` permanece string ponta a ponta: `numeric("agreed_price", ...)` no Drizzle, `z.string().regex(...)` no Zod, sem nenhuma conversão numérica em `domain/shoots/service.ts` — confirmado por leitura de todo o caminho create→insert.
+- `createShoot()` é um insert puro (parse + insert + returning), sem nenhuma orquestração de `ProductionJob`/checklist de `PreparationTask` — essa composição é explicitamente escopo de SCL-211 (Epic 2), que vai chamar `createShoot()` junto com os helpers de Task 6/7 dentro de uma transação, quando a UI de Admin de fato precisar disso.
+
+**Blocker/Hand-off notes**
+
+- concluído: schema, migrations (0009 gerada + 2 FKs manuais, 0010 RLS manual), módulo de domínio (`schema.ts`/`service.ts`/`status.ts`) e testes (TDD RED→GREEN, transições primeiro conforme o brief, depois Zod/service) completos. `npm run test` (54/54), `npm run typecheck`, `npm run lint` (0 erros, 2 warnings pré-existentes do padrão de desestruturação do próprio brief), `npm run build` verdes. Verificado contra o Supabase real (não só pelo exit code): 14 colunas de `shoots`, ambas as FKs (`shoots_client_id_fkey` → `clients(id)`, `shoots_experience_package_id_fkey` → `experience_packages(id)`) presentes em `pg_constraint`, RLS habilitada (`relrowsecurity = true`), policy `shoots_staff_access` presente em `pg_policy`, e ambas as entradas de migration (`idx 9`/`idx 10`) registradas em `drizzle.__drizzle_migrations`.
+- falta: nada pendente nesta task. Esta task não inclui teste de integração real contra o banco (mesmo padrão de SCL-101) — o brief só pede testes puros de transição de status e de Zod/schema.
+- arquivos alterados: ver Files/Scope acima.
+- testes: `tests/domain/shoot-status.test.ts` (6 casos, TDD RED→GREEN) + `tests/domain/shoots.test.ts` (5 casos, TDD RED→GREEN, com fixtures de UUID v4-válidas por causa da versão de `zod` instalada) + verificação por query direta ao Postgres real em 2026-09-04.
+- próximo passo: SCL-104 (Payment/Expense), SCL-105 (PreparationTask) e SCL-106 (ProductionJob) já podem começar, todas com FK para `shoots.id`. SCL-104/SCL-220 em particular devem ler a nota de design sobre `shoots.payment_status` acima antes de implementar qualquer escrita nessa coluna.
 
 ---
 
