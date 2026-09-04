@@ -35,7 +35,8 @@
 | SCL-008 | Observabilidade (Sentry + logging) | P0 | infra | DONE | agent:claude-code | SCL-001 |
 | SCL-009 | Design tokens + layout base | P0 | ui | DONE | agent:claude-code | SCL-001 |
 | SCL-100 | Schema Client | P0 | db | BACKLOG | unassigned | SCL-005 |
-| SCL-102 | Schema ExperiencePackage | P0 | db | BACKLOG | unassigned | SCL-005 |
+| SCL-102 | Schema ExperiencePackage | P0 | db | DONE | agent:claude-code | SCL-005 |
+| SCL-108 | Seeds de experiências | P0 | db | DONE | agent:claude-code | SCL-102 |
 | SCL-103 | Schema Shoot | P0 | db | BACKLOG | unassigned | SCL-100,SCL-102 |
 | SCL-104 | Schema Payment/Expense | P0 | db | BACKLOG | unassigned | SCL-103 |
 | SCL-106 | Schema ProductionJob | P0 | db | BACKLOG | unassigned | SCL-103 |
@@ -353,6 +354,49 @@ Instrumentar erros com Sentry nos três runtimes do Next.js (client/server/edge)
 **Blocker/Hand-off notes**
 
 —
+
+---
+
+### SCL-102 — Schema ExperiencePackage
+
+- Status: DONE
+- Priority: P0
+- Area: db
+- Owner: agent:claude-code
+- Branch: —
+- PR: —
+- Depends on: SCL-005
+- Blocks: SCL-103
+- Files/Scope: `db/schema/experience-packages.ts`, `db/schema/index.ts`, `db/migrations/0003_harsh_ogun.sql`, `db/migrations/0004_experience_packages_rls.sql`, `db/migrations/meta/_journal.json`, `db/seeds/experience-packages.ts`, `domain/catalog/experience-package.ts`, `tests/domain/experience-package.test.ts`, `package.json`, `tsconfig.json`
+- Migration: yes
+- Updated at: 2026-09-04
+
+**Goal**
+
+Criar a tabela `experience_packages` (catálogo de pacotes vendidos) e o helper `public.is_staff_or_admin()` que toda tabela de negócio do Studio OS (Epic 1 em diante) vai reaproveitar como backstop de RLS.
+
+**Acceptance criteria**
+
+- [x] schema Drizzle criado (`experience_packages`: nome, preço base decimal, fotos incluídas, duração, cenas, maquiagem/clutch inclusos, limite de trocas de roupa, ativo, criado em);
+- [x] migration gerada por `db:generate` aplicada contra o projeto Supabase real (`0003_harsh_ogun.sql`) — tabela confirmada em `information_schema.columns` com as 11 colunas esperadas;
+- [x] `public.is_staff_or_admin()` criado (generaliza `public.is_admin()` de `0001_profiles_rls.sql` para também admitir `staff`) e RLS habilitada em `experience_packages` com policy `experience_packages_staff_access` — confirmado via `pg_class.relrowsecurity`, `pg_policies` e `pg_proc.prosecdef` no projeto real;
+- [x] 4 pacotes seedados (Cinderela, Bella, Aurora, Diana), todos `active = true`, `base_price = 0.00` (placeholder) — confirmado por query direta contando exatamente 4 linhas;
+- [x] `createExperiencePackageSchema` (Zod) testado via TDD: RED confirmado (`@/domain/catalog/experience-package` sem exports) antes da implementação, GREEN depois (3 testes: pacote válido aceito, nome vazio rejeitado, `includedPhotos` não positivo rejeitado).
+
+**Implementation notes**
+
+- `public.is_staff_or_admin()` agora existe para toda migration de RLS das próximas tasks deste plano reaproveitar (mesmo padrão `security definer`/`stable` de `public.is_admin()`), em vez de cada tabela reimplementar a checagem de papel.
+- Bug de journal descoberto e corrigido durante esta task: as entradas `idx 1`/`idx 2` de `db/migrations/meta/_journal.json` (herdadas de SCL-005/SCL-007) têm timestamps `when` no futuro em relação ao horário real (`2026-09-04T21:00:00Z` e `2026-09-05T21:00:00Z`). O migrator do drizzle-orm só aplica uma migration se seu `folderMillis` for maior que o `created_at` já registrado em `__drizzle_migrations` — como a migration `0003` recém-gerada recebeu um `Date.now()` real, menor que esse teto artificial, `db:migrate` retornou exit 0 e "migrations applied successfully!" sem aplicar nada (tabela não existia, nenhuma linha nova em `__drizzle_migrations`). Corrigido ajustando os `when` de `0003`/`0004` para valores acima desse teto, sem tocar nas entradas já aplicadas (`idx 0-2`) nem em dado nenhum do banco real. Esse mesmo teto pode voltar a colidir com a próxima migration gerada por uma task futura até o relógio real ultrapassar 2026-09-05T21:00:00Z — vale checar `_journal.json` antes de assumir que `db:migrate` aplicou algo só pelo exit code.
+- `db/seeds/experience-packages.ts` roda via `node --env-file-if-exists=.env.local --experimental-strip-types` (sem bundler) — o resolvedor ESM nativo do Node não entende o alias `@/` nem o import de diretório sem extensão `"./schema"` de `db/client.ts` (ambos são conveniências de TypeScript/bundler). O script monta seu próprio client mínimo (mesmas opções `prepare: false, max: 1` de `db/client.ts`) importando `../schema/experience-packages.ts` diretamente, em vez de reusar `db/client.ts`/`db/schema/index.ts`. `allowImportingTsExtensions` foi habilitado em `tsconfig.json` (seguro porque `noEmit` já é `true`) para o `.ts` explícito no import não quebrar `npm run typecheck`.
+- `zod` era apenas dependência transitiva de dev (via `eslint-config-next` → `eslint-plugin-react-hooks`), não uma dependência direta — promovido para `dependencies` em `package.json`, já que `domain/catalog/experience-package.ts` o importa diretamente e todo `create*` futuro deste plano depende dele.
+
+**Blocker/Hand-off notes**
+
+- concluído: schema, migrations (0003 gerada + 0004 manual), seed, módulo de domínio e teste Zod completos; `npm run test` (28/28), `npm run typecheck`, `npm run lint`, `npm run build` verdes. Verificado contra o Supabase real (não só pelo exit code): 11 colunas de `experience_packages`, RLS habilitada, policy e função `is_staff_or_admin()` presentes, exatamente 4 linhas seedadas.
+- falta: nada pendente nesta task.
+- arquivos alterados: ver Files/Scope acima.
+- testes: `tests/domain/experience-package.test.ts` (3 casos, TDD RED→GREEN) + verificação por query direta ao Postgres real em 2026-09-04.
+- próximo passo: SCL-103 (Schema Shoot) já pode começar, reaproveitando `public.is_staff_or_admin()` para sua própria migration de RLS.
 
 ---
 
