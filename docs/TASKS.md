@@ -35,6 +35,7 @@
 | SCL-008 | Observabilidade (Sentry + logging) | P0 | infra | DONE | agent:claude-code | SCL-001 |
 | SCL-009 | Design tokens + layout base | P0 | ui | DONE | agent:claude-code | SCL-001 |
 | SCL-100 | Schema Client | P0 | db | DONE | agent:claude-code | SCL-005 |
+| SCL-101 | Schema Lead + transições de status | P0 | db | DONE | agent:claude-code | SCL-005,SCL-100 |
 | SCL-102 | Schema ExperiencePackage | P0 | db | DONE | agent:claude-code | SCL-005 |
 | SCL-108 | Seeds de experiências | P0 | db | DONE | agent:claude-code | SCL-102 |
 | SCL-103 | Schema Shoot | P0 | db | BACKLOG | unassigned | SCL-100,SCL-102 |
@@ -440,6 +441,50 @@ Criar a tabela `clients` (registro CRM de cada cliente, PRD §7) que SCL-103 (Sh
 - arquivos alterados: ver Files/Scope acima.
 - testes: `tests/domain/clients.test.ts` (6 casos: 5 Zod via TDD RED→GREEN + 1 integração real com `afterAll` de limpeza) + verificação por query direta ao Postgres real em 2026-09-04.
 - próximo passo: SCL-103 (Schema Shoot) já pode começar, reaproveitando `public.is_staff_or_admin()` e referenciando `clients.id` via FK.
+
+---
+
+### SCL-101 — Schema Lead + transições de status
+
+- Status: DONE
+- Priority: P0
+- Area: db
+- Owner: agent:claude-code
+- Branch: —
+- PR: —
+- Depends on: SCL-005, SCL-100
+- Blocks: nenhuma task do backlog atual depende diretamente de SCL-101 (referenciada apenas informalmente pelo fluxo de captação do PRD)
+- Files/Scope: `db/schema/leads.ts`, `db/schema/index.ts`, `db/migrations/0007_lazy_nick_fury.sql`, `db/migrations/0008_leads_rls.sql`, `db/migrations/meta/_journal.json`, `domain/leads/schema.ts`, `domain/leads/service.ts`, `domain/leads/status.ts`, `tests/domain/leads.test.ts`, `tests/domain/lead-status.test.ts`
+- Migration: yes
+- Updated at: 2026-09-04
+
+**Goal**
+
+Criar a tabela `leads` (funil de captação: Instagram, indicação, quiz, WhatsApp — PRD §6) com FKs opcionais para `clients` (cliente já existente) e `profiles` (vendedora/responsável), e as regras puras de transição de status do funil (`novo → contato → proposta → negociacao → ganho`, com `perdido` alcançável a partir de qualquer estágio ativo e nenhuma transição permitida a partir de um estado terminal).
+
+**Acceptance criteria**
+
+- [x] schema Drizzle criado (`leads`: `client_id` nulável, dados temporários de contato (nome/telefone/email) para lead sem `Client` ainda, origem obrigatória, ocasião, resultado de quiz, `status` via `pgEnum` com default `novo`, motivo de perda, `owner` nulável referenciando `profiles`, criado em);
+- [x] migration gerada por `db:generate` (`0007_lazy_nick_fury.sql`) confirmada sem nenhuma FK auto-inferida (schema não usa `.references()`); ambas as FKs (`leads_client_id_fkey` → `clients.id`, `leads_owner_fkey` → `profiles.id`) adicionadas como statements escritos à mão no mesmo arquivo, aplicadas e confirmadas via `pg_constraint` no projeto Supabase real;
+- [x] RLS habilitada em `leads` (`0008_leads_rls.sql`) reaproveitando `public.is_staff_or_admin()` (SCL-102) via policy `leads_staff_access` — confirmado via `pg_class.relrowsecurity` e `pg_policy` no projeto real;
+- [x] `canTransitionLeadStatus()` (lógica pura, sem banco) testada via TDD: RED confirmado (`@/domain/leads/status` inexistente) antes da implementação, GREEN depois (5 casos: pipeline direta completa, `perdido` a partir de qualquer estágio ativo, rejeição de pular estágio, rejeição de sair de estado terminal, rejeição de transição para o mesmo estado);
+- [x] `createLeadSchema` (Zod) testado via TDD: RED confirmado (`@/domain/leads/schema` sem exports) antes da implementação, GREEN depois (4 casos: lead só com `source` aceito, `status` default `novo`, `source` ausente rejeitado, valor de `status` inválido rejeitado);
+- [x] `createLead()`/`getLeadById()` implementados seguindo o mesmo padrão create+getById de `domain/clients/service.ts` (sem update/delete/list nesta task).
+
+**Implementation notes**
+
+- Mesmo padrão de FK explícita de SCL-100 (`referrer_client_id`), mas aqui por ter duas colunas FK (`client_id`, `owner`) em vez de uma auto-referencial: `npm run db:generate` confirmou "0 fks" gerados para as 4 tabelas do schema, então ambas as constraints foram acrescentadas como um segundo e terceiro `--> statement-breakpoint` no mesmo arquivo gerado, escritas à mão, e verificadas por query direta a `pg_constraint` (não só pelo exit code do `db:migrate`).
+- `db/migrations/meta/_journal.json`: os dois novos índices (`idx 7`, `idx 8`) receberam `when` gerado automaticamente pelo próprio `drizzle-kit generate` (para `0007`) e por `Date.now()` capturado manualmente no momento da edição (para `0008`, migration de RLS escrita à mão) — ambos monotônicos e não futuros, confirmados pelo hook `predb:migrate` (`scripts/check-migration-journal.mjs`) antes de cada `db:migrate`, sem repetir o bug de timestamp futuro descoberto em SCL-102.
+- `domain/leads/schema.ts` exporta `CreateLeadInput` como `z.input<typeof createLeadSchema>`, não `z.infer` — reaproveitando a decisão registrada em `docs/DECISIONS.md` (2026-09-04) para qualquer schema futuro com `.default()`: `status` tem `.default("novo")`, então `z.infer` tornaria o campo obrigatório no tipo TypeScript mesmo sendo opcional em runtime via `.parse()`. O brief desta task citava `z.infer` no snippet, mas a decisão documentada em SCL-100 já cobre explicitamente "qualquer schema futuro deste plano" — aplicada aqui por consistência, sem alterar o comportamento em runtime.
+- `domain/leads/status.ts` não toca o banco — `LeadStatus` é derivado do próprio `leadStatusEnum.enumValues` do Drizzle (`db/schema/leads.ts`), então o enum Postgres e o tipo TypeScript nunca podem divergir.
+
+**Blocker/Hand-off notes**
+
+- concluído: schema, migrations (0007 gerada + 2 FKs manuais, 0008 RLS manual), módulo de domínio (`schema.ts`/`service.ts`/`status.ts`) e testes (TDD RED→GREEN, transições primeiro conforme o brief, depois Zod/service) completos. `npm run test` (43/43), `npm run typecheck`, `npm run lint`, `npm run build` verdes. Verificado contra o Supabase real (não só pelo exit code): 12 colunas de `leads`, ambas as FKs (`leads_client_id_fkey` → `clients(id)`, `leads_owner_fkey` → `profiles(id)`) presentes em `pg_constraint`, RLS habilitada (`relrowsecurity = true`), policy `leads_staff_access` presente em `pg_policy`, e ambas as entradas de migration (`idx 7`/`idx 8`) registradas em `drizzle.__drizzle_migrations`.
+- falta: nada pendente nesta task. Esta task não inclui teste de integração real contra o banco (diferente de SCL-100) — o brief só pede testes puros de Zod e de transição de status, nenhum dos dois toca o banco.
+- arquivos alterados: ver Files/Scope acima.
+- testes: `tests/domain/lead-status.test.ts` (5 casos, TDD RED→GREEN) + `tests/domain/leads.test.ts` (4 casos, TDD RED→GREEN) + verificação por query direta ao Postgres real em 2026-09-04.
+- próximo passo: nenhum bloqueio direto no backlog atual depende de SCL-101; a task fica disponível para uma futura camada de Admin/captação (fora do escopo do backlog atual) reaproveitar `createLead()`/`canTransitionLeadStatus()`.
 
 ---
 
