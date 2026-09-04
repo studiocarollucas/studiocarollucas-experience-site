@@ -40,7 +40,7 @@
 | SCL-108 | Seeds de experiências | P0 | db | DONE | agent:claude-code | SCL-102 |
 | SCL-103 | Schema Shoot | P0 | db | DONE | agent:claude-code | SCL-100,SCL-102 |
 | SCL-104 | Schema Payment/Expense | P0 | db | DONE | agent:claude-code | SCL-103 |
-| SCL-106 | Schema ProductionJob | P0 | db | BACKLOG | unassigned | SCL-103 |
+| SCL-106 | Schema ProductionJob | P0 | db | DONE | agent:claude-code | SCL-103 |
 | SCL-105 | Schema PreparationTask | P1 | db | DONE | agent:claude-code | SCL-103 |
 | SCL-200 | Shell Admin | P1 | admin | BACKLOG | unassigned | SCL-007,SCL-009 |
 | SCL-202 | Lista de clientes | P1 | admin | BACKLOG | unassigned | SCL-100,SCL-200 |
@@ -630,6 +630,55 @@ Criar a tabela `preparation_tasks` (com FK obrigatória para `shoots`), represen
 - arquivos alterados: ver Files/Scope acima.
 - testes: `tests/domain/preparation-tasks.test.ts` (4 casos: aceita mínimo válido, aplica defaults de `status`/`visibleToClient`, rejeita `title`/`shootId` ausentes — TDD RED→GREEN) + verificação por query direta ao Postgres real em 2026-09-04.
 - próximo passo: SCL-211 (Criar ensaio ponta a ponta) e SCL-302 (Home cliente + progresso) já podem começar, importando `createPreparationTask()`/`getPreparationTasksByShootId()` de `domain/preparation/service.ts` diretamente.
+
+---
+
+### SCL-106 — Schema ProductionJob + regras de transição de status
+
+- Status: DONE
+- Priority: P0
+- Area: db
+- Owner: agent:claude-code
+- Branch: —
+- PR: —
+- Depends on: SCL-103
+- Blocks: SCL-211, SCL-230
+- Files/Scope: `db/schema/production-jobs.ts`, `db/schema/index.ts`, `db/migrations/0015_early_rogue.sql`, `db/migrations/0016_production_jobs_rls.sql`, `db/migrations/meta/_journal.json`, `domain/production/schema.ts`, `domain/production/service.ts`, `domain/production/status.ts`, `tests/domain/production-jobs.test.ts`, `tests/domain/production-status.test.ts`
+- Migration: yes
+- Updated at: 2026-09-04
+
+**Goal**
+
+Criar a tabela `production_jobs`, relação 1:1 com `shoots` (`shoot_id` `NOT NULL` + `UNIQUE`), representando o pipeline de pós-produção/edição de cada ensaio (PRD §7.6, Kanban de Produção da SCL-230), e a lógica pura de transição de status (`canTransitionProductionStatus()`) que valida o pipeline `aguardando → iniciado → parcial → finalizado → entregue`.
+
+**Acceptance criteria**
+
+- [x] `production_jobs` com `shoot_id` `NOT NULL` + `UNIQUE` (relação 1:1 com Shoot) + FK `production_jobs_shoot_id_fkey` → `shoots.id`;
+- [x] `editor_user_id` opcional (nulável) + FK `production_jobs_editor_user_id_fkey` → `profiles.id` (sem `NOT NULL` — job pode existir antes de um editor ser designado);
+- [x] `status` como enum Postgres (`production_job_status`: `aguardando`/`iniciado`/`parcial`/`finalizado`/`entregue`), default `'aguardando'`;
+- [x] `delivery_due_at`/`delivery_at` como `date` (não `timestamp`), nulável, tratados como string ISO ponta a ponta (Zod `z.string().optional()`) — sem o gap de `mode` visto em SCL-104/SCL-105, porque `date()` do Drizzle já infere `string` por padrão (confirmado em `node_modules/drizzle-orm/pg-core/columns/date.js`), diferente de `timestamp()`;
+- [x] `canTransitionProductionStatus()` (`domain/production/status.ts`) implementa o pipeline linear de 5 estágios, com `entregue` como único estado terminal, rejeita transições de "pular estágio" (`aguardando→finalizado`, `iniciado→entregue`), rejeita no-op (`from === to`), **e permite deliberadamente `iniciado→finalizado` pulando `parcial`** (ver Implementation notes abaixo — única exceção documentada nas regras de transição desta task);
+- [x] validação de input (`createProductionJobSchema`, Zod, testado via TDD, 3 casos);
+- [x] `createProductionJob()`/`getProductionJobByShootId()` são funções mínimas (insert puro + leitura por `shoot_id`) — sem update/delete/list, mesmo padrão de escopo mínimo das Tasks 5/6;
+- [x] testes puros de transição de status (`tests/domain/production-status.test.ts`: 5 casos, incluindo o caso de skip deliberado) + testes de Zod/schema (`tests/domain/production-jobs.test.ts`: 3 casos), ambos TDD RED→GREEN;
+- [x] RLS habilitada com policy `production_jobs_staff_access` (`public.is_staff_or_admin()`), verificada por query direta ao Postgres real.
+
+**Implementation notes**
+
+- **Desvio deliberado da PRD, não um bug**: o diagrama da PRD mostra um pipeline estritamente linear (`aguardando → iniciado → parcial → finalizado → entregue`), mas `canTransitionProductionStatus()` permite `iniciado → finalizado` pulando `parcial` diretamente. Motivo: `parcial` representa uma entrega parcial de lote de fotos (útil para ensaios grandes com múltiplas entregas), que nem todo job tem — um ensaio pequeno pode terminar toda a edição em uma única passada, e forçar esse job por um estado `parcial` que nunca de fato ocorreu misrepresentaria o status real de produção. Esta é a única exceção às regras de transição desta task; toda transição "pule um estágio" — `aguardando→finalizado`, `iniciado→entregue`, `parcial→entregue` (implícito, `toIndex - fromIndex` > 1 sem ser o caso especial `iniciado→finalizado`) — continua rejeitada. Testado explicitamente em `tests/domain/production-status.test.ts` ("allows iniciado to skip directly to finalizado").
+- Mesmo padrão de FK explícita das tasks anteriores: `npm run db:generate` confirmou "0 fks" para `production_jobs` (mas **1** constraint `UNIQUE` — `production_jobs_shoot_id_unique`, gerada corretamente a partir do `.unique()` do schema Drizzle, statement `CONSTRAINT ... UNIQUE("shoot_id")` dentro do próprio `CREATE TABLE`). Ambas as FKs (`production_jobs_shoot_id_fkey`, `production_jobs_editor_user_id_fkey`) foram acrescentadas como statements escritos à mão, logo após o `CREATE TABLE`, no mesmo arquivo gerado (`0015_early_rogue.sql`) — sem duplicar a constraint `UNIQUE` já gerada.
+- `db/migrations/meta/_journal.json`: `idx 15` (`0015_early_rogue`, gerada) recebeu `when` automático do próprio `drizzle-kit generate`; `idx 16` (`0016_production_jobs_rls`, RLS escrita à mão) recebeu `Date.now()` capturado manualmente, estritamente maior que o `when` do `idx 15`. Ambos monotônicos e não futuros, confirmados pelo hook `predb:migrate` antes de cada `db:migrate`.
+- `domain/production/schema.ts` exporta `CreateProductionJobInput` como `z.input<typeof createProductionJobSchema>`, não `z.infer` (o brief citava `z.infer` no snippet, mas a decisão registrada em `docs/DECISIONS.md`, 2026-09-04, cobre "qualquer schema futuro deste plano" com campo `.default()`) — `status` tem `.default("aguardando")`.
+- `ProductionJobStatus` (`domain/production/status.ts`) é derivado do próprio `productionJobStatusEnum.enumValues` do Drizzle (`db/schema/production-jobs.ts`), mesmo padrão de `domain/shoots/status.ts`/`domain/leads/status.ts` — nenhuma lista de status duplicada à mão.
+- Sem teste de integração contra o banco real nesta task (mesmo padrão de SCL-101/SCL-103/SCL-104/SCL-105) — o brief só pede testes puros de transição de status e de Zod/schema. Verificação contra o Supabase real feita por query direta (colunas, ambas as FKs, constraint `UNIQUE`, RLS, policy, `drizzle.__drizzle_migrations`), não só pelo exit code do `db:migrate`.
+
+**Blocker/Hand-off notes**
+
+- concluído: schema (`productionJobs`), migrations (0015 gerada + 2 FKs manuais, 0016 RLS manual), módulo de domínio (`schema.ts`/`service.ts`/`status.ts`) e testes (TDD RED→GREEN, transições primeiro conforme o brief, depois Zod/service) completos. `npm run test` (78/78), `npm run typecheck`, `npm run lint` (0 erros, 5 warnings pré-existentes do mesmo padrão de desestruturação já visto em SCL-103/SCL-104/SCL-105), `npm run build` verdes. Verificado contra o Supabase real por query direta (não só pelo exit code): 10 colunas de `production_jobs`, ambas as FKs (`production_jobs_shoot_id_fkey` → `shoots(id)`, `production_jobs_editor_user_id_fkey` → `profiles(id)`) presentes em `pg_constraint`, constraint `production_jobs_shoot_id_unique` (`UNIQUE (shoot_id)`) presente em `pg_constraint`, RLS habilitada (`relrowsecurity = true`), policy `production_jobs_staff_access` presente em `pg_policies`, e ambas as entradas de migration (`idx 15`/`idx 16`) registradas em `drizzle.__drizzle_migrations`.
+- falta: nada pendente nesta task. Nenhuma orquestração com `shoots`/`preparation_tasks` — essa composição é escopo de SCL-211 (Epic 2), que vai chamar `createProductionJob()` junto com os helpers das Tasks 5/6 dentro de uma transação, quando a UI de Admin de fato precisar disso (mesma nota de escopo já registrada em SCL-103/SCL-105).
+- arquivos alterados: ver Files/Scope acima.
+- testes: `tests/domain/production-status.test.ts` (5 casos: pipeline linear em ordem, rejeita pular estágio, rejeita sair do estado terminal, rejeita no-op, permite o skip deliberado `iniciado→finalizado` — TDD RED→GREEN) + `tests/domain/production-jobs.test.ts` (3 casos: aceita mínimo válido, aplica default de `status`, rejeita `shootId` ausente — TDD RED→GREEN) + verificação por query direta ao Postgres real em 2026-09-04.
+- próximo passo: SCL-211 (Criar ensaio ponta a ponta) e SCL-230 (Kanban Produção) já podem começar, importando `createProductionJob()`/`getProductionJobByShootId()`/`canTransitionProductionStatus()` de `domain/production/` diretamente.
 
 ---
 
