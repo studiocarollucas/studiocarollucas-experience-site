@@ -61,3 +61,25 @@ Registrar aqui decisões que afetam múltiplos agentes/módulos (PRD §19.15). F
 Onde uma coluna sensível precisar ficar protegida mesmo de quem só tem acesso de linha (RLS é por linha, não por coluna), o padrão é `revoke update on table "<tabela>" from "authenticated", "anon"` seguido de `grant update (<colunas seguras>) on table "<tabela>" to "authenticated"` — nunca só `revoke update (<coluna sensível>)`, que é um no-op quando a role já tem o grant de tabela (como é o caso das roles padrão do Supabase; ver `0001_profiles_rls.sql` para o exemplo comentado).
 
 **Efeito colateral a lembrar:** como o Supabase mapeia todo usuário autenticado para a mesma role `authenticated` do Postgres, esse revoke bloqueia `UPDATE` de colunas restritas (como `role`) para **qualquer** sessão autenticada via Data API/`supabase-js` no browser — inclusive admins. Uma futura tela de "gerenciar papéis da equipe" que tente fazer isso direto do browser vai receber um erro de permissão que parece problema de RLS e não é. Mudanças de `role` (e equivalentes em outras tabelas) devem passar pela camada de aplicação (Drizzle via `DATABASE_URL`, que usa a role `postgres` e não sofre esse revoke) ou por uma function `security definer` dedicada — nunca por um update direto do cliente.
+
+## 2026-09-04 — FK auto-referencial via statement hand-written, não `.references()` do Drizzle
+
+**Decisão:** `clients.referrer_client_id` (indicação de uma cliente por outra, PRD §7.2) é declarado no schema Drizzle (`db/schema/clients.ts`) como uma coluna `uuid` simples, sem `.references()`. A constraint `foreign key ("referrer_client_id") references "clients"("id")` é adicionada como um segundo statement, `--> statement-breakpoint`, escrito à mão logo após o `CREATE TABLE "clients"` gerado por `drizzle-kit generate`, no mesmo arquivo de migration.
+
+**Motivo:** Drizzle consegue expressar FKs auto-referenciais via `.references(() => clients.id)`, mas isso exige que a tabela já exista antes de sua própria constraint — uma ordem de statements que vale a pena verificar manualmente contra um projeto ao vivo em vez de confiar cegamente na geração do drizzle-kit para esse caso específico. Confirmado por query direta (`pg_constraint`) que a constraint `clients_referrer_client_id_fkey` existe e aponta `clients(id)` corretamente.
+
+**Consequência:** qualquer tabela futura deste plano que precise de uma FK auto-referencial (ex.: hierarquia entre tabelas) deve seguir o mesmo padrão — coluna sem `.references()` no schema TypeScript, constraint adicionada à mão no mesmo arquivo de migration gerado.
+
+## 2026-09-04 — `test` carrega `.env.local` explicitamente (mesmo gap do drizzle-kit)
+
+**Decisão:** o script `test` em `package.json` roda como `node --env-file-if-exists=.env.local node_modules/vitest/vitest.mjs run`, em vez de `vitest run` puro.
+
+**Motivo:** Vitest, assim como o drizzle-kit (ver decisão de 2026-09-03 acima), não carrega `.env.local` automaticamente — só o Next.js faz isso por convenção própria. Um teste de integração que abre conexão real com o Postgres via `db/client.ts` (`tests/domain/clients.test.ts`, SCL-100) falhava com `ECONNREFUSED ::1:5432`/`127.0.0.1:5432` porque `process.env.DATABASE_URL` chegava `undefined` ao `postgres.js`, que cai para o host/porta padrão local. Mesma classe de bug já vista duas vezes neste projeto (drizzle-kit em SCL-005, timestamps de journal em SCL-102) — nenhuma ferramenta de linha de comando do Node carrega `.env.local` sozinha; cada script que precisa de env reais do Supabase tem que pedir isso explicitamente via `--env-file-if-exists`.
+
+## 2026-09-04 — `z.input`, não `z.infer`, para o tipo de input de schemas com `.default()`
+
+**Decisão:** `domain/clients/schema.ts` exporta `CreateClientInput` como `z.input<typeof createClientSchema>`, não `z.infer<typeof createClientSchema>` (que é um alias de `z.output`).
+
+**Motivo:** `createClientSchema.marketingConsent` usa `.default(false)`. `z.infer`/`z.output` descreve o formato **depois** do parse, onde esse campo já foi preenchido e portanto é obrigatório no tipo — o que faria `createClient({ name: "..." })` (uso pretendido, e exatamente o que o teste de integração de SCL-100 faz) falhar em `npm run typecheck` mesmo passando em runtime, já que `.parse()` de fato aceita a omissão. `z.input` descreve o formato **antes** do parse, onde um campo com `.default()` é opcional — batendo com o comportamento real do Zod.
+
+**Consequência:** qualquer schema futuro deste plano que use `.default()` em algum campo deve exportar seu tipo de input com `z.input`, não `z.infer`, para evitar essa mesma divergência entre o que o TypeScript exige e o que o Zod realmente aceita.

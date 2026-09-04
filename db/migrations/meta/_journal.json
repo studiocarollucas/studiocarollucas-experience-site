@@ -36,6 +36,20 @@
       "when": 1788545040000,
       "tag": "0004_experience_packages_rls",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1788549843040,
+      "tag": "0005_lazy_martin_li",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1788549915034,
+      "tag": "0006_clients_rls",
+      "breakpoints": true
     }
   ]
 }
