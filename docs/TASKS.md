@@ -39,7 +39,7 @@
 | SCL-102 | Schema ExperiencePackage | P0 | db | DONE | agent:claude-code | SCL-005 |
 | SCL-108 | Seeds de experiências | P0 | db | DONE | agent:claude-code | SCL-102 |
 | SCL-103 | Schema Shoot | P0 | db | DONE | agent:claude-code | SCL-100,SCL-102 |
-| SCL-104 | Schema Payment/Expense | P0 | db | BACKLOG | unassigned | SCL-103 |
+| SCL-104 | Schema Payment/Expense | P0 | db | DONE | agent:claude-code | SCL-103 |
 | SCL-106 | Schema ProductionJob | P0 | db | BACKLOG | unassigned | SCL-103 |
 | SCL-105 | Schema PreparationTask | P1 | db | BACKLOG | unassigned | SCL-103 |
 | SCL-200 | Shell Admin | P1 | admin | BACKLOG | unassigned | SCL-007,SCL-009 |
@@ -534,6 +534,55 @@ Criar a entidade operacional central usada por Admin e Minha Experiência — a 
 - arquivos alterados: ver Files/Scope acima.
 - testes: `tests/domain/shoot-status.test.ts` (6 casos, TDD RED→GREEN) + `tests/domain/shoots.test.ts` (5 casos, TDD RED→GREEN, com fixtures de UUID v4-válidas por causa da versão de `zod` instalada) + verificação por query direta ao Postgres real em 2026-09-04.
 - próximo passo: SCL-104 (Payment/Expense), SCL-105 (PreparationTask) e SCL-106 (ProductionJob) já podem começar, todas com FK para `shoots.id`. SCL-104/SCL-220 em particular devem ler a nota de design sobre `shoots.payment_status` acima antes de implementar qualquer escrita nessa coluna.
+
+---
+
+### SCL-104 — Schema Payment/Expense + derivação de saldo/status financeiro
+
+- Status: DONE
+- Priority: P0
+- Area: db
+- Owner: agent:claude-code
+- Branch: —
+- PR: —
+- Depends on: SCL-103
+- Blocks: SCL-220
+- Files/Scope: `db/schema/payments.ts`, `db/schema/expenses.ts`, `db/schema/index.ts`, `db/migrations/0011_brown_sentry.sql`, `db/migrations/0012_payments_and_expenses_rls.sql`, `db/migrations/meta/_journal.json`, `domain/payments/schema.ts`, `domain/payments/service.ts`, `domain/payments/balance.ts`, `tests/domain/balance.test.ts`, `tests/domain/payments.test.ts`
+- Migration: yes
+- Updated at: 2026-09-04
+
+**Goal**
+
+Criar as tabelas `payments` (com FK obrigatória para `shoots`) e `expenses` (independente, sem FK — PRD §7.5), e a lógica pura de derivação financeira (`calculateBalance()`/`deriveShootPaymentStatus()`) que é a prioridade nº1 de teste unitário de todo o produto (PRD §15: "cálculo de saldo... status financeiro"), garantindo que `saldo = valor_acordado - soma(pagamentos confirmados)` nunca seja duplicado como um segundo valor digitado à mão em nenhum lugar do sistema.
+
+**Acceptance criteria**
+
+- [x] `payments` com `shoot_id` `NOT NULL` + FK `payments_shoot_id_fkey` → `shoots.id`; `expenses` sem FK (registro financeiro independente por ensaio, PRD §7.5);
+- [x] todos os campos monetários como `numeric(10,2)`/string ponta a ponta (Drizzle `numeric`, Zod `decimalString` regex), nunca `number`;
+- [x] `calculateBalance(agreedPrice, payments)` — soma apenas pagamentos `confirmado`, ignora `pendente`/`estornado`, saldo negativo (overpayment) não é clampado em zero;
+- [x] `deriveShootPaymentStatus(agreedPrice, payments)` — deriva só os 3 estados calculáveis a partir da soma (`nao_iniciado`/`parcial`/`pago`); `reembolsado`/`cancelado` são eventos explícitos fora do escopo desta função (ver nota abaixo);
+- [x] validação de input (`createPaymentSchema`/`createExpenseSchema`, Zod, testado via TDD);
+- [x] testes puros de aritmética/derivação (`tests/domain/balance.test.ts`: 8 casos, incluindo overpayment e o caso "ignora pendente e estornado") + testes de Zod/schema (`tests/domain/payments.test.ts`: 4 casos), ambos TDD RED→GREEN;
+- [x] `createPayment()`/`createExpense()` são inserts puros — nenhuma orquestração de recálculo de `shoots.payment_status` (deliberadamente adiada para SCL-220, Epic 2);
+- [x] RLS habilitada em ambas as tabelas com policy `*_staff_access` (`public.is_staff_or_admin()`), verificada por query direta ao Postgres real.
+
+**Implementation notes**
+
+- **Nota para o implementador de SCL-220 (Registrar pagamento)**: não reimplemente a aritmética de saldo/status inline. Importe `calculateBalance()` e `deriveShootPaymentStatus()` diretamente de `domain/payments/balance.ts` — ambas são funções puras (sem I/O), já cobertas por 8 casos de teste (incluindo o caso de overpayment com saldo negativo não-clampado e o caso "ignora pendente e estornado"), e são a única fonte de verdade para essa regra (PRD §7.5). SCL-220 é responsável por orquestrar a transação "registrar pagamento + recalcular e persistir `shoots.payment_status`" — este task só garante que o cálculo em si esteja correto e testado isoladamente.
+- Mesmo padrão de FK explícita das tasks anteriores: `npm run db:generate` confirmou "0 fks" para `payments`/`expenses`, então `payments_shoot_id_fkey` foi acrescentada como statement escrito à mão no arquivo gerado (`0011_brown_sentry.sql`); `expenses` não recebeu nenhuma FK, por design (PRD §7.5: despesa é registro independente por ensaio, não vinculado a nenhum `shoot` específico).
+- `db/migrations/meta/_journal.json`: `idx 11` (`0011_brown_sentry`, gerada) recebeu `when` automático do próprio `drizzle-kit generate`; `idx 12` (`0012_payments_and_expenses_rls`, RLS escrita à mão, cobrindo as duas tabelas no mesmo arquivo) recebeu `Date.now()` capturado manualmente. Ambos monotônicos e não futuros, confirmados pelo hook `predb:migrate` antes de cada `db:migrate`.
+- Desvio pontual do brief, mecânico e não relacionado à aritmética financeira: o brief especificava `paidAt: timestamp("paid_at", { withTimezone: true })` sem `mode`, mas o modo default do Drizzle para `timestamp()` é `"date"` (retorna/aceita `Date`), enquanto `domain/payments/schema.ts` trata `paidAt` como `z.string().optional()` (ISO datetime) — mesmo padrão de string ponta a ponta usado para `shootDate`/`agreedPrice` em `shoots`. Isso quebrava `npm run typecheck` em `domain/payments/service.ts` (`string` não atribuível a `Date | SQL | Placeholder | null | undefined`). Corrigido acrescentando `mode: "string"` à coluna (`db/schema/payments.ts`) — `mode` é só uma anotação de tipo do lado do driver/TS, não afeta a coluna SQL gerada (`timestamp with time zone`, inalterada); confirmado rodando `npm run db:generate` de novo após o ajuste, que reportou "No schema changes, nothing to migrate".
+- Aritmética de ponto fixo em centavos (`toCents`/`fromCents`/`sumConfirmed`, `domain/payments/balance.ts`) verificada manualmente, não só pelos testes: `calculateBalance("1000.00", [{amount:"1200.00", status:"confirmado"}])` → `toCents("1000.00")=100000`, `sumConfirmed=120000`, `100000-120000=-20000`, `fromCents(-20000)` → sinal `"-"`, `abs=20000`, `whole=200`, `fraction="00"` → `"-200.00"` (bate com o teste, sem artefato de arredondamento). Round-trip de string decimal negativa também verificado à mão (`toCents("-200.50")` → `-20050` → `fromCents(-20050)` → `"-200.50"`).
+- `domain/payments/schema.ts` exporta `CreatePaymentInput`/`CreateExpenseInput` como `z.input<typeof ...>`, não `z.infer` (mesmo padrão de `docs/DECISIONS.md`, 2026-09-04, e de `domain/clients|leads|shoots/schema.ts`) — `status`/`recurring` têm `.default()`.
+- Sem teste de integração contra o banco real nesta task (mesmo padrão de SCL-101/SCL-103) — o brief só pede testes puros de aritmética/derivação e de Zod/schema; a verificação contra o Supabase real foi feita por query direta (colunas, FK, RLS, policies, `drizzle.__drizzle_migrations`), não só pelo exit code do `db:migrate`.
+
+**Blocker/Hand-off notes**
+
+- concluído: schemas (`payments`/`expenses`), migrations (0011 gerada + FK manual, 0012 RLS manual cobrindo as duas tabelas), módulo de domínio (`schema.ts`/`service.ts`/`balance.ts`) e testes (TDD RED→GREEN, aritmética/derivação primeiro conforme o brief, depois Zod/service) completos. `npm run test` (66/66), `npm run typecheck`, `npm run lint` (0 erros, 3 warnings pré-existentes do padrão de desestruturação já visto em SCL-103), `npm run build` verdes. Verificado contra o Supabase real: colunas de `payments` (9) e `expenses` (10), FK `payments_shoot_id_fkey` → `shoots(id)` presente em `pg_constraint` (nenhuma FK em `expenses`, por design), RLS habilitada (`relrowsecurity = true`) em ambas, policies `payments_staff_access`/`expenses_staff_access` presentes em `pg_policies`, e ambas as entradas de migration (`idx 11`/`idx 12`) registradas em `drizzle.__drizzle_migrations`.
+- falta: nada pendente nesta task. `createPayment()` deliberadamente não chama `deriveShootPaymentStatus()` nem escreve em `shoots.payment_status` — essa orquestração é escopo de SCL-220 (Epic 2).
+- arquivos alterados: ver Files/Scope acima.
+- testes: `tests/domain/balance.test.ts` (8 casos, TDD RED→GREEN, cobrindo full-balance/parcial/exato/overpayment para `calculateBalance` e os 3 estados + caso "ignora pendente/estornado" para `deriveShootPaymentStatus`) + `tests/domain/payments.test.ts` (4 casos, TDD RED→GREEN) + verificação por query direta ao Postgres real em 2026-09-04.
+- próximo passo: SCL-220 (Registrar pagamento) já pode começar, importando `calculateBalance()`/`deriveShootPaymentStatus()` de `domain/payments/balance.ts` diretamente (ver nota de implementação acima) em vez de reimplementar a aritmética.
 
 ---
 
