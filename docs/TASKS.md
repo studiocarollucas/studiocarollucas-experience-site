@@ -30,7 +30,7 @@
 | SCL-003 | CI + preview deploys | P0 | infra | BACKLOG | unassigned | SCL-001,SCL-002 |
 | SCL-004 | Projeto Supabase + ambientes | P0 | db | BLOCKED | agent:claude-code | none |
 | SCL-005 | Drizzle + migrations | P0 | db | BLOCKED | agent:claude-code | SCL-001,SCL-004 |
-| SCL-006 | Auth base | P0 | auth | BACKLOG | unassigned | SCL-004,SCL-005 |
+| SCL-006 | Auth base | P0 | auth | BLOCKED | agent:claude-code | SCL-004,SCL-005 |
 | SCL-007 | RBAC/RLS base | P0 | auth | BACKLOG | unassigned | SCL-006 |
 | SCL-009 | Design tokens + layout base | P0 | ui | DONE | agent:claude-code | SCL-001 |
 | SCL-100 | Schema Client | P0 | db | BACKLOG | unassigned | SCL-005 |
@@ -193,6 +193,48 @@ Definir a fonte de verdade do schema e o procedimento serializado de migrations.
 **Blocker/Hand-off notes**
 
 Drizzle configurado, schema `profiles` (com `roleEnum`) e client escritos, e a migration inicial (`db/migrations/0000_lazy_pete_wisdom.sql`, com `CREATE TYPE "role"` e `CREATE TABLE "profiles"`) já foi gerada via `npm run db:generate` — isso não exige conexão com banco real, só faz diff do schema TypeScript contra os snapshots em `db/migrations/meta/`. Falta aplicar a migration (`npm run db:migrate`) contra um banco Supabase real: aguardando o mesmo projeto Supabase do SCL-004, bloqueado pela instabilidade parcial do Supabase relatada pelo usuário. Assim que o projeto SCL-004 estiver disponível, rodar `npm run db:migrate` e confirmar a tabela `profiles` no Table Editor antes de marcar DONE.
+
+---
+
+### SCL-006 — Auth base
+
+- Status: BLOCKED
+- Priority: P0
+- Area: auth
+- Owner: agent:claude-code
+- Branch: —
+- PR: —
+- Depends on: SCL-004, SCL-005
+- Blocks: SCL-007, SCL-300
+- Files/Scope: `lib/auth/session.ts`, `proxy.ts`, `app/(client)/login/`, `app/admin/login/`, `tests/lib/session.test.ts`
+- Migration: no
+- Updated at: 2026-09-03
+
+**Goal**
+
+Dar a toda a aplicação (Admin e Minha Experiência) uma única forma server-side de saber quem está pedindo — `getCurrentUser()` — em vez de cada rota consultar o Supabase Auth diretamente, além de proteger `/admin` e `/minha-experiencia` por middleware/proxy e oferecer login passwordless (cliente) e email+senha (staff/admin).
+
+**Acceptance criteria**
+
+- [x] `getCurrentUser()` implementado combinando o usuário do Supabase Auth com o papel (`role`) da tabela `profiles` via Drizzle;
+- [x] `resolveRole()` extraído como lógica pura e coberto por teste unitário (sem dependência de sessão/banco real);
+- [x] `proxy.ts` (convenção atual do Next 16 para o antigo `middleware.ts`) faz refresh de sessão e redireciona requisições não autenticadas em `/admin` (exceto `/admin/login`) e `/minha-experiencia` para o login correspondente;
+- [x] login do cliente via magic link (`signInWithOtp`) em `app/(client)/login`;
+- [x] login de staff/admin via email+senha (`signInWithPassword`) em `app/admin/login`;
+- [ ] fluxo de autenticação real (sessão de usuário de verdade, redirecionamento pós-login, RLS aplicada) verificado contra um projeto Supabase real.
+
+**Implementation notes**
+
+- Next 16.3.4 deprecia o arquivo `middleware.ts` em favor de `proxy.ts` (mesma API — `request`/`response`, `config.matcher` — apenas o nome do arquivo e da função exportada mudam de `middleware` para `proxy`). O brief da task ainda cita `middleware.ts`; usamos `proxy.ts` para não introduzir um novo projeto já com aviso de depreciação no build. Confirmado com `node_modules/next/dist/docs/.../file-conventions/proxy.md` e o próprio warning do `next build`.
+- `db/schema/profiles.ts` já usa `pgEnum("role", ["admin", "staff", "client"])`, então o tipo inferido de `profiles.role` bate exatamente com o `Role` de `lib/auth/session.ts` sem necessidade de cast.
+
+**Blocker/Hand-off notes**
+
+- concluído: código completo (`lib/auth/session.ts`, `proxy.ts`, páginas/ações de login do cliente e do admin) e teste unitário de `resolveRole()` passando; `npm run test`, `npm run typecheck` e `npm run build` verdes.
+- falta: verificar o fluxo de autenticação real (magic link entregue por email, login com senha, `getCurrentUser()` retornando o papel correto, redirecionamento do proxy) contra um projeto Supabase real — mesmo bloqueio de SCL-004/SCL-005 (instabilidade parcial do Supabase relatada pelo usuário, nenhum projeto real criado ainda).
+- arquivos alterados: `lib/auth/session.ts`, `proxy.ts`, `app/(client)/login/actions.ts`, `app/(client)/login/page.tsx`, `app/admin/login/actions.ts`, `app/admin/login/page.tsx`, `tests/lib/session.test.ts`.
+- testes: `tests/lib/session.test.ts` (2 casos, `resolveRole`) — únicos testáveis sem sessão/banco real; `getCurrentUser()` e o `proxy.ts` continuam sem cobertura de integração até existir um projeto Supabase real.
+- próximo passo: assim que SCL-004/SCL-005 forem desbloqueadas (projeto Supabase real disponível), rodar o fluxo de login manualmente (cliente via magic link, staff via senha), confirmar `getCurrentUser()` e o redirecionamento do `proxy.ts`, então marcar SCL-006 `DONE`.
 
 ---
 
