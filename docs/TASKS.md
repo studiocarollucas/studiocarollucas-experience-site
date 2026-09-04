@@ -34,7 +34,7 @@
 | SCL-007 | RBAC/RLS base | P0 | auth | DONE | agent:claude-code | SCL-006 |
 | SCL-008 | Observabilidade (Sentry + logging) | P0 | infra | DONE | agent:claude-code | SCL-001 |
 | SCL-009 | Design tokens + layout base | P0 | ui | DONE | agent:claude-code | SCL-001 |
-| SCL-100 | Schema Client | P0 | db | BACKLOG | unassigned | SCL-005 |
+| SCL-100 | Schema Client | P0 | db | DONE | agent:claude-code | SCL-005 |
 | SCL-102 | Schema ExperiencePackage | P0 | db | DONE | agent:claude-code | SCL-005 |
 | SCL-108 | Seeds de experiências | P0 | db | DONE | agent:claude-code | SCL-102 |
 | SCL-103 | Schema Shoot | P0 | db | BACKLOG | unassigned | SCL-100,SCL-102 |
@@ -397,6 +397,49 @@ Criar a tabela `experience_packages` (catálogo de pacotes vendidos) e o helper 
 - arquivos alterados: ver Files/Scope acima.
 - testes: `tests/domain/experience-package.test.ts` (3 casos, TDD RED→GREEN) + verificação por query direta ao Postgres real em 2026-09-04.
 - próximo passo: SCL-103 (Schema Shoot) já pode começar, reaproveitando `public.is_staff_or_admin()` para sua própria migration de RLS.
+
+---
+
+### SCL-100 — Schema Client
+
+- Status: DONE
+- Priority: P0
+- Area: db
+- Owner: agent:claude-code
+- Branch: —
+- PR: —
+- Depends on: SCL-005
+- Blocks: SCL-103, SCL-202, SCL-203
+- Files/Scope: `db/schema/clients.ts`, `db/schema/index.ts`, `db/migrations/0005_lazy_martin_li.sql`, `db/migrations/0006_clients_rls.sql`, `db/migrations/meta/_journal.json`, `domain/clients/schema.ts`, `domain/clients/service.ts`, `tests/domain/clients.test.ts`, `package.json` (script `test`), `docs/DECISIONS.md`
+- Migration: yes
+- Updated at: 2026-09-04
+
+**Goal**
+
+Criar a tabela `clients` (registro CRM de cada cliente, PRD §7) que SCL-103 (Shoot) e futuras tasks de Admin/Minha Experiência referenciam via FK, incluindo o vínculo opcional com a identidade de Auth do Supabase e o suporte a indicação (cliente que indicou outra).
+
+**Acceptance criteria**
+
+- [x] schema Drizzle criado (`clients`: nome, telefone, email, instagram, aniversário, origem, `referrer_client_id` auto-referencial, perfil de estilo, notas, consentimento de marketing, `auth_user_id` nulável+único ligando ao `auth.users` do Supabase, criado em);
+- [x] migration gerada por `db:generate` (`0005_lazy_martin_li.sql`) confirmada sem FK auto-referencial inferida automaticamente (Drizzle não expressa isso sem `.references()`); FK `clients_referrer_client_id_fkey` adicionada como statement escrito à mão no mesmo arquivo, aplicada e confirmada via `pg_constraint` no projeto Supabase real;
+- [x] RLS habilitada em `clients` (`0006_clients_rls.sql`) reaproveitando `public.is_staff_or_admin()` (SCL-102) via policy `clients_staff_access` — confirmado via `pg_class.relrowsecurity` e `pg_policy` no projeto real; policy de auto-leitura da cliente via `auth_user_id = auth.uid()` deliberadamente adiada para o Epic 3 (nada na aplicação lê essa tabela via Supabase client hoje — ver `docs/DECISIONS.md`, RLS como defesa em profundidade);
+- [x] `createClientSchema` (Zod) testado via TDD: RED confirmado (`@/domain/clients/schema` sem exports) antes da implementação, GREEN depois (5 casos: nome mínimo aceito, nome vazio rejeitado, email inválido rejeitado, email válido aceito, `marketingConsent` default `false`);
+- [x] `createClient()`/`getClientById()` cobertos por teste de integração real contra o Supabase (não só unitário/mockado): cria uma linha, lê de volta por id, e remove a linha em `afterAll` — confirmado por query direta ao Postgres que a tabela fica vazia depois do teste.
+
+**Implementation notes**
+
+- `referrer_client_id` não usa `.references()` no schema Drizzle de propósito — FKs auto-referenciais exigem que a tabela já exista antes de sua própria constraint, uma ordem de statements arriscada de confiar cegamente à geração do drizzle-kit. A constraint foi adicionada como um segundo `--> statement-breakpoint` no mesmo arquivo de migration gerado, escrita à mão. Padrão registrado em `docs/DECISIONS.md` para qualquer FK auto-referencial futura deste plano.
+- Bug descoberto durante esta task (mesma classe do gap do drizzle-kit em SCL-005 e dos timestamps de journal em SCL-102): o script `test` (`vitest run` puro) não carregava `.env.local`, então o teste de integração conectava em `localhost:5432` em vez do Supabase real (`ECONNREFUSED`). Corrigido trocando o script para `node --env-file-if-exists=.env.local node_modules/vitest/vitest.mjs run`, mesmo padrão já usado por `db:generate`/`db:migrate`. Registrado em `docs/DECISIONS.md`.
+- `CreateClientInput` usa `z.input<typeof createClientSchema>`, não `z.infer` (= `z.output`): como `marketingConsent` tem `.default(false)`, `z.infer` o torna obrigatório no tipo (correto pós-parse, mas `npm run typecheck` rejeitava `createClient({ name: "..." })`, uso pretendido e exatamente o que o teste de integração faz, mesmo sendo válido em runtime via `.parse()`). Registrado em `docs/DECISIONS.md` como padrão para qualquer schema futuro com `.default()`.
+- `domain/clients/schema.ts` e `domain/clients/service.ts` ficam em arquivos separados (diferente do precedente de SCL-102, que juntou tudo em `domain/catalog/experience-package.ts`) — decisão explícita do plano para esta task, mantida como especificado no brief.
+
+**Blocker/Hand-off notes**
+
+- concluído: schema, migrations (0005 gerada + FK manual, 0006 RLS manual), módulo de domínio, testes Zod (TDD RED→GREEN) e teste de integração real completos. `npm run test` (34/34), `npm run typecheck`, `npm run lint`, `npm run build` verdes. Verificado contra o Supabase real (não só pelo exit code): 13 colunas de `clients`, constraint única em `auth_user_id`, FK auto-referencial em `referrer_client_id`, RLS habilitada, policy `clients_staff_access` presente, ambas as entradas de migration (`idx 5`/`idx 6`) registradas em `drizzle.__drizzle_migrations`, e tabela vazia (0 linhas) após o teste de integração limpar sua própria linha de teste.
+- falta: nada pendente nesta task. Policy de auto-leitura da cliente (`auth_user_id = auth.uid()`) fica para o Epic 3, quando algo na aplicação de fato ler essa tabela via Supabase client no browser.
+- arquivos alterados: ver Files/Scope acima.
+- testes: `tests/domain/clients.test.ts` (6 casos: 5 Zod via TDD RED→GREEN + 1 integração real com `afterAll` de limpeza) + verificação por query direta ao Postgres real em 2026-09-04.
+- próximo passo: SCL-103 (Schema Shoot) já pode começar, reaproveitando `public.is_staff_or_admin()` e referenciando `clients.id` via FK.
 
 ---
 
