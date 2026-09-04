@@ -29,7 +29,7 @@
 | SCL-002 | Lint/format/typecheck/tests | P0 | infra | DONE | agent:claude-code | SCL-001 |
 | SCL-003 | CI + preview deploys | P0 | infra | BACKLOG | unassigned | SCL-001,SCL-002 |
 | SCL-004 | Projeto Supabase + ambientes | P0 | db | BLOCKED | agent:claude-code | none |
-| SCL-005 | Drizzle + migrations | P0 | db | BACKLOG | unassigned | SCL-001,SCL-004 |
+| SCL-005 | Drizzle + migrations | P0 | db | BLOCKED | agent:claude-code | SCL-001,SCL-004 |
 | SCL-006 | Auth base | P0 | auth | BACKLOG | unassigned | SCL-004,SCL-005 |
 | SCL-007 | RBAC/RLS base | P0 | auth | BACKLOG | unassigned | SCL-006 |
 | SCL-009 | Design tokens + layout base | P0 | ui | DONE | agent:claude-code | SCL-001 |
@@ -166,15 +166,15 @@ aguardando o usuário criar o projeto Supabase real e preencher .env.local — c
 
 ### SCL-005 — Configurar Drizzle e migrations
 
-- Status: BACKLOG
+- Status: BLOCKED
 - Priority: P0
 - Area: db
-- Owner: unassigned
+- Owner: agent:claude-code
 - Branch: —
 - PR: —
 - Depends on: SCL-001, SCL-004
 - Blocks: SCL-100, SCL-102, SCL-103, SCL-104, SCL-105, SCL-106
-- Files/Scope: db/**, drizzle config
+- Files/Scope: `drizzle.config.ts`, `db/schema/profiles.ts`, `db/schema/index.ts`, `db/client.ts`, `db/migrations/0000_lazy_pete_wisdom.sql`, `tests/db/schema.test.ts`
 - Migration: yes
 - Updated at: 2026-09-03
 
@@ -184,11 +184,15 @@ Definir a fonte de verdade do schema e o procedimento serializado de migrations.
 
 **Acceptance criteria**
 
-- [ ] Drizzle configurado;
+- [x] Drizzle configurado;
 - [ ] migration inicial executa em banco limpo;
-- [ ] scripts de generate/migrate definidos;
-- [ ] política de migrations documentada;
+- [x] scripts de generate/migrate definidos;
+- [x] política de migrations documentada (ver PRD §19.7 — serializadas, uma por vez);
 - [ ] CI consegue validar schema/migrations conforme estratégia definida.
+
+**Blocker/Hand-off notes**
+
+Drizzle configurado, schema `profiles` (com `roleEnum`) e client escritos, e a migration inicial (`db/migrations/0000_lazy_pete_wisdom.sql`, com `CREATE TYPE "role"` e `CREATE TABLE "profiles"`) já foi gerada via `npm run db:generate` — isso não exige conexão com banco real, só faz diff do schema TypeScript contra os snapshots em `db/migrations/meta/`. Falta aplicar a migration (`npm run db:migrate`) contra um banco Supabase real: aguardando o mesmo projeto Supabase do SCL-004, bloqueado pela instabilidade parcial do Supabase relatada pelo usuário. Assim que o projeto SCL-004 estiver disponível, rodar `npm run db:migrate` e confirmar a tabela `profiles` no Table Editor antes de marcar DONE.
 
 ---
 
