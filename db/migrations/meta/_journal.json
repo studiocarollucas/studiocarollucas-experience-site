@@ -78,6 +78,20 @@
       "when": 1788562647882,
       "tag": "0010_shoots_rls",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1788563671144,
+      "tag": "0011_brown_sentry",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1788563720284,
+      "tag": "0012_payments_and_expenses_rls",
+      "breakpoints": true
     }
   ]
 }
