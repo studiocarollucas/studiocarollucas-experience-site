@@ -43,3 +43,6 @@ next-env.d.ts
 
 # SDD tooling scratch space (task briefs, reports, progress ledger) — not part of the app
 .superpowers/
+
+# Claude Code harness scratch state (e.g. scheduled_tasks.lock) — not part of the app
+.claude/
