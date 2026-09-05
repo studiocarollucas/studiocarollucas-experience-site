@@ -59,9 +59,10 @@ describe("createShootSchema", () => {
   });
 });
 
-// Live-DB integration test — opt-in, skipped when there's no database to reach.
-// See docs/DECISIONS.md.
-const describeIfLiveDb = process.env.DATABASE_URL ? describe : describe.skip;
+// Live-DB tests are gated on an explicit, dedicated opt-in — NOT on DATABASE_URL,
+// which is needed for ordinary local development. See docs/DECISIONS.md and
+// .env.example.
+const describeIfLiveDb = process.env.RUN_LIVE_DB_TESTS === "true" ? describe : describe.skip;
 
 // Coverage for the invariant createShootSchema no longer expresses: paymentStatus is
 // not a caller-settable field, and a newly created shoot lands on "nao_iniciado"

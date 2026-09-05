@@ -92,4 +92,16 @@ Onde uma coluna sensível precisar ficar protegida mesmo de quem só tem acesso 
 
 **Motivo:** `.github/workflows/ci.yml` roda `npm run test` sem nenhum `DATABASE_URL` (diferente do passo `build`, que define um placeholder), e `.env.local` nunca é commitado — não há como esse teste alcançar um banco real em CI hoje. Sem esse guard, o teste falharia com erro de conexão (`ECONNREFUSED`) todo run de CI assim que a SCL-003 conectar este repositório a um remoto GitHub real, bloqueando `IN_REVIEW → MERGE_READY` de toda task subsequente. Os 5 testes Zod (`createClientSchema`, que não tocam o banco) continuam rodando incondicionalmente.
 
-**Consequência:** enquanto este projeto não tiver um banco de CI/teste dedicado (decisão maior, de infraestrutura, fora do escopo desta task), qualquer teste futuro que precise de uma conexão real com o Postgres deve seguir o mesmo padrão — `describe.skip` condicional a `DATABASE_URL` (ou variável equivalente), nunca assumir que a variável está presente em CI só porque está presente em `.env.local` local.
+**Consequência:** enquanto este projeto não tiver um banco de CI/teste dedicado (decisão maior, de infraestrutura, fora do escopo desta task), qualquer teste futuro que precise de uma conexão real com o Postgres deve seguir o mesmo padrão — `describe.skip` condicional a uma variável de opt-in, nunca assumir que a variável está presente em CI só porque está presente em `.env.local` local.
+
+**Correção (2026-09-04, revisão final do Epic 1): o guard passa a ser `RUN_LIVE_DB_TESTS`, não `DATABASE_URL`.** Condicionar a `DATABASE_URL` resolvia o problema de CI, mas criava outro, pior, no ambiente local: `DATABASE_URL` é necessária para *qualquer* trabalho local normal (`npm run dev`, `npm run db:migrate`), então tê-la no `.env.local` — o que todo mundo que mexe neste repositório tem — armava silenciosamente testes que **escrevem e apagam** linhas em qualquer banco que ela apontasse. Hoje isso é o único projeto Supabase real que este código tem. Um `npm run test` de rotina, sem nenhum opt-in consciente, escrevia em produção.
+
+O guard passa a exigir uma segunda variável, dedicada e explícita:
+
+```ts
+const describeIfLiveDb = process.env.RUN_LIVE_DB_TESTS === "true" ? describe : describe.skip;
+```
+
+Comparação com a string literal `"true"` (não `!!process.env.RUN_LIVE_DB_TESTS`), para que um `RUN_LIVE_DB_TESTS=` vazio — exatamente como o `.env.example` a documenta — continue desarmado. `DATABASE_URL` continua sendo necessária para os testes rodarem, mas deixou de ser suficiente: as duas precisam estar presentes. Vale para `tests/domain/clients.test.ts`, `tests/domain/audit.test.ts` e `tests/domain/shoots.test.ts`.
+
+**Consequência:** todo teste futuro que abra conexão real com o Postgres usa `RUN_LIVE_DB_TESTS === "true"` como guard, e documenta a variável no `.env.example`. Rodar a suíte com ela ligada é uma decisão consciente, tomada contra um projeto de dev/staging — nunca um efeito colateral de ter o ambiente de desenvolvimento configurado.

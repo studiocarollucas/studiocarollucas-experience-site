@@ -4,15 +4,17 @@ import { db } from "@/db/client";
 import { auditLog } from "@/db/schema";
 import { recordAuditEvent } from "@/domain/audit/service";
 
-// CI (.github/workflows/ci.yml) runs `npm run test` with no DATABASE_URL, and
-// .env.local is never committed, so there's no way for this suite to reach a real
-// database there. Skip the live-DB integration test entirely when DATABASE_URL is
-// unset rather than letting it fail with a connection error — opt-in until this
-// project has a dedicated CI/test database (see docs/DECISIONS.md).
-const describeIfLiveDb = process.env.DATABASE_URL ? describe : describe.skip;
+// Live-DB tests are gated on an explicit, dedicated opt-in — NOT on DATABASE_URL.
+// DATABASE_URL is needed for ordinary local development (dev server, db:migrate), so
+// gating on it alone silently armed these write/delete tests against whatever
+// database .env.local points at — today, the project's only real Supabase project.
+// RUN_LIVE_DB_TESTS must be set to the literal "true" as well. See docs/DECISIONS.md
+// and .env.example.
+const describeIfLiveDb = process.env.RUN_LIVE_DB_TESTS === "true" ? describe : describe.skip;
 
 describeIfLiveDb("recordAuditEvent", () => {
-  const testEntityId = "00000000-0000-0000-0000-0000000000aa";
+  // v4-shaped placeholder, matching the convention every other test file uses.
+  const testEntityId = "00000000-0000-4000-8000-0000000000aa";
 
   afterAll(async () => {
     await db.delete(auditLog).where(eq(auditLog.entityId, testEntityId));
