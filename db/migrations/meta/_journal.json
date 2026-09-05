@@ -134,6 +134,41 @@
       "when": 1788566438842,
       "tag": "0018_audit_log_rls",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1788579854471,
+      "tag": "0019_core_indexes",
+      "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1788579854472,
+      "tag": "0020_profiles_fk_set_null",
+      "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1788579854473,
+      "tag": "0021_money_check_constraints",
+      "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1788579854474,
+      "tag": "0022_experience_packages_name_unique",
+      "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1788579854475,
+      "tag": "0023_clients_auth_user_fk",
+      "breakpoints": true
     }
   ]
 }

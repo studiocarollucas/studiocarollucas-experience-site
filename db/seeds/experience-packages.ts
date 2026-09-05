@@ -53,8 +53,31 @@ async function seed() {
   // basePrice is a placeholder (0.00) — real internal pricing must be entered via
   // Studio OS (Epic 2) before this catalog is used for anything financial. Seeding
   // real prices here would fabricate business data nobody has provided.
-  await db.insert(experiencePackages).values(SEED_PACKAGES);
-  console.log(`Seeded ${SEED_PACKAGES.length} experience packages (placeholder prices — update via Admin before launch).`);
+  //
+  // Idempotent: onConflictDoNothing keys off the experience_packages_name_unique
+  // constraint added in db/migrations/0022_experience_packages_name_unique.sql, so
+  // re-running this script is a no-op instead of appending a duplicate catalog
+  // (two "Aurora"s, etc.) with no way to tell the copies apart. Deliberately
+  // "do nothing" rather than an upsert: once the catalog exists, its prices and
+  // inclusions are edited through Studio OS, and a re-seed must never quietly
+  // overwrite that real business data with these 0.00 placeholders.
+  const inserted = await db
+    .insert(experiencePackages)
+    .values(SEED_PACKAGES)
+    .onConflictDoNothing({ target: experiencePackages.name })
+    .returning({ name: experiencePackages.name });
+
+  if (inserted.length === 0) {
+    console.log(
+      `Nothing to do — all ${SEED_PACKAGES.length} experience packages already exist (matched by name).`
+    );
+  } else {
+    console.log(
+      `Seeded ${inserted.length} experience package(s) (placeholder prices — update via Admin before launch): ${inserted
+        .map((r) => r.name)
+        .join(", ")}.`
+    );
+  }
 }
 
 seed()
