@@ -120,6 +120,20 @@
       "when": 1788565548811,
       "tag": "0016_production_jobs_rls",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1788566341828,
+      "tag": "0017_slow_black_cat",
+      "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1788566438842,
+      "tag": "0018_audit_log_rls",
+      "breakpoints": true
     }
   ]
 }
