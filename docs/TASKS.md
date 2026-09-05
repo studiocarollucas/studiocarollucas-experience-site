@@ -42,6 +42,7 @@
 | SCL-104 | Schema Payment/Expense | P0 | db | DONE | agent:claude-code | SCL-103 |
 | SCL-106 | Schema ProductionJob | P0 | db | DONE | agent:claude-code | SCL-103 |
 | SCL-105 | Schema PreparationTask | P1 | db | DONE | agent:claude-code | SCL-103 |
+| SCL-107 | Schema AuditLog | P0 | db | DONE | agent:claude-code | SCL-005 |
 | SCL-200 | Shell Admin | P1 | admin | BACKLOG | unassigned | SCL-007,SCL-009 |
 | SCL-202 | Lista de clientes | P1 | admin | BACKLOG | unassigned | SCL-100,SCL-200 |
 | SCL-203 | Ficha da cliente | P1 | admin | BACKLOG | unassigned | SCL-100,SCL-200 |
@@ -367,7 +368,7 @@ Instrumentar erros com Sentry nos três runtimes do Next.js (client/server/edge)
 - Branch: —
 - PR: —
 - Depends on: SCL-005
-- Blocks: SCL-103
+- Blocks: SCL-103, SCL-108
 - Files/Scope: `db/schema/experience-packages.ts`, `db/schema/index.ts`, `db/migrations/0003_harsh_ogun.sql`, `db/migrations/0004_experience_packages_rls.sql`, `db/migrations/meta/_journal.json`, `db/seeds/experience-packages.ts`, `domain/catalog/experience-package.ts`, `tests/domain/experience-package.test.ts`, `package.json`, `tsconfig.json`
 - Migration: yes
 - Updated at: 2026-09-04
@@ -679,6 +680,51 @@ Criar a tabela `production_jobs`, relação 1:1 com `shoots` (`shoot_id` `NOT NU
 - arquivos alterados: ver Files/Scope acima.
 - testes: `tests/domain/production-status.test.ts` (5 casos: pipeline linear em ordem, rejeita pular estágio, rejeita sair do estado terminal, rejeita no-op, permite o skip deliberado `iniciado→finalizado` — TDD RED→GREEN) + `tests/domain/production-jobs.test.ts` (3 casos: aceita mínimo válido, aplica default de `status`, rejeita `shootId` ausente — TDD RED→GREEN) + verificação por query direta ao Postgres real em 2026-09-04.
 - próximo passo: SCL-211 (Criar ensaio ponta a ponta) e SCL-230 (Kanban Produção) já podem começar, importando `createProductionJob()`/`getProductionJobByShootId()`/`canTransitionProductionStatus()` de `domain/production/` diretamente.
+
+---
+
+### SCL-107 — Schema AuditLog
+
+- Status: DONE
+- Priority: P0
+- Area: db
+- Owner: agent:claude-code
+- Branch: —
+- PR: —
+- Depends on: SCL-005
+- Blocks: nenhuma task do backlog atual depende diretamente de SCL-107 (Epic 2 vai chamar `recordAuditEvent()` a partir das ações de mutação financeira/status — PRD §12 — mas nenhuma dessas tasks está detalhada neste plano ainda)
+- Files/Scope: `db/schema/audit-log.ts`, `db/schema/index.ts`, `db/migrations/0017_slow_black_cat.sql`, `db/migrations/0018_audit_log_rls.sql`, `db/migrations/meta/_journal.json`, `domain/audit/service.ts`, `tests/domain/audit.test.ts`
+- Migration: yes
+- Updated at: 2026-09-04
+
+**Goal**
+
+Criar a tabela `audit_log` — um registro append-only e tamper-evident de "operações críticas" (PRD §12) — e `recordAuditEvent()`, que as ações de mutação financeira/status do Epic 2 vão chamar para gravar snapshots de antes/depois. Última task do Epic 1.
+
+**Acceptance criteria**
+
+- [x] schema Drizzle criado (`audit_log`: `actor_user_id` nulável referenciando `profiles` — nulo significa ação automatizada/sistema —, `action`, `entity_type`, `entity_id` obrigatórios, `before`/`after` como `jsonb` nuláveis, `created_at`);
+- [x] migration gerada por `db:generate` (`0017_slow_black_cat.sql`) confirmada sem FK auto-inferida (Drizzle não expressa `references()` implícito); FK `audit_log_actor_user_id_fkey` → `profiles.id` adicionada como statement escrito à mão no mesmo arquivo, aplicada e confirmada via `pg_constraint` no projeto Supabase real;
+- [x] RLS habilitada em `audit_log` (`0018_audit_log_rls.sql`) com **assimetria deliberada** em relação a toda outra tabela deste epic: nenhuma policy `for all` de staff — só uma policy `audit_log_admin_read` (`for select`, via `public.is_admin()`, não `public.is_staff_or_admin()`), mais um `revoke insert, update, delete on table "audit_log" from "authenticated", "anon"` explícito. Confirmado por query direta ao Postgres real: `pg_policies` mostra exatamente 1 policy (SELECT-only, `is_admin()`), e `information_schema.role_table_grants` confirma ausência de INSERT/UPDATE/DELETE para `authenticated`/`anon`;
+- [x] nenhum schema Zod criado — `recordAuditEvent()` é chamada internamente por outros módulos de domínio (Epic 2), não a partir de input externo não confiável, então o tipo TypeScript de `RecordAuditEventInput` é a própria fronteira de validação (decisão explícita do brief, não uma omissão);
+- [x] `recordAuditEvent()` (`domain/audit/service.ts`) é um insert puro (parse implícito via tipo + insert + returning) — sem update/delete/list;
+- [x] teste de integração real (`tests/domain/audit.test.ts`) grava uma linha com snapshots `before`/`after`, lê de volta os campos, e remove a própria linha em `afterAll` — confirmado por query direta ao Postgres que a tabela fica sem a linha de teste depois.
+
+**Implementation notes**
+
+- Mesmo padrão de FK explícita das tasks anteriores: `npm run db:generate` confirmou "0 fks" para `audit_log`, então `audit_log_actor_user_id_fkey` foi acrescentada como statement escrito à mão no arquivo gerado (`0017_slow_black_cat.sql`).
+- `db/migrations/meta/_journal.json`: `idx 17` (`0017_slow_black_cat`, gerada) recebeu `when` automático do próprio `drizzle-kit generate`; `idx 18` (`0018_audit_log_rls`, RLS escrita à mão) recebeu `Date.now()` capturado manualmente, estritamente maior que o `when` do `idx 17`. Ambos monotônicos e não futuros, confirmados pelo hook `predb:migrate` antes de cada `db:migrate`.
+- Diferente de toda outra tabela deste epic (`clients`, `leads`, `shoots`, `payments`, `expenses`, `preparation_tasks`, `production_jobs`), `audit_log` não recebe a policy padrão `*_staff_access` (`for all` via `public.is_staff_or_admin()`). Um log de auditoria append-only e tamper-evident não pode ter `staff` com UPDATE/DELETE via Data API — só admins podem ler (`public.is_admin()`, o helper original do P0, não o `is_staff_or_admin()` deste epic), e ninguém (nem admin) tem INSERT/UPDATE/DELETE via Data API. Escritas acontecem exclusivamente por `domain/audit/service.ts`, através da conexão `DATABASE_URL`/`postgres` da aplicação, que não está sujeita a RLS (`docs/DECISIONS.md`, decisão C4) — por isso o `revoke` é redundante com a ausência de policy de escrita (RLS nega por padrão quando nenhuma policy casa com o comando), mas explícito por design para deixar a intenção auditável no próprio schema, não só implícita pela ausência de uma policy.
+- Verificação adicional feita nesta task, além do que os outros 7 tasks do epic já verificam: consulta a `information_schema.role_table_grants` (não só `pg_policies`) para confirmar que INSERT/UPDATE/DELETE estão de fato ausentes para `authenticated`/`anon` a nível de GRANT, não só bloqueados por RLS. Achado incidental, não um bug desta task: o ACL base (`pg_class.relacl`) de `audit_log` já não concede SELECT/INSERT/UPDATE/DELETE a `anon`/`authenticated` por padrão neste projeto Supabase (só `REFERENCES`/`TRIGGER`/`TRUNCATE`/`MAINTAIN`) — mesmo comportamento confirmado em `clients`/`shoots`, ou seja, uma característica pré-existente do projeto em todas as tabelas do epic, não algo introduzido ou revertido por esta task.
+- `tests/domain/audit.test.ts` é um teste de integração contra o banco real (mesma categoria do teste de `createClient`/`getClientById` em SCL-100), então recebeu o mesmo guard `describeIfLiveDb` (`process.env.DATABASE_URL ? describe : describe.skip`) que SCL-100 estabeleceu — o brief original não incluía esse guard; adicionado porque CI (`npm run test` sem `DATABASE_URL`) quebraria a cada execução sem ele.
+
+**Blocker/Hand-off notes**
+
+- concluído: schema (`auditLog`), migrations (0017 gerada + FK manual, 0018 RLS manual com policy admin-only e revoke explícito), módulo de domínio (`domain/audit/service.ts`, só `recordAuditEvent()`) e teste de integração completos. `npm run test` (79/79 com `.env.local`; suíte de audit pula graciosamente sem `DATABASE_URL`, confirmado rodando sem a env var), `npm run typecheck`, `npm run lint` (0 erros, 5 warnings pré-existentes de outras tasks), `npm run build` verdes. Verificado contra o Supabase real por query direta (não só pelo exit code): 8 colunas de `audit_log`, FK `audit_log_actor_user_id_fkey` → `profiles(id)` presente em `pg_constraint`, RLS habilitada (`relrowsecurity = true`), exatamente 1 policy (`audit_log_admin_read`, `cmd = SELECT`, `qual = is_admin()`) em `pg_policies`, `information_schema.role_table_grants` confirmando ausência de INSERT/UPDATE/DELETE para `authenticated`/`anon`, e ambas as entradas de migration (`idx 17`/`idx 18`) registradas em `drizzle.__drizzle_migrations`.
+- falta: nada pendente nesta task. Última task do Epic 1 — Epic 1 ("Core de Dados") está completo (SCL-100 a SCL-108, todas `DONE`).
+- arquivos alterados: ver Files/Scope acima.
+- testes: `tests/domain/audit.test.ts` (1 caso, integração real com `afterAll` de limpeza, guardado por `describeIfLiveDb`) + verificação por query direta ao Postgres real em 2026-09-04.
+- próximo passo: nenhum bloqueio direto no backlog atual depende de SCL-107; fica disponível para as ações de mutação financeira/status do Epic 2 (ainda não detalhadas neste plano) chamarem `recordAuditEvent()` diretamente. Revisão de consistência de `Depends on`/`Blocks` feita nesta task em todo o Epic 1 (SCL-100–SCL-108): corrigido `Blocks` de SCL-102, que citava só `SCL-103` mas faltava `SCL-108` (Seeds de experiências, que também depende de SCL-102 conforme o Quadro resumido). Nenhuma outra inconsistência encontrada nas próprias linhas do Epic 1; `SCL-200`'s `Depends on: SCL-007,SCL-009` (Epic 2) provavelmente vai ganhar `SCL-100` quando o planejamento do Epic 2 começar, mas isso é trabalho do próximo plano, não desta task.
 
 ---
 
