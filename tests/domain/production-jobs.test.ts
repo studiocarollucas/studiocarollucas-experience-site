@@ -17,4 +17,11 @@ describe("createProductionJobSchema", () => {
   it("rejects a missing shootId", () => {
     expect(createProductionJobSchema.safeParse({}).success).toBe(false);
   });
+
+  // `production_jobs.delivery_due_at` is a Postgres `date`, so deliveryDueAt takes a
+  // bare calendar date — not a timestamp.
+  it("accepts a valid deliveryDueAt and rejects a malformed one", () => {
+    expect(createProductionJobSchema.safeParse({ ...validBase, deliveryDueAt: "2026-12-15" }).success).toBe(true);
+    expect(createProductionJobSchema.safeParse({ ...validBase, deliveryDueAt: "not-a-date" }).success).toBe(false);
+  });
 });

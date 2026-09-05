@@ -7,7 +7,10 @@ export const createPreparationTaskSchema = z.object({
   type: z.string().min(1),
   title: z.string().min(1),
   status: z.enum(preparationTaskStatusValues).default("pendente"),
-  dueAt: z.string().optional(),
+  // `preparation_tasks.due_at` is `timestamp with time zone` (verified live against
+  // information_schema.columns), so this takes a full ISO datetime with an explicit
+  // offset — the same shape as payments.paidAt, not a bare calendar date.
+  dueAt: z.iso.datetime({ offset: true }).optional(), // e.g. "2026-12-01T14:30:00-03:00"
   visibleToClient: z.boolean().default(true),
 });
 

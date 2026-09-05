@@ -12,16 +12,29 @@ export const shootStatusValues = [
   "reagendado",
 ] as const;
 
+// Mirrors the shoot_payment_status Postgres enum. Kept exported even though
+// createShootSchema deliberately does not accept this field (see the note there):
+// Epic 2's payment-registration action needs these values to type the status it
+// writes, and domain/payments/balance.ts's deriveShootPaymentStatus() returns a
+// subset of them.
 export const shootPaymentStatusValues = ["nao_iniciado", "parcial", "pago", "reembolsado", "cancelado"] as const;
 
 export const createShootSchema = z.object({
   clientId: z.string().uuid(),
   experiencePackageId: z.string().uuid(),
-  shootDate: z.string(), // ISO date, e.g. "2026-12-01"
-  startTime: z.string().optional(), // "HH:mm" or "HH:mm:ss"
+  // `shoots.shoot_date` is a Postgres `date` and `shoots.start_time` a `time` —
+  // validate both here so malformed input is rejected by Zod before the insert.
+  shootDate: z.iso.date(), // "YYYY-MM-DD", e.g. "2026-12-01"
+  startTime: z.iso.time().optional(), // "HH:mm" or "HH:mm:ss"
   status: z.enum(shootStatusValues).default("reserva"),
   agreedPrice: z.string().regex(/^\d+(\.\d{1,2})?$/, "must be a decimal string like \"1200.00\""),
-  paymentStatus: z.enum(shootPaymentStatusValues).default("nao_iniciado"),
+  // NOTE: `paymentStatus` is deliberately absent from this schema. db/schema/shoots.ts
+  // documents the column as cached/denormalized and never user-editable — it may only
+  // be written by the payment-registration domain function (Epic 2's SCL-220, via
+  // deriveShootPaymentStatus()). Exposing it as a caller-settable create field let
+  // `createShoot({ ..., paymentStatus: "pago" })` succeed with zero Payment rows
+  // behind it — exactly the "two sources of financial truth" PRD §7.5 forbids. At
+  // creation time the Postgres column default ('nao_iniciado') supplies the value.
   participantCount: z.number().int().positive().optional(),
   occasion: z.string().optional(),
   referral: z.string().optional(),
@@ -29,9 +42,9 @@ export const createShootSchema = z.object({
   portalEnabled: z.boolean().default(false),
 });
 
-// z.input (not z.infer/z.output): see docs/DECISIONS.md, 2026-09-04 — `status`,
-// `paymentStatus`, and `portalEnabled` all use `.default()`, so z.infer would make
-// them required fields in the type even though Zod itself treats them as optional
+// z.input (not z.infer/z.output): see docs/DECISIONS.md, 2026-09-04 — `status` and
+// `portalEnabled` both use `.default()`, so z.infer would make them required fields
+// in the type even though Zod itself treats them as optional
 // pre-parse. z.input matches the pre-parse shape, consistent with
 // domain/clients/schema.ts's CreateClientInput and domain/leads/schema.ts's
 // CreateLeadInput.

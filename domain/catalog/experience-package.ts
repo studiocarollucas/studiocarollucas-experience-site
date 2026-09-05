@@ -15,7 +15,13 @@ export const createExperiencePackageSchema = z.object({
   active: z.boolean().default(true),
 });
 
-export type CreateExperiencePackageInput = z.infer<typeof createExperiencePackageSchema>;
+// z.input (not z.infer/z.output): see docs/DECISIONS.md, 2026-09-04 — `makeIncluded`,
+// `clutchIncluded`, and `active` all use `.default()`, so z.infer would make them
+// required fields in the type even though Zod itself treats them as optional
+// pre-parse. z.input matches the pre-parse shape, consistent with every other
+// domain schema module in this epic (clients, leads, shoots, payments, preparation,
+// production). This module predates that convention and was retrofitted afterwards.
+export type CreateExperiencePackageInput = z.input<typeof createExperiencePackageSchema>;
 
 export async function createExperiencePackage(
   input: CreateExperiencePackageInput

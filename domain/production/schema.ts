@@ -7,7 +7,10 @@ export const createProductionJobSchema = z.object({
   status: z.enum(productionJobStatusValues).default("aguardando"),
   editorUserId: z.string().uuid().optional(),
   photosToEdit: z.number().int().positive().optional(),
-  deliveryDueAt: z.string().optional(),
+  // `production_jobs.delivery_due_at` is a Postgres `date` (verified live against
+  // information_schema.columns) despite the "At" suffix — a bare calendar date, not
+  // a timestamp like preparation_tasks.dueAt.
+  deliveryDueAt: z.iso.date().optional(), // "YYYY-MM-DD"
   selectionStatus: z.string().optional(),
   notes: z.string().optional(),
 });

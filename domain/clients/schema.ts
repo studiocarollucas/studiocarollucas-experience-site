@@ -5,7 +5,11 @@ export const createClientSchema = z.object({
   phone: z.string().optional(),
   email: z.string().email().optional(),
   instagramHandle: z.string().optional(),
-  birthday: z.string().optional(), // ISO date string, e.g. "1994-03-12"
+  // `clients.birthday` is a Postgres `date` column — validate the ISO calendar-date
+  // shape here so a malformed value is rejected by Zod before it reaches the insert,
+  // instead of surfacing as a raw Postgres error (plan's Global Constraint: Zod
+  // validates input *before* it reaches the database).
+  birthday: z.iso.date().optional(), // "YYYY-MM-DD", e.g. "1994-03-12"
   source: z.string().optional(),
   referrerClientId: z.string().uuid().optional(),
   styleProfile: z.string().optional(),

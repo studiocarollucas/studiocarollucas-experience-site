@@ -27,4 +27,12 @@ describe("createPreparationTaskSchema", () => {
     const { shootId, ...rest } = validBase;
     expect(createPreparationTaskSchema.safeParse(rest).success).toBe(false);
   });
+
+  // `preparation_tasks.due_at` is `timestamp with time zone`, so dueAt requires a
+  // full ISO datetime with an explicit offset.
+  it("accepts a valid dueAt and rejects a malformed one", () => {
+    expect(createPreparationTaskSchema.safeParse({ ...validBase, dueAt: "2026-12-01T14:30:00Z" }).success).toBe(true);
+    expect(createPreparationTaskSchema.safeParse({ ...validBase, dueAt: "not-a-datetime" }).success).toBe(false);
+    expect(createPreparationTaskSchema.safeParse({ ...validBase, dueAt: "2026-12-01" }).success).toBe(false);
+  });
 });

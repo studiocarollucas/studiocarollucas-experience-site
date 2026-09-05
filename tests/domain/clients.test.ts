@@ -30,6 +30,18 @@ describe("createClientSchema", () => {
     const result = createClientSchema.parse({ name: "Maria Silva" });
     expect(result.marketingConsent).toBe(false);
   });
+
+  it("accepts a valid ISO birthday", () => {
+    const result = createClientSchema.safeParse({ name: "Maria Silva", birthday: "1994-03-12" });
+    expect(result.success).toBe(true);
+  });
+
+  // `clients.birthday` is a Postgres `date` column — Zod must reject a malformed
+  // value before the insert, not let it surface as a raw Postgres error.
+  it("rejects a malformed birthday", () => {
+    expect(createClientSchema.safeParse({ name: "Maria Silva", birthday: "not-a-date" }).success).toBe(false);
+    expect(createClientSchema.safeParse({ name: "Maria Silva", birthday: "12/03/1994" }).success).toBe(false);
+  });
 });
 
 // CI (.github/workflows/ci.yml) runs `npm run test` with no DATABASE_URL, and
