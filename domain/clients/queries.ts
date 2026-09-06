@@ -1,4 +1,4 @@
-import { or, ilike, sql, desc, count, eq, inArray, type SQL } from "drizzle-orm";
+import { or, ilike, sql, asc, desc, count, eq, inArray, type SQL } from "drizzle-orm";
 import { db } from "@/db/client";
 import { clients, shoots, experiencePackages, payments, type Client } from "@/db/schema";
 import { calculateBalance } from "@/domain/payments/balance";
@@ -160,4 +160,8 @@ export async function getClientDetail(id: string): Promise<ClientDetail | null> 
 
   const { rows, lifetimeRevenue, openBalance } = summarizeClientHistory(shootRows, paymentRows);
   return { client, shoots: rows, lifetimeRevenue, openBalance };
+}
+
+export async function listClientOptions(): Promise<{ id: string; name: string }[]> {
+  return db.select({ id: clients.id, name: clients.name }).from(clients).orderBy(asc(clients.name));
 }
