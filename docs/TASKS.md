@@ -54,7 +54,8 @@
 | SCL-220 | Registrar pagamento | P1 | finance | DONE | agent:claude-code | SCL-104,SCL-200 |
 | SCL-221 | Livro-caixa + dashboard financeiro | P1 | finance | DONE | agent:claude-code | SCL-104,SCL-201,SCL-220 |
 | SCL-222 | Despesas | P1 | finance | DONE | agent:claude-code | SCL-104,SCL-221 |
-| SCL-230 | Kanban Produção | P1 | production | BACKLOG | unassigned | SCL-106,SCL-200 |
+| SCL-230 | Kanban Produção | P1 | production | DONE | agent:claude-code | SCL-106,SCL-200 |
+| SCL-231 | Mudar status do ProductionJob | P1 | production | DONE | agent:claude-code | SCL-106,SCL-230 |
 | SCL-300 | Passwordless cliente | P1 | client | BACKLOG | unassigned | SCL-006,SCL-007 |
 | SCL-301 | Shell Minha Experiência | P1 | client | BACKLOG | unassigned | SCL-300,SCL-009 |
 | SCL-302 | Home cliente + progresso | P1 | client | BACKLOG | unassigned | SCL-103,SCL-105,SCL-301 |
@@ -1172,6 +1173,94 @@ Tela `/admin/financeiro/despesas` para registrar e listar despesas — saídas i
 - arquivos alterados: ver Files/Scope acima.
 - testes: `tests/domain/expense-form-schema.test.ts` (4 puros, TDD RED→GREEN).
 - próximo passo: nenhum bloqueio pendente; SCL-221 "próximo passo" (preencher o link "Despesas") está fechado.
+
+---
+
+### SCL-230 — Kanban Produção
+
+- Status: DONE
+- Priority: P1
+- Area: production
+- Owner: agent:claude-code
+- Branch: —
+- PR: —
+- Depends on: SCL-106, SCL-200
+- Blocks: —
+- Files/Scope: `domain/production/queries.ts`, `app/admin/(protected)/producao/page.tsx`, `components/admin/kanban-column.tsx`, `components/admin/production-card.tsx`, `tests/domain/production-board.test.ts`
+- Migration: no
+- Updated at: 2026-09-06
+
+**Goal**
+
+Tela `/admin/producao` — Kanban de pós-produção/edição (PRD §7.6). Uma coluna por status de `production_jobs`, um card por ensaio, com o controle de transição de status embutido em cada card (entregue por SCL-231).
+
+**Acceptance criteria**
+
+- [x] `groupJobsByStatus` puro/testado — TDD RED→GREEN, 3 casos em `tests/domain/production-board.test.ts` (retorna as 5 colunas na ordem canônica mesmo vazio; distribui cada job na sua coluna; ignora — sem lançar — um card com status desconhecido);
+- [x] as colunas vêm de `productionJobStatusEnum.enumValues`, então o board nunca diverge do schema e toda coluna sempre aparece (inclusive as vazias);
+- [x] `getProductionBoard()` = leitura Drizzle pura: `production_jobs` `innerJoin` shoots/clients/experience_packages + `leftJoin` `profiles` pelo `editor_user_id`, agrupada por `groupJobsByStatus`;
+- [x] card linka para `/admin/agenda/${shootId}`, mostra pacote + data (`formatShootDate`), editor, fotos a editar e prazo de entrega;
+- [x] página é `force-dynamic` — lê dados de produção ao vivo a cada request, nada a prerender (as demais telas de lista do Studio OS chegam ao mesmo estado via `searchParams`).
+
+**Implementation notes**
+
+- `domain/production/queries.ts` (novo) = `groupJobsByStatus` (puro) + `getProductionBoard` (leitura). `groupJobsByStatus` é `COLUMNS.map(column => ({ column, cards: jobs.filter(j => j.status === column) }))` — um card com status fora do enum simplesmente não entra em nenhuma coluna.
+- Nome do editor: `profiles.fullName` (`full_name`) existe em `db/schema/profiles.ts` e é usado direto; `leftJoin` porque `editor_user_id` é nullable. Sem migração.
+- `production-card.tsx` importa `ProductionStatusControl` de `@/app/admin/(protected)/producao/production-status-control` (SCL-231) — por isso as duas tasks entram no mesmo commit de implementação.
+- `page.tsx` acrescenta `export const dynamic = "force-dynamic"` (a única linha fora do código literal do brief). Sem esse marcador o Next tenta prerenderizar a página no build, roda `getProductionBoard()` contra o pooler remoto e derruba o build (o worker de `/admin` estoura os 60s). Com o marcador o build fica verde e `/admin/producao` é `ƒ` como toda página de lista do Studio OS.
+
+**Blocker/Hand-off notes**
+
+- concluído: `groupJobsByStatus` (puro/testado, TDD RED→GREEN 3 casos), `getProductionBoard`, página `/admin/producao` + `KanbanColumn` + `ProductionCardView`.
+- falta: nada pendente nesta task.
+- arquivos alterados: ver Files/Scope acima.
+- testes: `tests/domain/production-board.test.ts` (3 puros, TDD RED→GREEN).
+- próximo passo: nenhum bloqueio pendente.
+
+---
+
+### SCL-231 — Mudar status do ProductionJob (+ campos editor / entrega)
+
+- Status: DONE
+- Priority: P1
+- Area: production
+- Owner: agent:claude-code
+- Branch: —
+- PR: —
+- Depends on: SCL-106, SCL-230
+- Blocks: —
+- Files/Scope: `domain/production/status.ts` (append `allowedProductionTransitions`), `domain/production/service.ts` (append `changeProductionJobStatus`, `updateProductionJobFields`), `domain/production/actions.ts`, `app/admin/(protected)/producao/production-status-control.tsx`, `tests/domain/change-production-status.test.ts`
+- Migration: no
+- Updated at: 2026-09-06
+
+**Goal**
+
+Mudar o status de um `production_job` pelo card do Kanban, validando a transição pela regra pura do Epic 1 e refletindo `finalizado`/`entregue` no shoot na mesma transação (PRD §7.6). Também expõe `updateProductionJobFields` para editor/fotos/prazo.
+
+**Acceptance criteria**
+
+- [x] `allowedProductionTransitions(from)` puro/testado — TDD RED→GREEN, 4 casos em `tests/domain/change-production-status.test.ts` (`aguardando` → só `iniciado`; `iniciado` → `parcial` + `finalizado`, o skip deliberado; `entregue` → `[]`; toda transição oferecida passa em `canTransitionProductionStatus`);
+- [x] `allowedProductionTransitions` é `ORDER.filter(to => canTransitionProductionStatus(from, to))` — derivado do guard, nunca um mapa hardcoded, então dropdown e guard não divergem;
+- [x] `changeProductionJobStatus(jobId, to)` roda em um único `db.transaction`: carrega o job (lança se não existe); `if (!canTransitionProductionStatus(current.status, to)) throw new Error("transição inválida")`; grava o status (e `deliveryAt` = hoje quando `to === "entregue"`); reflete no shoot — `finalizado`→`finalizado`, `entregue`→`entregue` — só quando o shoot ainda não está lá **e** `canTransitionShootStatus` permite; tudo em `tx`;
+- [x] `changeProductionStatusAction` e `updateProductionJobAction` são `"use server"`, embrulhadas por `defineAdminAction({ role: "staff" })`, auditadas (`production_job.status_changed` / `production_job.updated`) e revalidam `/admin/producao`, `/admin/agenda/${shootId}` e `/admin`;
+- [x] `ProductionStatusControl` é `"use client"`, importa a action de `@/domain/production/actions`, monta o `<select>` com `allowedProductionTransitions`, chama a action num `useTransition` e faz `router.refresh()` no sucesso.
+
+**Implementation notes**
+
+- `domain/production/status.ts`: só o append de `allowedProductionTransitions`; `canTransitionProductionStatus` e o array `ORDER` não foram tocados.
+- `domain/production/service.ts`: append de `changeProductionJobStatus` + `updateProductionJobFields`. A reflexão no shoot é guardada por `shoot.status !== reflect && canTransitionShootStatus(shoot.status, reflect)` — se o shoot já passou do ponto (ou a regra do shoot não permite o hop), o job muda mesmo assim e `shootStatusChanged` volta `null`. A transação é atômica: erro em qualquer passo desfaz tudo.
+- `domain/production/actions.ts` (novo): `"use server"`. O import de `getProductionJobByShootId` que o brief listava foi removido — não era usado e o lint falharia com ele.
+- `production-status-control.tsx` não usa `toFormAction`, então não importa nada de `@/lib/auth/action-result`; chama a action diretamente (mesma convenção de `edit-shoot-panel.tsx`).
+- Sem migração: `production_jobs` já tem `status`, `delivery_at`, `editor_user_id`, `photos_to_edit`, `delivery_due_at`, `selection_status`, `notes` desde SCL-106.
+- Sem teste live-DB: a cobertura pura (`groupJobsByStatus`, `allowedProductionTransitions`) mais as suítes existentes carregam a task; nenhum arquivo de integração foi adicionado.
+
+**Blocker/Hand-off notes**
+
+- concluído: `allowedProductionTransitions` (puro/testado, TDD RED→GREEN 4 casos), `changeProductionJobStatus` (transação atômica job + reflexão no shoot), `updateProductionJobFields`, as duas actions embrulhadas + auditadas, `ProductionStatusControl`. `npm run test` (187 + 6 skip), `npm run typecheck`, `npm run lint` (0 erros; 5 warnings pré-existentes em outros testes), `npm run check:admin-auth`, `npm run build` todos verdes.
+- falta: nada pendente nesta task.
+- arquivos alterados: ver Files/Scope acima.
+- testes: `tests/domain/change-production-status.test.ts` (4 puros, TDD RED→GREEN) + `tests/domain/production-status.test.ts` (Epic 1, reusado).
+- próximo passo: nenhum bloqueio pendente.
 
 ---
 
