@@ -18,7 +18,17 @@ type PrepStatus = (typeof preparationTaskStatusEnum.enumValues)[number];
 export async function setPreparationTaskStatus(
   taskId: string,
   status: PrepStatus,
-): Promise<PreparationTask> {
+): Promise<{ task: PreparationTask; previousStatus: PrepStatus }> {
+  // Load first: a bad taskId used to fall through to `row === undefined` and blow
+  // up with a TypeError at the caller. It also gives the action a real audit
+  // `before` without a second round trip.
+  const [current] = await db
+    .select()
+    .from(preparationTasks)
+    .where(eq(preparationTasks.id, taskId))
+    .limit(1);
+  if (!current) throw new Error("tarefa inexistente");
+
   const [row] = await db
     .update(preparationTasks)
     .set({
@@ -27,7 +37,7 @@ export async function setPreparationTaskStatus(
     })
     .where(eq(preparationTasks.id, taskId))
     .returning();
-  return row;
+  return { task: row, previousStatus: current.status };
 }
 
 export async function addPreparationTask(

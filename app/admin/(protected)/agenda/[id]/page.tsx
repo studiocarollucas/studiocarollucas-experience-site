@@ -8,6 +8,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { DetailSection, DetailRow } from "@/components/admin/detail-section";
 import { EditShootPanel } from "./edit-shoot-panel";
 import { ShootStatusControl } from "./shoot-status-control";
+import { ProductionFieldsForm } from "./production-fields-form";
 import { formatBRL, formatShootDate, formatDateTime } from "@/lib/format";
 import type { Payment } from "@/db/schema";
 
@@ -92,6 +93,17 @@ export default async function ShootDetailPage({ params }: { params: Params }) {
             Abrir checklist de preparação
           </Link>
         </div>
+        {productionJob ? (
+          <ProductionFieldsForm
+            jobId={productionJob.id}
+            initialValues={{
+              photosToEdit: productionJob.photosToEdit ?? undefined,
+              deliveryDueAt: productionJob.deliveryDueAt ?? "",
+              selectionStatus: productionJob.selectionStatus ?? "",
+              notes: productionJob.notes ?? "",
+            }}
+          />
+        ) : null}
       </DetailSection>
 
       <DetailSection title="Editar ensaio">

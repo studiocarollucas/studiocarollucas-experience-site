@@ -4,7 +4,11 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { defineAdminAction } from "@/lib/auth/admin-action";
 import { productionJobStatusEnum } from "@/db/schema";
-import { changeProductionJobStatus, updateProductionJobFields } from "./service";
+import {
+  changeProductionJobStatus,
+  getProductionJobById,
+  updateProductionJobFields,
+} from "./service";
 import { recordAuditEvent } from "@/domain/audit/service";
 
 export const changeProductionStatusAction = defineAdminAction(
@@ -16,13 +20,16 @@ export const changeProductionStatusAction = defineAdminAction(
     }),
   },
   async (input, ctx) => {
-    const { job, shootStatusChanged } = await changeProductionJobStatus(input.jobId, input.to);
+    const { job, previousStatus, shootStatusChanged } = await changeProductionJobStatus(
+      input.jobId,
+      input.to,
+    );
     await recordAuditEvent({
       actorUserId: ctx.user.id,
       action: "production_job.status_changed",
       entityType: "production_job",
       entityId: job.id,
-      before: null,
+      before: { status: previousStatus },
       after: { status: job.status, shootStatusChanged },
     });
     revalidatePath("/admin/producao");
@@ -46,13 +53,15 @@ export const updateProductionJobAction = defineAdminAction(
   },
   async (input, ctx) => {
     const { jobId, ...fields } = input;
+    const before = await getProductionJobById(jobId);
+    if (!before) throw new Error("job inexistente");
     const job = await updateProductionJobFields(jobId, fields);
     await recordAuditEvent({
       actorUserId: ctx.user.id,
       action: "production_job.updated",
       entityType: "production_job",
       entityId: jobId,
-      before: null,
+      before,
       after: job,
     });
     revalidatePath("/admin/producao");

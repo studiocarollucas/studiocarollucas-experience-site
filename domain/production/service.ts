@@ -3,7 +3,7 @@ import { productionJobs, shoots, type ProductionJob } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { createProductionJobSchema, type CreateProductionJobInput } from "./schema";
 import { canTransitionProductionStatus, type ProductionJobStatus } from "./status";
-import { canTransitionShootStatus } from "@/domain/shoots/status";
+import { canTransitionShootStatus, type ShootStatus } from "@/domain/shoots/status";
 
 export async function createProductionJob(input: CreateProductionJobInput): Promise<ProductionJob> {
   const parsed = createProductionJobSchema.parse(input);
@@ -20,10 +20,15 @@ export async function getProductionJobByShootId(shootId: string): Promise<Produc
   return row ?? null;
 }
 
+export async function getProductionJobById(jobId: string): Promise<ProductionJob | null> {
+  const [row] = await db.select().from(productionJobs).where(eq(productionJobs.id, jobId)).limit(1);
+  return row ?? null;
+}
+
 export async function changeProductionJobStatus(
   jobId: string,
   to: ProductionJobStatus,
-): Promise<{ job: ProductionJob; shootStatusChanged: string | null }> {
+): Promise<{ job: ProductionJob; previousStatus: ProductionJobStatus; shootStatusChanged: string | null }> {
   return db.transaction(async (tx) => {
     const [current] = await tx.select().from(productionJobs).where(eq(productionJobs.id, jobId)).limit(1);
     if (!current) throw new Error("job inexistente");
@@ -41,13 +46,16 @@ export async function changeProductionJobStatus(
     let shootStatusChanged: string | null = null;
     const reflect = to === "finalizado" ? "finalizado" : to === "entregue" ? "entregue" : null;
     if (reflect) {
+      const next: ShootStatus = reflect;
       const [shoot] = await tx.select().from(shoots).where(eq(shoots.id, job.shootId)).limit(1);
-      if (shoot && shoot.status !== reflect && canTransitionShootStatus(shoot.status, reflect as never)) {
-        await tx.update(shoots).set({ status: reflect as never }).where(eq(shoots.id, job.shootId));
-        shootStatusChanged = reflect;
+      if (shoot && shoot.status !== next && canTransitionShootStatus(shoot.status, next)) {
+        await tx.update(shoots).set({ status: next }).where(eq(shoots.id, job.shootId));
+        shootStatusChanged = next;
       }
     }
-    return { job, shootStatusChanged };
+    // `previousStatus` is returned so the action can audit a real `before` instead
+    // of null — the row is already loaded here, the action would have to re-read it.
+    return { job, previousStatus: current.status, shootStatusChanged };
   });
 }
 
@@ -62,6 +70,14 @@ export async function updateProductionJobFields(
     notes?: string | null;
   },
 ): Promise<ProductionJob> {
+  // Empty patch: Drizzle `.set({})` throws, so short-circuit to the current row —
+  // same shape as updateShoot/updateClient.
+  if (Object.keys(fields).length === 0) {
+    const existing = await getProductionJobById(jobId);
+    if (!existing) throw new Error("job inexistente");
+    return existing;
+  }
   const [row] = await db.update(productionJobs).set(fields).where(eq(productionJobs.id, jobId)).returning();
+  if (!row) throw new Error("job inexistente");
   return row;
 }

@@ -36,14 +36,14 @@ export const setPreparationTaskStatusAction = defineAdminAction(
     }),
   },
   async (input, ctx) => {
-    const updated = await setPreparationTaskStatus(input.taskId, input.status);
+    const { task, previousStatus } = await setPreparationTaskStatus(input.taskId, input.status);
     await recordAuditEvent({
       actorUserId: ctx.user.id,
       action: "preparation_task.status_changed",
       entityType: "preparation_task",
       entityId: input.taskId,
-      before: null,
-      after: { status: updated.status },
+      before: { status: previousStatus },
+      after: { status: task.status },
     });
     revalidatePath(`/admin/agenda/${input.shootId}`);
     revalidatePath(`/admin/agenda/${input.shootId}/preparacao`);

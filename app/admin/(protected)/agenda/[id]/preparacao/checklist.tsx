@@ -1,6 +1,6 @@
 "use client";
 
-import { useTransition, useActionState } from "react";
+import { useState, useTransition, useActionState } from "react";
 import { useRouter } from "next/navigation";
 import {
   addPreparationTaskAction,
@@ -21,8 +21,10 @@ const LABEL: Record<string, string> = { pendente: "Pendente", em_andamento: "Em 
 export function Checklist({ shootId, tasks }: { shootId: string; tasks: Task[] }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
+  const [cycleError, setCycleError] = useState<string | null>(null);
 
   function cycle(task: Task) {
+    setCycleError(null);
     startTransition(async () => {
       const result = await setPreparationTaskStatusAction({
         taskId: task.id,
@@ -30,7 +32,7 @@ export function Checklist({ shootId, tasks }: { shootId: string; tasks: Task[] }
         status: NEXT[task.status],
       });
       if (result.ok) router.refresh();
-      else alert(result.error);
+      else setCycleError(result.error);
     });
   }
 
@@ -45,6 +47,7 @@ export function Checklist({ shootId, tasks }: { shootId: string; tasks: Task[] }
 
   return (
     <div className="flex flex-col gap-6">
+      <FormStatus state={cycleError ? { ok: false, error: cycleError } : null} />
       <ul className="flex flex-col divide-y divide-line border border-line">
         {tasks.map((task) => (
           <li key={task.id} className="flex items-center justify-between px-4 py-3">
