@@ -46,6 +46,7 @@
 | SCL-200 | Shell Admin | P1 | admin | DONE | agent:claude-code | SCL-007,SCL-009,SCL-100 |
 | SCL-201 | Dashboard | P1 | admin | DONE | agent:claude-code | SCL-103,SCL-104,SCL-106,SCL-200 |
 | SCL-202 | Lista de clientes | P1 | admin | DONE | agent:claude-code | SCL-100,SCL-200 |
+| SCL-204 | Criar cliente | P1 | admin | DONE | agent:claude-code | SCL-100,SCL-200 |
 | SCL-203 | Ficha da cliente | P1 | admin | BACKLOG | unassigned | SCL-100,SCL-200 |
 | SCL-210 | Agenda/Ensaios | P1 | admin | BACKLOG | unassigned | SCL-103,SCL-200 |
 | SCL-211 | Criar ensaio | P1 | admin | BACKLOG | unassigned | SCL-103,SCL-106,SCL-105 |
@@ -835,6 +836,41 @@ Terceira task do Epic 2: tela de lista do CRM em `/admin/clientes` — busca por
 - concluído: `domain/clients/queries.ts`, `app/admin/(protected)/clientes/page.tsx`, `components/admin/search-input.tsx`, `components/admin/pagination.tsx`. `npm run test` / `typecheck` / `lint` / `check:admin-auth` / `build` verdes.
 - testes: `tests/domain/clients-queries.test.ts` (4 casos para `normalizeListParams`) — TDD RED (módulo inexistente) → GREEN. Suíte completa: 144 passando, 3 skipped, inalterada fora do novo arquivo.
 - próximo passo: SCL-203 (ficha da cliente) e SCL-210+ constroem sobre `listClients` e os componentes `SearchInput`/`Pagination`.
+
+---
+
+### SCL-204 — Criar cliente
+
+- Status: DONE
+- Priority: P1
+- Area: admin
+- Owner: agent:claude-code
+- Branch: —
+- PR: —
+- Depends on: SCL-100, SCL-200
+- Blocks: —
+- Files/Scope: `domain/clients/form-schema.ts`, `domain/clients/actions.ts`, `domain/clients/schema.ts` (+`updateClientSchema`), `domain/clients/service.ts` (+`updateClient`), `app/admin/(protected)/clientes/novo/page.tsx`, `components/admin/{client-form,form-status,submit-button}.tsx`, `lib/auth/action-result.ts` (novo), `lib/auth/admin-action.ts` (re-export), `scripts/check-admin-auth.mjs`, `tests/domain/clients-form-schema.test.ts`, `tests/scripts/check-admin-auth.test.ts`
+- Migration: no
+- Updated at: 2026-09-06
+
+**Goal**
+
+Quarta task do Epic 2: cadastro de cliente em `/admin/clientes/novo` (PRD §14 / SCL-204) — formulário do CRM sobre as primitivas de SCL-200, submetido por um Server Action envolvido no wrapper RBAC de SCL-200.
+
+**Decisões de implementação**
+
+- **`createClientAction` via `defineAdminAction({ role: "staff", input: clientFormSchema })`.** Toda export de `domain/clients/actions.ts` (`"use server"`) passa pelo wrapper. Handler chama `createClient(input)` e grava `recordAuditEvent({ action: "client.created", entityType: "client", before: null, after: created })` com `actorUserId = ctx.user.id`, depois `revalidatePath("/admin/clientes")` e retorna `{ id }`.
+- **`updateClientAction` + `updateClient`/`updateClientSchema` entregues junto** (o form e os componentes são reusados pela SCL-203 para edição). `updateClientSchema = createClientSchema.partial().extend({ name: z.string().min(1).optional() })`; a action valida `updateClientSchema.extend({ id: z.string().uuid() })`, lê o `before` via `getClientById`, aplica o patch e audita `client.updated`.
+- **`clientFormSchema` é re-export de `createClientSchema`.** `toFormAction({ booleans: ["marketingConsent"] })` já normaliza o checkbox para `true`/`false` antes da action; o schema só precisa aceitar o booleano e manter `.default(false)`. TDD: `tests/domain/clients-form-schema.test.ts` (6 casos) — RED (módulo inexistente) → GREEN.
+- **`lib/auth/action-result.ts` novo (client-safe).** `ClientForm` é `"use client"` e precisa de `toFormAction` + `type ActionResult`; importar de `@/lib/auth/admin-action` arrastava o grafo `session`→`supabase/server` (`next/headers`) + `db`/`postgres` para o bundle do browser e quebrava `next build`. `toFormAction` e `ActionResult` moveram para `lib/auth/action-result.ts`; `admin-action.ts` re-exporta ambos para os callers server-side existentes.
+- **`ClientForm`/`FormStatus`/`SubmitButton` (`components/admin/`) criados aqui e reusados por SCL-203 e formulários futuros.** `SubmitButton` usa `useFormStatus` (pending → "Salvando…"/disabled). `FormStatus` renderiza `state.error` quando `!state.ok`. `ClientForm` usa `useActionState` + `toFormAction`, mapeia `fieldErrors` por campo, aceita `initialValues`/`submitLabel`/`hiddenId` para o modo edição. A página `/novo` é `"use client"` e faz `router.push(/admin/clientes/${id})` no sucesso.
+- **CI guard estendido para `domain/**/actions.ts`.** `scripts/check-admin-auth.mjs` (run direto) agora percorre `app/admin/` **e** `domain/`, então todo arquivo `"use server"` do repo é coberto — `domain/clients/actions.ts` mora fora de `app/admin/`. `findAdminAuthViolations` já era agnóstico de diretório (a checagem de page/route no-opa para `domain/`). Fixture test novo em `tests/scripts/check-admin-auth.test.ts` roda o CLI contra um repo temporário com `domain/widgets/actions.ts` compliant vs. `"use server"` cru — TDD RED (guard antigo só varria `app/admin/`, CLI saía 0) → GREEN (sai 1, aponta o arquivo).
+
+**Blocker/Hand-off notes**
+
+- concluído: todos os arquivos acima. `npm run test` (153 passando, 3 skipped) / `typecheck` / `lint` (0 erros) / `check:admin-auth` / `build` verdes.
+- desvio do brief: o Step 8 do brief importava `toFormAction` de `@/lib/auth/admin-action` num Client Component, o que não compila (`next build`). Resolvido com o split `lib/auth/action-result.ts` + re-export; nenhuma mudança de comportamento em `defineAdminAction`.
+- próximo passo: SCL-203 reusa `ClientForm` (com `initialValues`/`hiddenId`) e `updateClientAction` para a edição na ficha da cliente.
 
 ---
 
