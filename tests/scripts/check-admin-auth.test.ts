@@ -1,8 +1,31 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
+import { execFileSync } from "node:child_process";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { findAdminAuthViolations } from "../../scripts/check-admin-auth.mjs";
+
+const SCRIPT = join(process.cwd(), "scripts", "check-admin-auth.mjs");
+
+/** Run the guard CLI with cwd pointed at a fixture repo. */
+function runGuard(cwd: string): { code: number; output: string } {
+  try {
+    const output = execFileSync(process.execPath, [SCRIPT], {
+      cwd,
+      encoding: "utf-8",
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+    return { code: 0, output };
+  } catch (err) {
+    const e = err as { status?: number; stdout?: string; stderr?: string };
+    return { code: e.status ?? 1, output: `${e.stdout ?? ""}${e.stderr ?? ""}` };
+  }
+}
+
+const WRAPPED_ACTION =
+  `"use server";\nimport { defineAdminAction } from "@/lib/auth/admin-action";\n` +
+  `export const a = defineAdminAction({ role: "staff" }, async () => null);\n`;
+const RAW_ACTION = `"use server";\nexport async function raw() { return null; }\n`;
 
 let dir: string;
 
@@ -53,5 +76,38 @@ describe("findAdminAuthViolations", () => {
   it("reports the real app/admin tree as clean", () => {
     const real = join(process.cwd(), "app", "admin");
     expect(findAdminAuthViolations(real)).toEqual([]);
+  });
+
+  it("reports the real domain/ tree as clean", () => {
+    const real = join(process.cwd(), "domain");
+    expect(findAdminAuthViolations(real)).toEqual([]);
+  });
+});
+
+describe("check-admin-auth CLI covers domain/**/actions.ts", () => {
+  let repo: string;
+
+  beforeAll(() => {
+    repo = mkdtempSync(join(tmpdir(), "admin-auth-cli-"));
+    // A clean app/admin tree so only the domain/ scan can produce a violation.
+    mkdirSync(join(repo, "app", "admin", "(protected)", "clientes"), { recursive: true });
+    writeFileSync(join(repo, "app", "admin", "(protected)", "clientes", "actions.ts"), WRAPPED_ACTION);
+    mkdirSync(join(repo, "domain", "widgets"), { recursive: true });
+  });
+
+  afterAll(() => rmSync(repo, { recursive: true, force: true }));
+
+  it("passes when domain/widgets/actions.ts routes through defineAdminAction", () => {
+    writeFileSync(join(repo, "domain", "widgets", "actions.ts"), WRAPPED_ACTION);
+    const { code, output } = runGuard(repo);
+    expect(code).toBe(0);
+    expect(output).toMatch(/all mutations wrapped/);
+  });
+
+  it("fails when domain/widgets/actions.ts declares 'use server' without defineAdminAction", () => {
+    writeFileSync(join(repo, "domain", "widgets", "actions.ts"), RAW_ACTION);
+    const { code, output } = runGuard(repo);
+    expect(code).toBe(1);
+    expect(output).toMatch(/widgets\/actions\.ts/);
   });
 });

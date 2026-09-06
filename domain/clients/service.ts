@@ -1,7 +1,12 @@
 import { db } from "@/db/client";
 import { clients, type Client } from "@/db/schema";
 import { eq } from "drizzle-orm";
-import { createClientSchema, type CreateClientInput } from "./schema";
+import {
+  createClientSchema,
+  updateClientSchema,
+  type CreateClientInput,
+  type UpdateClientInput,
+} from "./schema";
 
 export async function createClient(input: CreateClientInput): Promise<Client> {
   const parsed = createClientSchema.parse(input);
@@ -12,4 +17,10 @@ export async function createClient(input: CreateClientInput): Promise<Client> {
 export async function getClientById(id: string): Promise<Client | null> {
   const [row] = await db.select().from(clients).where(eq(clients.id, id)).limit(1);
   return row ?? null;
+}
+
+export async function updateClient(id: string, input: UpdateClientInput): Promise<Client> {
+  const parsed = updateClientSchema.parse(input);
+  const [row] = await db.update(clients).set(parsed).where(eq(clients.id, id)).returning();
+  return row;
 }

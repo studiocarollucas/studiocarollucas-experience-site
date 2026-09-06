@@ -58,8 +58,12 @@ export function findAdminAuthViolations(adminDir) {
 
 const invokedDirectly = process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1];
 if (invokedDirectly) {
-  const adminDir = join(process.cwd(), "app", "admin");
-  const violations = findAdminAuthViolations(adminDir);
+  // Scan app/admin (pages + route actions) *and* domain/ so every "use server"
+  // file in the repo is covered — domain/*/actions.ts files are "use server" too
+  // and must route every mutation through defineAdminAction(). The page/route
+  // check no-ops for domain/ (no page/layout/route files there).
+  const roots = [join(process.cwd(), "app", "admin"), join(process.cwd(), "domain")];
+  const violations = roots.flatMap((r) => findAdminAuthViolations(r));
   if (violations.length > 0) {
     console.error("Studio OS auth-enforcement check FAILED:\n" + violations.map((v) => "  - " + v).join("\n"));
     process.exit(1);

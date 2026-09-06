@@ -2,10 +2,13 @@ import { z } from "zod";
 import { getCurrentUser, type CurrentUser, type Role } from "@/lib/auth/session";
 import { requireRole } from "@/lib/auth/rbac";
 import { logger } from "@/lib/observability/logger";
+import type { ActionResult } from "@/lib/auth/action-result";
 
-export type ActionResult<T> =
-  | { ok: true; data: T }
-  | { ok: false; error: string; fieldErrors?: Record<string, string[]> };
+// Re-exported so existing server-side imports (`@/lib/auth/admin-action`) keep working.
+// Client components should import these from `@/lib/auth/action-result` directly to
+// avoid pulling the session/db graph into the browser bundle.
+export { toFormAction } from "@/lib/auth/action-result";
+export type { ActionResult } from "@/lib/auth/action-result";
 
 type Ctx = { user: CurrentUser };
 
@@ -57,31 +60,5 @@ export function defineAdminAction<TSchema extends z.ZodType, TOut>(
       });
       return { ok: false, error: "Não foi possível concluir a operação. Tente novamente." };
     }
-  };
-}
-
-/**
- * Adapts a defineAdminAction result-function to React 19's useActionState signature.
- * Empty form fields are dropped (so Zod `.optional()` sees `undefined`, not `""`);
- * `numbers` are Number()-coerced; `booleans` become presence checks (checkbox on/off).
- */
-export function toFormAction<T>(
-  action: (raw: unknown) => Promise<ActionResult<T>>,
-  opts: { numbers?: string[]; booleans?: string[] } = {},
-) {
-  return async (_prev: ActionResult<T> | null, formData: FormData): Promise<ActionResult<T>> => {
-    const obj: Record<string, unknown> = {};
-    for (const [key, value] of formData.entries()) {
-      if (typeof value !== "string") continue;
-      if (value === "") continue;
-      obj[key] = value;
-    }
-    for (const key of opts.numbers ?? []) {
-      if (key in obj) obj[key] = Number(obj[key]);
-    }
-    for (const key of opts.booleans ?? []) {
-      obj[key] = key in obj;
-    }
-    return action(obj);
   };
 }

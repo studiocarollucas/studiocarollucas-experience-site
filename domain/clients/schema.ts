@@ -24,3 +24,10 @@ export const createClientSchema = z.object({
 // (see tests/domain/clients.test.ts's integration test, which omits
 // marketingConsent entirely) are meant to use this type.
 export type CreateClientInput = z.input<typeof createClientSchema>;
+
+// Every field optional for a partial update; name still non-empty when present.
+export const updateClientSchema = createClientSchema.partial().extend({
+  name: z.string().min(1).optional(),
+});
+
+export type UpdateClientInput = z.input<typeof updateClientSchema>;
