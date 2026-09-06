@@ -49,7 +49,7 @@
 | SCL-204 | Criar cliente | P1 | admin | DONE | agent:claude-code | SCL-100,SCL-200 |
 | SCL-203 | Ficha da cliente | P1 | admin | DONE | agent:claude-code | SCL-100,SCL-200 |
 | SCL-210 | Agenda/Ensaios | P1 | admin | DONE | agent:claude-code | SCL-103,SCL-200 |
-| SCL-211 | Criar ensaio | P1 | admin | BACKLOG | unassigned | SCL-103,SCL-106,SCL-105 |
+| SCL-211 | Criar ensaio | P1 | admin | DONE | agent:claude-code | SCL-103,SCL-106,SCL-105 |
 | SCL-220 | Registrar pagamento | P1 | finance | BACKLOG | unassigned | SCL-104,SCL-200 |
 | SCL-230 | Kanban Produção | P1 | production | BACKLOG | unassigned | SCL-106,SCL-200 |
 | SCL-300 | Passwordless cliente | P1 | client | BACKLOG | unassigned | SCL-006,SCL-007 |
@@ -943,17 +943,17 @@ Sexta task do Epic 2: tela de agenda em `/admin/agenda` — visão em lista dos 
 
 ### SCL-211 — Criar ensaio ponta a ponta
 
-- Status: BACKLOG
+- Status: DONE
 - Priority: P1
 - Area: admin
-- Owner: unassigned
+- Owner: agent:claude-code
 - Branch: —
 - PR: —
 - Depends on: SCL-103, SCL-105, SCL-106, SCL-200
 - Blocks: primeiro marco E2E
-- Files/Scope: app/admin/**, domain/shoots/**, domain/preparation/**, domain/production/**
+- Files/Scope: `domain/shoots/create-confirmed-shoot.ts`, `domain/shoots/form-schema.ts`, `domain/shoots/actions.ts`, `domain/clients/queries.ts` (+`listClientOptions`), `domain/catalog/queries.ts` (+`listActivePackages`), `app/admin/(protected)/agenda/novo/page.tsx`, `app/admin/(protected)/agenda/novo/new-shoot-form.tsx`, `tests/domain/create-confirmed-shoot.test.ts`
 - Migration: no
-- Updated at: 2026-09-03
+- Updated at: 2026-09-06
 
 **Goal**
 
@@ -961,15 +961,32 @@ Permitir que Admin crie um ensaio confirmado e que o sistema derive os registros
 
 **Acceptance criteria**
 
-- [ ] selecionar/criar cliente;
-- [ ] selecionar experiência;
-- [ ] informar data/horário/valor;
-- [ ] criar Shoot;
-- [ ] criar ProductionJob em Aguardando;
-- [ ] criar checklist inicial;
-- [ ] portal_enabled configurado;
-- [ ] operação consistente em caso de falha parcial;
-- [ ] teste de integração cobrindo o fluxo.
+- [x] selecionar/criar cliente — `listClientOptions()` popula o `<Select>` de cliente (criação de cliente permanece na tela dedicada SCL-204);
+- [x] selecionar experiência — `listActivePackages()` popula o `<Select>` de experiência (só pacotes `active = true`);
+- [x] informar data/horário/valor — campos `shootDate`/`startTime`/`agreedPrice` no formulário, validados por `createShootSchema` (Zod) antes do insert;
+- [x] criar Shoot — insert dentro da transação;
+- [x] criar ProductionJob em Aguardando — insert de `production_jobs` com `status: "aguardando"` na mesma transação;
+- [x] criar checklist inicial — `buildInitialPreparationTasks()` (pura, testada) produz as 6 tarefas canônicas (moodboard, figurino, clutch, make, confirmacao_horario, pagamento); `pagamento` com `visibleToClient: false`, as demais `true`;
+- [x] portal_enabled configurado — checkbox `portalEnabled` no formulário, aplicado no insert do Shoot na criação;
+- [x] operação consistente em caso de falha parcial — os três inserts (shoot + production job + checklist) vivem num único `db.transaction`; qualquer erro faz rollback de todos (PRD §7.4.2, "operação consistente em caso de falha parcial");
+- [x] teste de integração cobrindo o fluxo — `tests/domain/create-confirmed-shoot.test.ts`, bloco `describeIfLiveDb` guardado por `RUN_LIVE_DB_TESTS === "true"`, com `beforeAll` que insere um cliente `Teste Epic2 SCL-211` e `afterAll` que apaga toda linha sintética criada.
+
+**Implementation notes**
+
+- `domain/shoots/create-confirmed-shoot.ts` contém `buildInitialPreparationTasks` (pura, TDD RED→GREEN, 4 casos) + `createConfirmedShoot` (o `db.transaction`). `createConfirmedShoot` faz exatamente shoot + job + checklist — nenhuma orquestração extra. A composição adiada por SCL-103/SCL-105/SCL-106 (cada `create*` de domínio é insert puro) acontece aqui, dentro da transação, como aquelas tasks anteciparam.
+- `domain/shoots/actions.ts` é `"use server"`, envolvido por `defineAdminAction({ role: "staff", input: newShootFormSchema })`, audita `shoot.created` via `recordAuditEvent` e chama `revalidatePath("/admin/agenda")` + `revalidatePath("/admin/producao")`.
+- Client form (`new-shoot-form.tsx`) importa `toFormAction`/`ActionResult` de `@/lib/auth/action-result` (não de `@/lib/auth/admin-action`) para não puxar o grafo session/db pro bundle do browser. Em sucesso, `router.push('/admin/agenda/${id}')` — a rota de detalhe ainda não existe (link morto inofensivo, mesma convenção da lista de agenda), chega numa task futura.
+- `newShootFormSchema` = `createShootSchema` + `z.coerce` em `participantCount` e `portalEnabled` (tolerante a string caso a action seja chamada direto; `toFormAction` já coage os campos declarados).
+- Teste live-DB rodado uma vez contra o Supabase real (`RUN_LIVE_DB_TESTS=true npm run test`): 170/170 verdes (5 blocos de integração antes pulados agora executaram). Limpeza verificada por query direta ao Postgres após a run: `clients LIKE 'Teste Epic2 %'` = 0, `clients LIKE 'Teste Epic%'` = 0, shoots com as datas/valores de teste = 0, `production_jobs` órfãos = 0, `preparation_tasks` órfãos = 0.
+- Desbloqueia o primeiro marco E2E (PRD §23): criar ensaio → produção/preparação derivadas → visão da cliente.
+
+**Blocker/Hand-off notes**
+
+- concluído: `buildInitialPreparationTasks` (pura/testada) + `createConfirmedShoot` (transação), option queries, form-schema, action auditada, página + formulário. `npm run test` (165 + 5 skip), `npm run typecheck`, `npm run lint` (0 erros; 5 warnings pré-existentes em outros testes), `npm run check:admin-auth`, `npm run build` todos verdes. Uma run live-DB verde com limpeza confirmada em zero linhas.
+- falta: nada pendente nesta task. A rota de detalhe `/admin/agenda/[id]` (alvo do redirect pós-criação) fica para uma task futura.
+- arquivos alterados: ver Files/Scope acima.
+- testes: `tests/domain/create-confirmed-shoot.test.ts` (4 puros TDD RED→GREEN + 2 integração guardados por `RUN_LIVE_DB_TESTS` com `afterAll` completo).
+- próximo passo: SCL-220 (registrar pagamento) e SCL-302 (home da cliente) para fechar o marco E2E.
 
 ---
 
