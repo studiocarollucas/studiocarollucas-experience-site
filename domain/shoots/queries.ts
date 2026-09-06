@@ -1,6 +1,18 @@
 import { and, or, ilike, eq, gte, lte, desc, count, sql, type SQL } from "drizzle-orm";
 import { db } from "@/db/client";
-import { shoots, clients, experiencePackages } from "@/db/schema";
+import {
+  shoots,
+  clients,
+  experiencePackages,
+  payments as paymentsTable,
+  productionJobs,
+  preparationTasks,
+  type Shoot,
+  type Payment,
+  type ProductionJob,
+  type PreparationTask,
+} from "@/db/schema";
+import { calculateBalance } from "@/domain/payments/balance";
 import { shootStatusValues } from "./schema";
 
 export type ShootListRow = {
@@ -81,4 +93,63 @@ export async function listShoots(params: Parameters<typeof normalizeShootFilters
     .offset((f.page - 1) * f.pageSize);
 
   return { rows, total: Number(total), page: f.page, pageSize: f.pageSize };
+}
+
+export type ShootDetail = {
+  shoot: Shoot;
+  clientName: string;
+  clientId: string;
+  packageName: string;
+  payments: Payment[];
+  balance: string;
+  productionJob: ProductionJob | null;
+  preparationTasks: PreparationTask[];
+};
+
+export async function getShootDetail(id: string): Promise<ShootDetail | null> {
+  const [row] = await db
+    .select({
+      shoot: shoots,
+      clientName: clients.name,
+      clientId: clients.id,
+      packageName: experiencePackages.name,
+    })
+    .from(shoots)
+    .innerJoin(clients, eq(shoots.clientId, clients.id))
+    .innerJoin(experiencePackages, eq(shoots.experiencePackageId, experiencePackages.id))
+    .where(eq(shoots.id, id))
+    .limit(1);
+  if (!row) return null;
+
+  const shootPayments = await db
+    .select()
+    .from(paymentsTable)
+    .where(eq(paymentsTable.shootId, id))
+    .orderBy(desc(paymentsTable.createdAt));
+
+  const [job] = await db
+    .select()
+    .from(productionJobs)
+    .where(eq(productionJobs.shootId, id))
+    .limit(1);
+
+  const prep = await db
+    .select()
+    .from(preparationTasks)
+    .where(eq(preparationTasks.shootId, id))
+    .orderBy(preparationTasks.createdAt);
+
+  return {
+    shoot: row.shoot,
+    clientName: row.clientName,
+    clientId: row.clientId,
+    packageName: row.packageName,
+    payments: shootPayments,
+    balance: calculateBalance(
+      row.shoot.agreedPrice,
+      shootPayments.map((p) => ({ amount: p.amount, status: p.status })),
+    ),
+    productionJob: job ?? null,
+    preparationTasks: prep,
+  };
 }

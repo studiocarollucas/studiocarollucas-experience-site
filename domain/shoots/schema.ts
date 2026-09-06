@@ -49,3 +49,21 @@ export const createShootSchema = z.object({
 // domain/clients/schema.ts's CreateClientInput and domain/leads/schema.ts's
 // CreateLeadInput.
 export type CreateShootInput = z.input<typeof createShootSchema>;
+
+// paymentStatus is deliberately excluded — it is a derived cache written only by
+// the payment-registration action (SCL-220). Status changes go through
+// changeShootStatusAction (SCL-231-adjacent), not this generic update.
+export const updateShootSchema = z.object({
+  startTime: z.iso.time().optional(),
+  agreedPrice: z
+    .string()
+    .regex(/^\d+(\.\d{1,2})?$/, "must be a decimal string like \"1200.00\"")
+    .optional(),
+  participantCount: z.coerce.number().int().positive().optional(),
+  occasion: z.string().optional(),
+  referral: z.string().optional(),
+  notes: z.string().optional(),
+  portalEnabled: z.coerce.boolean().optional(),
+});
+
+export type UpdateShootInput = z.input<typeof updateShootSchema>;
