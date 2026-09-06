@@ -52,6 +52,7 @@
 | SCL-211 | Criar ensaio | P1 | admin | DONE | agent:claude-code | SCL-103,SCL-106,SCL-105 |
 | SCL-212 | Ficha do ensaio | P1 | admin | DONE | agent:claude-code | SCL-103,SCL-104,SCL-106,SCL-105,SCL-211 |
 | SCL-220 | Registrar pagamento | P1 | finance | DONE | agent:claude-code | SCL-104,SCL-200 |
+| SCL-221 | Livro-caixa + dashboard financeiro | P1 | finance | DONE | agent:claude-code | SCL-104,SCL-201,SCL-220 |
 | SCL-230 | Kanban Produção | P1 | production | BACKLOG | unassigned | SCL-106,SCL-200 |
 | SCL-300 | Passwordless cliente | P1 | client | BACKLOG | unassigned | SCL-006,SCL-007 |
 | SCL-301 | Shell Minha Experiência | P1 | client | BACKLOG | unassigned | SCL-300,SCL-009 |
@@ -1081,6 +1082,51 @@ Registrar pagamento uma única vez e derivar saldo/status financeiro do ensaio.
 - arquivos alterados: ver Files/Scope acima.
 - testes: `tests/domain/register-payment.test.ts` (5 puros TDD RED→GREEN + 1 integração guardado por `RUN_LIVE_DB_TESTS` com `afterAll` completo).
 - próximo passo: dashboard financeiro consome `payment.registered` / `shoots.payment_status`; SCL-302 (home da cliente) fecha o marco E2E completo do lado da cliente.
+
+---
+
+### SCL-221 — Livro-caixa financeiro + dashboard financeiro
+
+- Status: DONE
+- Priority: P1
+- Area: finance
+- Owner: agent:claude-code
+- Branch: —
+- PR: —
+- Depends on: SCL-104, SCL-201, SCL-220
+- Blocks: —
+- Files/Scope: `domain/finance/ledger.ts`, `domain/finance/queries.ts`, `app/admin/(protected)/financeiro/page.tsx`, `components/admin/period-picker.tsx`, `tests/domain/finance-ledger.test.ts`
+- Migration: no
+- Updated at: 2026-09-06
+
+**Goal**
+
+Livro-caixa (recebimentos + despesas) e KPIs financeiros, tudo recalculado a partir de `payments`/`expenses`/`shoots` a cada render (PRD §7.5, §16 "dashboard recalcula indicadores"). A planilha-dashboard legada não é migrada como dado (PRD §13).
+
+**Acceptance criteria**
+
+- [x] `buildLedger` puro/testado — TDD RED→GREEN, 6 casos em `tests/domain/finance-ledger.test.ts` (só recebimentos `confirmado` + todas as despesas; ordenação por data desc; `signedAmount` negativo para despesa e positivo para recebimento; `summary` received/expenses/net/receivable; fallback `createdAt` quando `paidAt` é nulo; `id` único e estável por entrada);
+- [x] aritmética de dinheiro em cents inteiros — `ledger.ts` importa `toCents`/`fromCents` de `@/lib/money` (sem cópia privada), nunca `parseFloat`;
+- [x] "A receber (total)" derivado via `calculateBalance` (`domain/payments/balance.ts`) sobre **todos** os ensaios, somando só os saldos por-ensaio positivos — não limitado ao período;
+- [x] página somente-leitura sob `app/admin/(protected)/` — guarda = `layout.tsx`, sem `defineAdminAction`, sem auth, sem nenhuma mutação;
+- [x] período por `searchParams` `from`/`to` (validados por regex ISO, fallback = mês corrente); `PeriodPicker` é Client Component (`useRouter`/`usePathname`/`useSearchParams`);
+- [x] DB vazio → `EmptyState` + KPIs zerados, correto.
+
+**Implementation notes**
+
+- `domain/finance/ledger.ts` = só o redutor puro `buildLedger`; `domain/finance/queries.ts` = as leituras Drizzle + a derivação do "a receber". `computeDashboardKpis` (SCL-201) **não** é reusado — granularidade diferente (livro-caixa por lançamento vs. KPIs agregados).
+- `LedgerEntry` ganhou um campo `id: string` (não estava no brief original) porque o `DataTable` precisa de `rowKey` estável e dois lançamentos podem compartilhar data+descrição. Setado **antes** do `.sort()`: recebimentos `receipt-${i}`, despesas `expense-${i}` pelo índice do `.map`. Coberto por teste (`entries.every((e) => e.id)` + unicidade via `Set`).
+- `getFinancialLedger`: pagamentos filtrados por `coalesce(paid_at, created_at)` dentro de `[from, to T23:59:59Z]`, join `payments→shoots→clients` para o nome da cliente; despesas por `expenses.date` no intervalo. O "a receber" faz um segundo passe sobre **todos** os ensaios (não o período): `calculateBalance(agreedPrice, pagamentos do ensaio)`, acumulando em cents só quando o saldo é positivo (`!bal.startsWith("-") && bal !== "0.00"`), fechado com `fromCents`.
+- `/admin/financeiro` renderiza dinâmico (`ƒ`) por ler `searchParams`. Link "Despesas" aponta para `/admin/financeiro/despesas` (rota ainda inexistente — link morto inofensivo, mesma convenção das tasks anteriores).
+- Sem migração: task só de leitura/apresentação.
+
+**Blocker/Hand-off notes**
+
+- concluído: `buildLedger` (puro/testado, TDD RED→GREEN 6 casos), `getFinancialLedger` (Drizzle + derivação do "a receber" via `calculateBalance`), `PeriodPicker`, página `/admin/financeiro`. `npm run test` (176 + 6 skip), `npm run typecheck`, `npm run lint` (0 erros; 5 warnings pré-existentes em outros testes), `npm run check:admin-auth`, `npm run build` todos verdes.
+- falta: nada pendente nesta task. `/admin/financeiro/despesas` (CRUD de despesas) fica para uma task futura — link morto inofensivo até lá.
+- arquivos alterados: ver Files/Scope acima.
+- testes: `tests/domain/finance-ledger.test.ts` (6 puros, TDD RED→GREEN).
+- próximo passo: CRUD de despesas preenche o link "Despesas"; nenhum bloqueio pendente.
 
 ---
 
