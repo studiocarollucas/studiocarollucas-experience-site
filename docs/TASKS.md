@@ -50,6 +50,7 @@
 | SCL-203 | Ficha da cliente | P1 | admin | DONE | agent:claude-code | SCL-100,SCL-200 |
 | SCL-210 | Agenda/Ensaios | P1 | admin | DONE | agent:claude-code | SCL-103,SCL-200 |
 | SCL-211 | Criar ensaio | P1 | admin | DONE | agent:claude-code | SCL-103,SCL-106,SCL-105 |
+| SCL-212 | Ficha do ensaio | P1 | admin | DONE | agent:claude-code | SCL-103,SCL-104,SCL-106,SCL-105,SCL-211 |
 | SCL-220 | Registrar pagamento | P1 | finance | BACKLOG | unassigned | SCL-104,SCL-200 |
 | SCL-230 | Kanban Produção | P1 | production | BACKLOG | unassigned | SCL-106,SCL-200 |
 | SCL-300 | Passwordless cliente | P1 | client | BACKLOG | unassigned | SCL-006,SCL-007 |
@@ -987,6 +988,50 @@ Permitir que Admin crie um ensaio confirmado e que o sistema derive os registros
 - arquivos alterados: ver Files/Scope acima.
 - testes: `tests/domain/create-confirmed-shoot.test.ts` (4 puros TDD RED→GREEN + 2 integração guardados por `RUN_LIVE_DB_TESTS` com `afterAll` completo).
 - próximo passo: SCL-220 (registrar pagamento) e SCL-302 (home da cliente) para fechar o marco E2E.
+
+---
+
+### SCL-212 — Ficha do ensaio (shoot detail)
+
+- Status: DONE
+- Priority: P1
+- Area: admin
+- Owner: agent:claude-code
+- Branch: —
+- PR: —
+- Depends on: SCL-103, SCL-104, SCL-105, SCL-106, SCL-211
+- Blocks: SCL-220 (registrar pagamento parte desta ficha), SCL-240 (checklist de preparação)
+- Files/Scope: `domain/shoots/queries.ts` (+`getShootDetail`/`ShootDetail`), `domain/shoots/service.ts` (+`updateShoot`), `domain/shoots/schema.ts` (+`updateShootSchema`), `domain/shoots/actions.ts` (+`updateShootAction`), `app/admin/(protected)/agenda/[id]/page.tsx`, `app/admin/(protected)/agenda/[id]/edit-shoot-panel.tsx`
+- Migration: no
+- Updated at: 2026-09-06
+
+**Goal**
+
+Uma única ficha por ensaio reunindo o registro central + financeiro + produção + preparação (PRD §7.4), com edição inline dos campos operacionais do ensaio.
+
+**Acceptance criteria**
+
+- [x] `getShootDetail(id)` retorna `ShootDetail` (shoot + cliente + pacote + pagamentos + saldo + job de produção + tarefas de preparação) ou `null`;
+- [x] saldo exibido é derivado por `calculateBalance()` de `domain/payments/balance.ts` — nenhuma aritmética financeira reimplementada na página;
+- [x] página `/admin/agenda/[id]` mostra as quatro seções (registro central, financeiro, pagamentos, produção & experiência) + painel de edição; `notFound()` para id inexistente;
+- [x] `updateShootSchema` — campos editáveis: `startTime`, `agreedPrice`, `participantCount`, `occasion`, `referral`, `notes`, `portalEnabled`; exclui deliberadamente `paymentStatus` (cache derivado, escrito só por SCL-220) e `status` (passa pela action de status dedicada, não por este update genérico);
+- [x] `updateShoot(id, input)` com guarda de patch vazio (Drizzle `.set({})` lança) — patch sem chaves retorna a linha atual via `getShootById`, lança se inexistente;
+- [x] `updateShootAction` é `"use server"`, envolvida por `defineAdminAction({ role: "staff" })`, busca `before` via `getShootById`, audita `shoot.updated` com before/after reais e `revalidatePath` de `/admin/agenda/[id]` + `/admin/agenda`;
+- [x] painel de edição é `"use client"` e importa `toFormAction`/`ActionResult` de `@/lib/auth/action-result` (não de `@/lib/auth/admin-action`).
+
+**Implementation notes**
+
+- Links `/admin/agenda/[id]/pagamento` (SCL-220) e `/admin/agenda/[id]/preparacao` (SCL-240) apontam para rotas ainda inexistentes — links mortos inofensivos até essas tasks, mesma convenção já usada pela lista de agenda e pelo histórico da ficha da cliente.
+- `updateShoot` reaproveita a mesma guarda de patch vazio que `updateClient` (SCL-203/Task 5). Como `toFormAction` sempre injeta `portalEnabled` (checkbox presença → boolean), o patch do fluxo de formulário raramente fica vazio, mas a guarda protege chamadas diretas.
+- `updateShootAction` usa `updateShootSchema.extend({ id: z.string().uuid() })`, mesmo padrão de `updateClientAction`.
+
+**Blocker/Hand-off notes**
+
+- concluído: `getShootDetail`/`ShootDetail`, `updateShootSchema`, `updateShoot` (com guarda), `updateShootAction` (auditada), página de detalhe e painel de edição inline. `npm run test` (165 + 5 skip), `npm run typecheck`, `npm run lint` (0 erros; 5 warnings pré-existentes em outros testes), `npm run check:admin-auth`, `npm run build` todos verdes.
+- falta: nada pendente nesta task. Rotas `/pagamento` e `/preparacao` linkadas ficam para SCL-220 e SCL-240.
+- arquivos alterados: ver Files/Scope acima.
+- testes: sem unidade de função pura dedicada (esta task é queries + update envolvido + páginas); coberto pela suíte completa + typecheck/build.
+- próximo passo: SCL-220 (registrar pagamento) preenche o link "Registrar pagamento" desta ficha; SCL-240 preenche o checklist de preparação.
 
 ---
 
