@@ -13,6 +13,7 @@
   --muted: #786665;
   --white: #ffffff;
   --line: rgba(139, 115, 85, 0.18);
+  --danger: #b3261e;
   --shadow: 0 22px 60px rgba(67, 45, 45, 0.1);
 }
 
@@ -28,6 +29,7 @@
   --color-ink: var(--ink);
   --color-muted: var(--muted);
   --color-line: var(--line);
+  --color-danger: var(--danger);
   --font-serif: var(--font-cormorant), serif;
   --font-sans: var(--font-jost), sans-serif;
   --shadow-soft: var(--shadow);

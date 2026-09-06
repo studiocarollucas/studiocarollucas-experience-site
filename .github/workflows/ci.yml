@@ -21,6 +21,8 @@ jobs:
 
       - run: npm run lint
 
+      - run: npm run check:admin-auth
+
       - run: npm run typecheck
 
       - run: npm run test
