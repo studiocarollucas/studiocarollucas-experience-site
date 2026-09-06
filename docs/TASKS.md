@@ -43,7 +43,7 @@
 | SCL-106 | Schema ProductionJob | P0 | db | DONE | agent:claude-code | SCL-103 |
 | SCL-105 | Schema PreparationTask | P1 | db | DONE | agent:claude-code | SCL-103 |
 | SCL-107 | Schema AuditLog | P0 | db | DONE | agent:claude-code | SCL-005 |
-| SCL-200 | Shell Admin | P1 | admin | BACKLOG | unassigned | SCL-007,SCL-009 |
+| SCL-200 | Shell Admin | P1 | admin | DONE | agent:claude-code | SCL-007,SCL-009,SCL-100 |
 | SCL-202 | Lista de clientes | P1 | admin | BACKLOG | unassigned | SCL-100,SCL-200 |
 | SCL-203 | Ficha da cliente | P1 | admin | BACKLOG | unassigned | SCL-100,SCL-200 |
 | SCL-210 | Agenda/Ensaios | P1 | admin | BACKLOG | unassigned | SCL-103,SCL-200 |
@@ -729,6 +729,46 @@ Criar a tabela `audit_log` — um registro append-only e tamper-evident de "oper
 - arquivos alterados: ver Files/Scope acima.
 - testes: `tests/domain/audit.test.ts` (1 caso, integração real com `afterAll` de limpeza, guardado por `describeIfLiveDb`) + verificação por query direta ao Postgres real em 2026-09-04.
 - próximo passo: nenhum bloqueio direto no backlog atual depende de SCL-107; fica disponível para as ações de mutação financeira/status do Epic 2 (ainda não detalhadas neste plano) chamarem `recordAuditEvent()` diretamente. Revisão de consistência de `Depends on`/`Blocks` feita nesta task em todo o Epic 1 (SCL-100–SCL-108): corrigido `Blocks` de SCL-102, que citava só `SCL-103` mas faltava `SCL-108` (Seeds de experiências, que também depende de SCL-102 conforme o Quadro resumido). Nenhuma outra inconsistência encontrada nas próprias linhas do Epic 1; `SCL-200`'s `Depends on: SCL-007,SCL-009` (Epic 2) provavelmente vai ganhar `SCL-100` quando o planejamento do Epic 2 começar, mas isso é trabalho do próximo plano, não desta task.
+
+---
+
+### SCL-200 — Shell Admin
+
+- Status: DONE
+- Priority: P1
+- Area: admin
+- Owner: agent:claude-code
+- Branch: —
+- PR: —
+- Depends on: SCL-007, SCL-009, SCL-100
+- Blocks: SCL-202, SCL-203, SCL-210, SCL-220, SCL-230 (toda tela do Studio OS)
+- Files/Scope: `lib/cn.ts`, `lib/money.ts`, `lib/format.ts`, `lib/auth/admin-action.ts`, `scripts/check-admin-auth.mjs`, `components/ui/*` (field, input, textarea, select, card, badge, data-table, modal, page-header, empty-state), `components/admin/admin-nav.tsx`, `components/admin/sign-out-button.tsx`, `app/admin/(protected)/sign-out.ts`, `app/admin/(protected)/layout.tsx`, `app/admin/(protected)/page.tsx`, `app/globals.css`, `package.json`, `.github/workflows/ci.yml`, `domain/payments/balance.ts` (refactor), `tests/lib/{money,format,admin-action}.test.ts`, `tests/scripts/check-admin-auth.test.ts`
+- Migration: no
+- Updated at: 2026-09-05
+
+**Goal**
+
+Primeira task do Epic 2 (Studio OS): a casca do admin (layout com sidebar + nav + sign-out), o conjunto de primitivas de UI que todas as telas seguintes consomem, o wrapper `defineAdminAction` que toda mutação do Studio OS atravessa, e um guard estrutural de CI (`check-admin-auth.mjs`) que falha o build se uma página escapar do route group `(protected)` ou se um arquivo `"use server"` não passar pelo wrapper.
+
+**Modelo de enforcement de autorização**
+
+Três camadas, verificáveis por máquina:
+
+1. **Leituras** — toda página/layout/route do admin vive sob `app/admin/(protected)/`, cujo `layout.tsx` roda o guard `getCurrentUser()` + `hasMinimumRole(user.role, "staff")` antes de renderizar qualquer `children`. Uma página fora desse route group renderiza sem guard nenhum.
+2. **Escritas** — toda Server Action do Studio OS é criada por `defineAdminAction({ role }, handler)`, que resolve `getCurrentUser()`, aplica `requireRole` (retornando `{ ok: false, error }` em pt-BR em vez de lançar), valida o input com o schema Zod opcional (`{ ok: false, fieldErrors }` no fracasso), e captura qualquer throw do handler em um erro genérico logado via `logger.error` — o handler nunca roda sem um `CurrentUser` autorizado. `toFormAction` adapta o resultado para a assinatura `useActionState` do React 19 (dropa strings vazias, coage `numbers`, trata `booleans` como presença de checkbox).
+3. **Guard de CI** — `scripts/check-admin-auth.mjs` (`findAdminAuthViolations(dir)`, testado; rodado por `npm run check:admin-auth`, plugado no `ci.yml` logo após `npm run lint`) faz um walk estático em `app/admin/` e falha se: (a) um arquivo declara `"use server"` mas nunca chama `defineAdminAction(`, ou (b) um `page`/`layout`/`route` está fora de `(protected)/`. `app/admin/login/` é o único caminho isento das duas regras — é o ponto de entrada não autenticado (o sign-in não tem `CurrentUser` para atravessar o wrapper, e a página de login renderiza antes de qualquer papel existir).
+
+**Decisões de implementação**
+
+- **Primitivas de UI escritas à mão sobre os tokens do Tailwind v4, não shadcn/ui.** Dez componentes pequenos e sem estado (`Field`, `Input`, `Textarea`, `Select` nativo, `Card`, `Badge`, `DataTable`, `Modal` sobre `<dialog>`, `PageHeader`, `EmptyState`), cada um em seu próprio arquivo, todos consumindo `cn()` (`lib/cn.ts`, um `filter(Boolean).join(" ")` — sem `clsx`/`tailwind-merge`) e os tokens editoriais do protótipo V2.3 (`border-line`, `bg-champ`, `text-muted`, `font-serif`). Novo token `--danger`/`--color-danger` (`#b3261e`) em `app/globals.css` para estados de erro. Ver `docs/DECISIONS.md` (2026-09-05).
+- **`lib/money.ts` extraído** (desvio aprovado do brief, que originalmente reimplementava o parse em `lib/format.ts`): `toCents`/`fromCents`/`addDecimal`/`sumCents`, ponto-fixo puro sobre strings decimais (Postgres `numeric`), nunca `parseFloat`. `domain/payments/balance.ts` (Epic 1) foi refatorado para importar `toCents`/`fromCents` daqui em vez de manter cópias privadas; seus exports públicos e `tests/domain/balance.test.ts` seguem verdes e inalterados. `lib/format.ts`'s `formatBRL` normaliza via `fromCents(toCents(value))` antes de agrupar milhares. Ver `docs/DECISIONS.md` (2026-09-05).
+- **`app/admin/login/actions.ts` isento do guard `"use server"`.** O brief só isentava `login/` da regra de página/route; o `sign-in` legítimo (usuário anônimo, sem `CurrentUser`) não pode passar por `defineAdminAction`, então a isenção foi estendida às duas regras — mudança mínima para o 4º teste do brief ("real app/admin tree as clean") passar contra o repo atual.
+
+**Blocker/Hand-off notes**
+
+- concluído: `lib/cn.ts`, `lib/money.ts` (+ refactor de `balance.ts`), `lib/format.ts`, `lib/auth/admin-action.ts`, `scripts/check-admin-auth.mjs` (+ script `check:admin-auth` + passo no `ci.yml`), 10 primitivas em `components/ui/`, `components/admin/{admin-nav,sign-out-button}.tsx`, `app/admin/(protected)/sign-out.ts`, casca em `layout.tsx` (guard + comentário existentes preservados verbatim), placeholder em `page.tsx`, token `--danger` em `globals.css`. `npm run test` / `typecheck` / `lint` / `check:admin-auth` / `build` verdes.
+- testes: `tests/lib/money.test.ts` (25 casos), `tests/lib/format.test.ts` (7), `tests/lib/admin-action.test.ts` (7), `tests/scripts/check-admin-auth.test.ts` (4) — todos TDD RED→GREEN. `tests/domain/balance.test.ts` (8) segue passando inalterado após o refactor.
+- próximo passo: SCL-201 substitui o placeholder de `page.tsx` pelo dashboard real; SCL-202+ constroem as telas sobre as primitivas e o wrapper.
 
 ---
 
