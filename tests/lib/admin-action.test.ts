@@ -9,7 +9,13 @@ vi.mock("@/lib/auth/session", async (importOriginal) => {
 
 import { defineAdminAction, toFormAction } from "@/lib/auth/admin-action";
 
-beforeEach(() => getCurrentUser.mockReset());
+// Block body on purpose: `() => getCurrentUser.mockReset()` returns the mock, and
+// Vitest treats a function returned from beforeEach as a teardown callback — so it
+// would call the mock again after every test, re-throwing any implementation that
+// throws.
+beforeEach(() => {
+  getCurrentUser.mockReset();
+});
 
 describe("defineAdminAction", () => {
   it("rejects an anonymous caller before running the handler", async () => {
@@ -51,6 +57,21 @@ describe("defineAdminAction", () => {
     );
     const result = await action({ n: "21" });
     expect(result).toEqual({ ok: true, data: { doubled: 42, by: "u1" } });
+  });
+
+  it("returns ActionResult (not a rejection) when getCurrentUser itself throws", async () => {
+    // Supabase down, or the profiles query failing: the caller's `result.ok`
+    // contract must still hold — every form does `if (result.ok)`, and a rejected
+    // promise there is an unhandled server-action error, not a form error.
+    getCurrentUser.mockImplementation(async () => {
+      throw new Error("supabase unreachable");
+    });
+    const handler = vi.fn();
+    const action = defineAdminAction({ role: "staff" }, handler);
+    const result = await action(undefined);
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error).not.toContain("supabase");
+    expect(handler).not.toHaveBeenCalled();
   });
 
   it("catches a handler throw and returns a generic error", async () => {

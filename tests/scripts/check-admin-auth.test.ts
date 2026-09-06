@@ -33,6 +33,7 @@ beforeAll(() => {
   dir = mkdtempSync(join(tmpdir(), "admin-auth-"));
   mkdirSync(join(dir, "(protected)", "clientes"), { recursive: true });
   mkdirSync(join(dir, "login"), { recursive: true });
+  mkdirSync(join(dir, "login", "tools"), { recursive: true });
   mkdirSync(join(dir, "loose"), { recursive: true });
 
   // compliant: wrapped mutation
@@ -44,6 +45,12 @@ beforeAll(() => {
   writeFileSync(join(dir, "(protected)", "clientes", "page.tsx"), `export default function P() { return null; }\n`);
   // compliant: the login page is the one allowed page outside (protected)
   writeFileSync(join(dir, "login", "page.tsx"), `export default function L() { return null; }\n`);
+  // compliant: the sign-in action itself — the one file allowed to declare
+  // "use server" without defineAdminAction (no CurrentUser exists yet)
+  writeFileSync(join(dir, "login", "actions.ts"), RAW_ACTION);
+  // VIOLATION: an unwrapped mutation smuggled deeper into the login/ subtree —
+  // the "use server" exemption is for login/actions.ts alone, not the whole tree
+  writeFileSync(join(dir, "login", "tools", "actions.ts"), RAW_ACTION);
   // VIOLATION: "use server" without defineAdminAction
   writeFileSync(
     join(dir, "(protected)", "clientes", "bad-actions.ts"),
@@ -66,11 +73,23 @@ describe("findAdminAuthViolations", () => {
     expect(violations.some((v) => v.includes("loose/page.tsx"))).toBe(true);
   });
 
+  it("flags an unwrapped 'use server' file deeper inside login/ — the exemption is login/actions.ts only", () => {
+    const violations = findAdminAuthViolations(dir);
+    expect(violations.some((v) => v.includes("login/tools/actions.ts"))).toBe(true);
+  });
+
   it("does not flag compliant files", () => {
     const violations = findAdminAuthViolations(dir);
     expect(violations.some((v) => v.includes("clientes/actions.ts"))).toBe(false);
     expect(violations.some((v) => v.includes("login/page.tsx"))).toBe(false);
     expect(violations.some((v) => v.includes("(protected)/clientes/page.tsx"))).toBe(false);
+    // the sign-in action keeps its exemption
+    expect(violations.some((v) => v === "login/actions.ts" || v.startsWith("login/actions.ts:"))).toBe(false);
+  });
+
+  it("still exempts a page anywhere under login/ from the (protected) rule", () => {
+    const violations = findAdminAuthViolations(dir);
+    expect(violations.some((v) => v.includes("login/") && v.includes("(protected) group"))).toBe(false);
   });
 
   it("reports the real app/admin tree as clean", () => {

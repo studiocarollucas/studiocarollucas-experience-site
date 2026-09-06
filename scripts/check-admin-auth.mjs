@@ -25,9 +25,14 @@ function walk(absDir) {
  *     defineAdminAction() (lib/auth/admin-action.ts).
  *  2. Any page/layout/route must live under the (protected) route group, whose
  *     layout.tsx runs the requireRole guard.
- * app/admin/login is exempt from both: it is the unauthenticated entry point, so
- * its sign-in server action has no CurrentUser to route through the RBAC wrapper
- * and its page renders before any role exists.
+ * app/admin/login is the unauthenticated entry point, so it is exempt — but the two
+ * rules are exempted at different scopes. The page/route rule is exempt for the
+ * whole login/ subtree (nothing under it can render with a role). The "use server"
+ * rule is exempt for exactly login/actions.ts and login/page.tsx: those are the
+ * sign-in files that genuinely have no CurrentUser to route through the wrapper.
+ * A subtree-wide exemption there would have let any future login/**\/actions.ts
+ * ship an unwrapped mutation — a real hole, since the guard is the only thing
+ * enforcing the wrapper.
  * @param {string} adminDir absolute path to an app/admin directory
  * @returns {string[]} human-readable violation messages (empty = clean)
  */
@@ -35,11 +40,15 @@ export function findAdminAuthViolations(adminDir) {
   const violations = [];
   for (const abs of walk(adminDir)) {
     const rel = relative(adminDir, abs).replace(/\\/g, "/");
-    const isLogin = rel.startsWith("login/");
-    if (isLogin) continue;
+    const inLoginSubtree = rel.startsWith("login/");
+    const isSignInFile = rel === "login/actions.ts" || rel === "login/page.tsx";
     const src = readFileSync(abs, "utf-8");
 
-    if (/^\s*["']use server["']\s*;?\s*$/m.test(src) && !/\bdefineAdminAction\s*\(/.test(src)) {
+    if (
+      !isSignInFile &&
+      /^\s*["']use server["']\s*;?\s*$/m.test(src) &&
+      !/\bdefineAdminAction\s*\(/.test(src)
+    ) {
       violations.push(
         `${rel}: declares "use server" but never calls defineAdminAction() — every Studio OS mutation must go through the RBAC wrapper (lib/auth/admin-action.ts).`,
       );
@@ -47,7 +56,7 @@ export function findAdminAuthViolations(adminDir) {
 
     const isPageOrRoute = /(^|\/)(page|layout|route)\.(ts|tsx)$/.test(rel);
     const inProtected = rel.startsWith("(protected)/") || rel === "(protected)/layout.tsx";
-    if (isPageOrRoute && !inProtected) {
+    if (isPageOrRoute && !inProtected && !inLoginSubtree) {
       violations.push(
         `${rel}: a Studio OS page/route outside the (protected) group — it would render without the role guard in app/admin/(protected)/layout.tsx. Move it under (protected).`,
       );

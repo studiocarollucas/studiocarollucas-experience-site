@@ -30,27 +30,38 @@ export function defineAdminAction<TSchema extends z.ZodType, TOut>(
   handler: (input: any, ctx: Ctx) => Promise<TOut>,
 ) {
   return async (raw: unknown): Promise<ActionResult<TOut>> => {
-    const user = await getCurrentUser();
+    // Everything is inside the try: getCurrentUser() hits Supabase and the profiles
+    // table, so it can throw on its own (network, RLS, a bad session). Outside the
+    // try that throw escaped as a rejected promise and broke every caller's
+    // `result.ok` contract — the forms all branch on it and never catch.
     try {
-      requireRole(user, config.role);
-    } catch {
-      return { ok: false, error: "Você não tem permissão para executar esta ação." };
-    }
+      const user = await getCurrentUser();
 
-    let input: unknown;
-    if (config.input) {
-      const parsed = config.input.safeParse(raw);
-      if (!parsed.success) {
-        return {
-          ok: false,
-          error: "Verifique os campos destacados.",
-          fieldErrors: parsed.error.flatten().fieldErrors as Record<string, string[]>,
-        };
+      // The permission failure keeps its own specific message, so it stays
+      // distinguishable from a generic operational failure.
+      let authorized = true;
+      try {
+        requireRole(user, config.role);
+      } catch {
+        authorized = false;
       }
-      input = parsed.data;
-    }
+      if (!authorized) {
+        return { ok: false, error: "Você não tem permissão para executar esta ação." };
+      }
 
-    try {
+      let input: unknown;
+      if (config.input) {
+        const parsed = config.input.safeParse(raw);
+        if (!parsed.success) {
+          return {
+            ok: false,
+            error: "Verifique os campos destacados.",
+            fieldErrors: parsed.error.flatten().fieldErrors as Record<string, string[]>,
+          };
+        }
+        input = parsed.data;
+      }
+
       const data = await handler(input, { user: user as CurrentUser });
       return { ok: true, data };
     } catch (err) {
