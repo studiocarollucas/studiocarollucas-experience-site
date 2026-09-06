@@ -56,6 +56,7 @@
 | SCL-222 | Despesas | P1 | finance | DONE | agent:claude-code | SCL-104,SCL-221 |
 | SCL-230 | Kanban Produção | P1 | production | DONE | agent:claude-code | SCL-106,SCL-200 |
 | SCL-231 | Mudar status do ProductionJob | P1 | production | DONE | agent:claude-code | SCL-106,SCL-230 |
+| SCL-240 | Checklist de preparação interno | P1 | admin | DONE | agent:claude-code | SCL-105,SCL-212 |
 | SCL-300 | Passwordless cliente | P1 | client | BACKLOG | unassigned | SCL-006,SCL-007 |
 | SCL-301 | Shell Minha Experiência | P1 | client | BACKLOG | unassigned | SCL-300,SCL-009 |
 | SCL-302 | Home cliente + progresso | P1 | client | BACKLOG | unassigned | SCL-103,SCL-105,SCL-301 |
@@ -1261,6 +1262,53 @@ Mudar o status de um `production_job` pelo card do Kanban, validando a transiç�
 - arquivos alterados: ver Files/Scope acima.
 - testes: `tests/domain/change-production-status.test.ts` (4 puros, TDD RED→GREEN) + `tests/domain/production-status.test.ts` (Epic 1, reusado).
 - próximo passo: nenhum bloqueio pendente.
+
+---
+
+### SCL-240 — Checklist de preparação interno
+
+- Status: DONE
+- Priority: P1
+- Area: admin
+- Owner: agent:claude-code
+- Branch: —
+- PR: —
+- Depends on: SCL-105, SCL-212
+- Blocks: —
+- Files/Scope: `domain/preparation/queries.ts` (novo, `summarizePreparationProgress` puro), `domain/preparation/service.ts` (append `setPreparationTaskStatus`, `addPreparationTask`), `domain/preparation/schema.ts` (append `addPreparationTaskFormSchema`), `domain/preparation/actions.ts` (novo), `app/admin/(protected)/agenda/[id]/preparacao/{page,checklist}.tsx` (novo), `tests/domain/preparation-progress.test.ts` (novo)
+- Migration: no
+- Updated at: 2026-09-06
+
+**Goal**
+
+Rota `/admin/agenda/[id]/preparacao` (link já existente na ficha do ensaio, SCL-212): checklist interno de preparação do ensaio — as **mesmas** linhas de `preparation_tasks` que o portal da cliente (Epic 3) vai ler, uma única fonte de verdade (PRD §6.2 / §7.4, princípio §7). Ciclo de status por clique em cada tarefa, formulário de adicionar tarefa com toggle `visible_to_client`, e barra de progresso derivada.
+
+**Acceptance criteria**
+
+- [x] `summarizePreparationProgress(tasks)` puro/testado — TDD RED→GREEN, 4 casos em `tests/domain/preparation-progress.test.ts` (0% e `nextTaskTitle` null sem tarefas; `concluida` conta como done e `pct` é `Math.round` inteiro; `nextTaskTitle` = primeira não-`concluida` na ordem; 100% e null quando todas `concluida`);
+- [x] `pct` é inteiro `0..100` (`Math.round((done/total)*100)`, 0 quando `total === 0`); `nextTaskTitle` = título da primeira tarefa não-`concluida` na ordem, ou `null`;
+- [x] `setPreparationTaskStatus(taskId, status)` grava `completedAt = new Date().toISOString()` ao mover para `concluida`, e limpa (`null`) em qualquer outro status — `completed_at` é `timestamp(..., { mode: "string" })`;
+- [x] `addPreparationTaskFormSchema` = `createPreparationTaskSchema.extend({ visibleToClient: z.coerce.boolean().default(true) })` — única extensão; `domain/preparation/schema.ts` só recebeu esse append;
+- [x] `addPreparationTaskAction` e `setPreparationTaskStatusAction` são `"use server"`, embrulhadas por `defineAdminAction({ role: "staff" })`, auditadas (`preparation_task.created` / `preparation_task.status_changed`) e revalidam `/admin/agenda/${shootId}` + `/admin/agenda/${shootId}/preparacao`;
+- [x] `checklist.tsx` é `"use client"`, importa `toFormAction`/`ActionResult` de `@/lib/auth/action-result` (não de `admin-action`), cicla o status por clique via `setPreparationTaskStatusAction` num `useTransition` + `router.refresh()`, e adiciona tarefa via `useActionState` + `toFormAction(..., { booleans: ["visibleToClient"] })`.
+
+**Implementation notes**
+
+- `domain/preparation/queries.ts` (novo): só a função pura `summarizePreparationProgress` + o tipo `PreparationProgress`. Nenhum acesso a `db`.
+- `domain/preparation/service.ts`: append de `setPreparationTaskStatus` + `addPreparationTask` (wrapper fino sobre `createPreparationTask`, para simetria da superfície de actions); `preparationTaskStatusEnum` adicionado ao import existente de `@/db/schema`.
+- `domain/preparation/schema.ts`: só o append de `addPreparationTaskFormSchema`; `createPreparationTaskSchema` e o `z.input` não foram tocados.
+- `checklist.tsx`: import `useState` do brief removido — não era usado e o lint falharia com ele. Import de `toFormAction`/`ActionResult` corrigido para `@/lib/auth/action-result` (o brief listava `@/lib/auth/admin-action`, que puxaria o grafo de sessão/db para o bundle do browser).
+- Sem `export const dynamic = "force-dynamic"` na página: a rota já é `ƒ` (server-rendered on demand) por ser segmento dinâmico `[id]` sem `generateStaticParams`, então `npm run build` não tenta prerender contra o DB remoto. Diferente de `/admin/producao`, que precisou da linha por ser rota estática.
+- Sem migração: `preparation_tasks` já tem `status`, `visible_to_client`, `completed_at` desde SCL-105.
+- Sem teste live-DB: a cobertura pura (`summarizePreparationProgress`) mais `tests/domain/preparation-tasks.test.ts` (Epic 1) carregam a task.
+
+**Blocker/Hand-off notes**
+
+- concluído: `summarizePreparationProgress` (puro/testado, TDD RED→GREEN 4 casos), `setPreparationTaskStatus` (`completedAt` set/clear), `addPreparationTask`, `addPreparationTaskFormSchema`, as duas actions embrulhadas + auditadas, página + `Checklist` client component. `npm run test` (191 + 6 skip), `npm run typecheck`, `npm run lint` (0 erros; 5 warnings pré-existentes em outros testes), `npm run check:admin-auth`, `npm run build` todos verdes.
+- falta: nada pendente nesta task. Última task do Epic 2.
+- arquivos alterados: ver Files/Scope acima.
+- testes: `tests/domain/preparation-progress.test.ts` (4 puros, TDD RED→GREEN) + `tests/domain/preparation-tasks.test.ts` (Epic 1, reusado).
+- próximo passo: portal da cliente (Epic 3, SCL-302) lê as mesmas `preparation_tasks` filtrando `visible_to_client`.
 
 ---
 
