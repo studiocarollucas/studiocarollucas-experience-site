@@ -26,6 +26,17 @@ describe("summarizeClientHistory", () => {
     expect(summarizeClientHistory(shoots, payments).openBalance).toBe("1000.00");
   });
 
+  it("open balance skips cancelado shoots — a cancelled shoot is not money owed", () => {
+    const withCancelled = [
+      ...shoots,
+      { id: "s3", packageName: "Ciara", shootDate: "2026-10-01", status: "cancelado", agreedPrice: "800.00" },
+    ];
+    const summary = summarizeClientHistory(withCancelled, payments);
+    expect(summary.openBalance).toBe("1000.00");
+    // the row is still listed with its real balance — only the aggregate skips it
+    expect(summary.rows.find((r) => r.id === "s3")?.balance).toBe("800.00");
+  });
+
   it("handles a client with no shoots", () => {
     expect(summarizeClientHistory([], [])).toEqual({ rows: [], lifetimeRevenue: "0.00", openBalance: "0.00" });
   });

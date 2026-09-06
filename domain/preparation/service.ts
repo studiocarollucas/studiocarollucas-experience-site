@@ -10,7 +10,13 @@ export async function createPreparationTask(input: CreatePreparationTaskInput): 
 }
 
 export async function getPreparationTasksByShootId(shootId: string): Promise<PreparationTask[]> {
-  return db.select().from(preparationTasks).where(eq(preparationTasks.shootId, shootId));
+  // Explicit order: without it the checklist re-ordered itself on every render as
+  // Postgres returned rows in whatever order it liked.
+  return db
+    .select()
+    .from(preparationTasks)
+    .where(eq(preparationTasks.shootId, shootId))
+    .orderBy(preparationTasks.createdAt);
 }
 
 type PrepStatus = (typeof preparationTaskStatusEnum.enumValues)[number];

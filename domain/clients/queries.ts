@@ -116,7 +116,10 @@ export function summarizeClientHistory(
       .reduce((acc, p) => addDecimal(acc, p.amount), "0.00");
     const balance = calculateBalance(s.agreedPrice, ps);
     lifetimeRevenue = addDecimal(lifetimeRevenue, confirmedPaid);
-    if (!balance.startsWith("-") && balance !== "0.00") {
+    // A cancelled shoot's unpaid remainder is not an open balance — the studio is
+    // not going to collect it. The row still shows its own balance; only the
+    // aggregate skips it.
+    if (s.status !== "cancelado" && !balance.startsWith("-") && balance !== "0.00") {
       openBalance = addDecimal(openBalance, balance);
     }
     return {

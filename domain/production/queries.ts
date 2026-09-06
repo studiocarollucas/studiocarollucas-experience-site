@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { eq, ne } from "drizzle-orm";
 import { db } from "@/db/client";
 import {
   productionJobs,
@@ -51,7 +51,13 @@ export async function getProductionBoard(): Promise<ProductionBoard> {
     .innerJoin(shoots, eq(productionJobs.shootId, shoots.id))
     .innerJoin(clients, eq(shoots.clientId, clients.id))
     .innerJoin(experiencePackages, eq(shoots.experiencePackageId, experiencePackages.id))
-    .leftJoin(profiles, eq(productionJobs.editorUserId, profiles.id));
+    .leftJoin(profiles, eq(productionJobs.editorUserId, profiles.id))
+    // A cancelled shoot has no production left to do; its job would sit on the
+    // board forever as phantom work.
+    .where(ne(shoots.status, "cancelado"))
+    // Without an explicit order Postgres is free to return rows in any order, so
+    // cards inside a column shuffled between renders.
+    .orderBy(shoots.shootDate);
 
   return groupJobsByStatus(rows);
 }

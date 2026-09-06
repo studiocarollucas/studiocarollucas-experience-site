@@ -1,5 +1,9 @@
 import { describe, it, expect } from "vitest";
-import { computeDashboardKpis, type DashboardInput } from "@/domain/dashboard/kpis";
+import {
+  computeDashboardKpis,
+  shootsNeedingPayment,
+  type DashboardInput,
+} from "@/domain/dashboard/kpis";
 
 const base: DashboardInput = {
   shoots: [
@@ -51,5 +55,69 @@ describe("computeDashboardKpis", () => {
     const k = computeDashboardKpis(base);
     expect(k.productionInProgress).toBe(1);
     expect(k.finishedShoots).toBe(1);
+  });
+
+  it("a cancelado shoot with an open balance does not contribute to receivable", () => {
+    const withCancelled: DashboardInput = {
+      ...base,
+      shoots: [...base.shoots, { id: "s4", agreedPrice: "900.00", status: "cancelado", shootDate: "2026-09-28" }],
+    };
+    // receivable is unchanged from the base case: the cancelled shoot's 900.00 is
+    // money the studio will never collect, so it is not a receivable.
+    expect(computeDashboardKpis(withCancelled).receivable).toBe("2000.00");
+  });
+
+  it("still bills and counts a cancelado shoot (a faithful 'was billed' figure)", () => {
+    const withCancelled: DashboardInput = {
+      ...base,
+      shoots: [...base.shoots, { id: "s4", agreedPrice: "900.00", status: "cancelado", shootDate: "2026-09-28" }],
+    };
+    const k = computeDashboardKpis(withCancelled);
+    expect(k.billed).toBe("5400.00");
+    expect(k.shootsInPeriod).toBe(4);
+  });
+});
+
+describe("shootsNeedingPayment", () => {
+  const shoots = [
+    { id: "s1", agreedPrice: "1000.00", status: "reserva" },
+    { id: "s2", agreedPrice: "1000.00", status: "edicao" },
+    { id: "s3", agreedPrice: "1000.00", status: "entregue" },
+    { id: "s4", agreedPrice: "1000.00", status: "cancelado" },
+  ];
+
+  it("lists a shoot with a partial confirmed payment", () => {
+    expect(
+      shootsNeedingPayment(shoots, [{ shootId: "s1", amount: "400.00", status: "confirmado" }]),
+    ).toContain("s1");
+  });
+
+  it("does not list a fully paid shoot", () => {
+    expect(
+      shootsNeedingPayment(shoots, [{ shootId: "s2", amount: "1000.00", status: "confirmado" }]),
+    ).not.toContain("s2");
+  });
+
+  it("does not list an overpaid shoot (negative balance)", () => {
+    expect(
+      shootsNeedingPayment(shoots, [{ shootId: "s3", amount: "1200.00", status: "confirmado" }]),
+    ).not.toContain("s3");
+  });
+
+  it("never lists a cancelado shoot, however unpaid", () => {
+    expect(shootsNeedingPayment(shoots, [])).not.toContain("s4");
+  });
+
+  it("lists an untouched shoot with no payments at all", () => {
+    expect(shootsNeedingPayment(shoots, [])).toEqual(["s1", "s2", "s3"]);
+  });
+
+  it("ignores pendente and estornado rows — only confirmed money counts", () => {
+    const ids = shootsNeedingPayment(shoots, [
+      { shootId: "s1", amount: "1000.00", status: "pendente" },
+      { shootId: "s2", amount: "1000.00", status: "estornado" },
+    ]);
+    expect(ids).toContain("s1");
+    expect(ids).toContain("s2");
   });
 });
