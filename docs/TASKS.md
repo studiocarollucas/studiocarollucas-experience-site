@@ -48,7 +48,7 @@
 | SCL-202 | Lista de clientes | P1 | admin | DONE | agent:claude-code | SCL-100,SCL-200 |
 | SCL-204 | Criar cliente | P1 | admin | DONE | agent:claude-code | SCL-100,SCL-200 |
 | SCL-203 | Ficha da cliente | P1 | admin | DONE | agent:claude-code | SCL-100,SCL-200 |
-| SCL-210 | Agenda/Ensaios | P1 | admin | BACKLOG | unassigned | SCL-103,SCL-200 |
+| SCL-210 | Agenda/Ensaios | P1 | admin | DONE | agent:claude-code | SCL-103,SCL-200 |
 | SCL-211 | Criar ensaio | P1 | admin | BACKLOG | unassigned | SCL-103,SCL-106,SCL-105 |
 | SCL-220 | Registrar pagamento | P1 | finance | BACKLOG | unassigned | SCL-104,SCL-200 |
 | SCL-230 | Kanban Produção | P1 | production | BACKLOG | unassigned | SCL-106,SCL-200 |
@@ -905,6 +905,39 @@ Quinta task do Epic 2: ficha da cliente em `/admin/clientes/[id]` — dados do C
 - concluído: todos os arquivos acima. `npm run test` (157 passando, 3 skipped) / `typecheck` / `lint` (0 erros; 5 warnings pré-existentes em `tests/domain/*` não relacionados) / `check:admin-auth` / `build` verdes.
 - desvio do brief: o Step 3 do brief definia um `addDecimal` quebrado (auxiliar de raciocínio) e um hack `sumViaBalance()` que somava strings decimais via `calculateBalance`; ambos descartados em favor de `addDecimal` de `@/lib/money`. O import de `updateClientAction` não usado na página server `/editar` do brief foi removido (falharia no lint).
 - próximo passo: SCL-210 (agenda/ensaios) usa o link `/admin/agenda/[id]` que as linhas do histórico já apontam (rota ainda inexistente até lá — link morto inofensivo).
+
+---
+
+### SCL-210 — Agenda / shoot list
+
+- Status: DONE
+- Priority: P1
+- Area: admin
+- Owner: agent:claude-code
+- Branch: —
+- PR: —
+- Depends on: SCL-103, SCL-200
+- Blocks: —
+- Files/Scope: `domain/shoots/queries.ts` (`normalizeShootFilters`, `listShoots`), `components/admin/filter-bar.tsx`, `app/admin/(protected)/agenda/page.tsx`, `tests/domain/shoots-queries.test.ts`
+- Migration: no
+- Updated at: 2026-09-06
+
+**Goal**
+
+Sexta task do Epic 2: tela de agenda em `/admin/agenda` — visão em lista dos ensaios (PRD §7.4, "visão por lista no MVP"), paginada server-side, com filtro por status/data e busca por cliente ou experiência. Server Component somente-leitura sobre as primitivas de SCL-200 e os componentes `SearchInput`/`Pagination` de SCL-202.
+
+**Decisões de implementação**
+
+- **`normalizeShootFilters` pura e testada via TDD.** `tests/domain/shoots-queries.test.ts` (4 casos: defaults `page 1`/`pageSize 25` com todo o resto `undefined`; só aceita `status` que é valor real de `shoot_status` — `"edicao"` passa, `"bogus"` cai para `undefined`; só aceita `from`/`to` no formato ISO `YYYY-MM-DD` — `"01/01/2026"` cai para `undefined`; faz trim de `search` e clampa `page` para `>= 1`) — RED (`@/domain/shoots/queries` sem exports) → GREEN. A lista canônica de status vem de `shootStatusValues` (`domain/shoots/schema.ts`), então nenhum status inválido chega ao `WHERE`.
+- **`listShoots` traduz os filtros normalizados em predicados que de fato escopam a query.** `search` → `ilike` em `clients.name` OR `experiencePackages.name`; `status` → `eq(shoots.status, …)`; `from`/`to` → `gte`/`lte` em `shoots.shootDate`. Join `shoots` ⋈ `clients` ⋈ `experiencePackages`, ordenado por `shootDate` desc, `limit`/`offset` da paginação. `total` vem de um `count()` separado com o mesmo `WHERE`. `pageSize` é fixo em 25 (sem override por query nesta task).
+- **`FilterBar` é Client Component genérico e reutilizável (produção/financeiro).** `useRouter`/`usePathname`/`useSearchParams`; `<select>` de status + dois `<input type="date">` (De/Até com `aria-label`), cada mudança faz `router.push` e reseta `page`. Recebe `statusOptions` do server (derivado de `shootStatusValues`), sem acoplamento ao domínio de ensaios.
+- **Página somente-leitura.** Guarda = `app/admin/(protected)/layout.tsx`, sem `defineAdminAction`. As linhas do `DataTable` linkam para `/admin/agenda/[id]` (rota de detalhe chega em SCL-211 — link morto inofensivo até lá, mesma convenção já usada pelo histórico da ficha da cliente). `/admin/agenda` renderiza dinâmico (`ƒ`) por ler `searchParams`.
+
+**Blocker/Hand-off notes**
+
+- concluído: todos os arquivos acima. `npm run test` (161 passando, 3 skipped) / `typecheck` / `lint` (0 erros; 5 warnings pré-existentes em `tests/domain/*` não relacionados) / `check:admin-auth` / `build` verdes.
+- desvio do brief: nenhum. Todos os imports do Step 3 (`and`, `or`, `ilike`, `eq`, `gte`, `lte`, `desc`, `count`, `sql`, `SQL`) são usados; nada foi removido.
+- próximo passo: SCL-211 (criar ensaio ponta a ponta) adiciona a rota de detalhe `/admin/agenda/[id]` que as linhas da lista já apontam. `FilterBar` fica disponível para SCL-230 (Kanban Produção) e views financeiras.
 
 ---
 
