@@ -26,3 +26,9 @@ export function canTransitionProductionStatus(
 
   return toIndex === fromIndex + 1;
 }
+
+// UI helper: the set of statuses the operator may move a job to right now. Derived
+// from canTransitionProductionStatus so the dropdown and the guard can never drift.
+export function allowedProductionTransitions(from: ProductionJobStatus): ProductionJobStatus[] {
+  return ORDER.filter((to) => canTransitionProductionStatus(from, to));
+}
