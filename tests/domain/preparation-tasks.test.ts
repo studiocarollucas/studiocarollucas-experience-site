@@ -12,6 +12,18 @@ describe("createPreparationTaskSchema", () => {
     expect(createPreparationTaskSchema.safeParse(validBase).success).toBe(true);
   });
 
+  it("defaults a new preparation task to non-actionable", () => {
+    expect(createPreparationTaskSchema.parse(validBase)).toMatchObject({ clientActionable: false });
+  });
+
+  it("rejects a hidden actionable task", () => {
+    expect(() => createPreparationTaskSchema.parse({
+      ...validBase,
+      visibleToClient: false,
+      clientActionable: true,
+    })).toThrow();
+  });
+
   it("defaults status to pendente and visibleToClient to true", () => {
     const parsed = createPreparationTaskSchema.parse(validBase);
     expect(parsed.status).toBe("pendente");

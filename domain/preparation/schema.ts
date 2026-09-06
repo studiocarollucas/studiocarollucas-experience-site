@@ -12,6 +12,10 @@ export const createPreparationTaskSchema = z.object({
   // offset — the same shape as payments.paidAt, not a bare calendar date.
   dueAt: z.iso.datetime({ offset: true }).optional(), // e.g. "2026-12-01T14:30:00-03:00"
   visibleToClient: z.boolean().default(true),
+  clientActionable: z.boolean().default(false),
+}).refine((task) => !task.clientActionable || task.visibleToClient, {
+  error: "uma tarefa editável pela cliente precisa estar visível",
+  path: ["clientActionable"],
 });
 
 // z.input (not z.infer/z.output): see docs/DECISIONS.md, 2026-09-04 — `status` and
@@ -21,6 +25,9 @@ export const createPreparationTaskSchema = z.object({
 // payments/schema.ts.
 export type CreatePreparationTaskInput = z.input<typeof createPreparationTaskSchema>;
 
-export const addPreparationTaskFormSchema = createPreparationTaskSchema.extend({
-  visibleToClient: z.coerce.boolean().default(true),
+export const addPreparationTaskFormSchema = createPreparationTaskSchema.safeExtend({
+  // safeExtend checks input compatibility too; the annotation preserves the
+  // base boolean input while retaining the form's runtime coercion.
+  visibleToClient: z.coerce.boolean<boolean>().default(true),
+  clientActionable: z.coerce.boolean<boolean>().default(false),
 });

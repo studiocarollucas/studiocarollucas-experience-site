@@ -21,6 +21,7 @@ export const preparationTasks = pgTable("preparation_tasks", {
   // (`timestamp with time zone`) either way, no migration diff.
   dueAt: timestamp("due_at", { withTimezone: true, mode: "string" }),
   visibleToClient: boolean("visible_to_client").notNull().default(true),
+  clientActionable: boolean("client_actionable").notNull().default(false),
   completedAt: timestamp("completed_at", { withTimezone: true, mode: "string" }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });

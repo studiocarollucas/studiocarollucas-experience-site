@@ -2,6 +2,15 @@ import { describe, it, expect } from "vitest";
 import { buildInitialPreparationTasks } from "@/domain/shoots/create-confirmed-shoot";
 
 describe("buildInitialPreparationTasks", () => {
+  it("marks visible starter tasks as client-actionable and payment as internal", () => {
+    const tasks = buildInitialPreparationTasks();
+    expect(tasks.filter((task) => task.visibleToClient).every((task) => task.clientActionable)).toBe(true);
+    expect(tasks.find((task) => task.type === "pagamento")).toMatchObject({
+      visibleToClient: false,
+      clientActionable: false,
+    });
+  });
+
   it("returns the canonical starter checklist", () => {
     const tasks = buildInitialPreparationTasks();
     expect(tasks.map((t) => t.type)).toEqual([

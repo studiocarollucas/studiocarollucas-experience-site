@@ -1356,7 +1356,7 @@ Vincular com segurança cada usuário verificado por Magic Link a exatamente um 
 
 ### SCL-302 — Home Minha Experiência conectada
 
-- Status: BACKLOG
+- Status: IN_PROGRESS
 - Priority: P1
 - Area: client
 - Owner: unassigned
@@ -1364,9 +1364,9 @@ Vincular com segurança cada usuário verificado por Magic Link a exatamente um 
 - PR: —
 - Depends on: SCL-103, SCL-105, SCL-301
 - Blocks: primeiro marco E2E
-- Files/Scope: app/(client)/**, domain/shoots/read*, domain/preparation/read*
-- Migration: no
-- Updated at: 2026-09-03
+- Files/Scope: app/(client)/**, domain/shoots/read*, domain/preparation/read*, db/schema/{shoots,preparation-tasks}.ts, db/migrations/0024_*, db/migrations/0025_*
+- Migration: yes — 0024_epic3_client_fields + 0025_epic3_client_access
+- Updated at: 2026-09-06
 
 **Goal**
 
@@ -1381,6 +1381,18 @@ Exibir para a cliente autenticada a visão do mesmo Shoot usado pelo Studio OS.
 - [ ] próximo passo derivado do estado;
 - [ ] layout mobile aprovado;
 - [ ] alterações de preparação no backend aparecem sem duplicação de dados.
+
+**Task 2 — fundação do portal concluída (2026-09-06)**
+
+- Schemas incluem localização/orientações client-safe e `clientActionable`; cinco starters visíveis são actionable e pagamento permanece interno. O schema rejeita actionable oculto.
+- Migrations 0024/0025 aplicadas no Supabase real após autorização explícita. A gerada adiciona somente quatro colunas; hashes do journal live conferidos contra os arquivos locais. As 15 constraints hand-written anteriores continuam presentes.
+- `information_schema.role_column_grants`: authenticated recebe SELECT em 37 colunas seguras das cinco tabelas e UPDATE somente em `preparation_tasks.status`. Verificadas 360 combinações de privilégios efetivos por role/coluna/operação; anon sem SELECT/INSERT/UPDATE nessas tabelas.
+- `pg_policies`: seis policies confirmadas — `clients_client_read`, `shoots_client_read`, `experience_packages_client_read`, `payments_client_read`, `preparation_tasks_client_read`, `preparation_tasks_client_update`.
+- `pg_proc`: `owns_portal_shoot(uuid)` pertence a postgres, SECURITY DEFINER, stable, search_path vazio; EXECUTE authenticated=true/anon=false. `sync_preparation_completed_at()` confirmado. `pg_trigger`: `preparation_tasks_sync_completed_at` habilitado, BEFORE INSERT OR UPDATE OF status.
+- `pg_constraint`: `preparation_tasks_actionable_requires_visible` e `preparation_tasks_status_completed_consistent` validados; zero registros violando as invariantes.
+- Fixtures UUID únicas provaram isolamento A/B, portal desativado/cancelado, pagamentos confirmados, visibilidade/actionable, negação de notes/proof e escrita fora de status, conclusão/reabertura e rejeição de invariantes. Rollback e query final: zero resíduos em auth.users, profiles, clients, experience_packages, shoots, preparation_tasks e payments.
+- TDD RED/GREEN; focados: 15 passed/2 skipped. Suíte completa: 232 passed/9 skipped. Typecheck e guard admin passaram; lint sem erros (cinco warnings preexistentes). Ajuste de tipos Zod: `z.coerce.boolean<boolean>()` para compatibilidade de input com `safeExtend`, preservando coerção/refinement.
+- A home e seus critérios de UI continuam pendentes; apenas a fundação da Task 2 foi concluída. Privilégios legados REFERENCES/TRIGGER/TRUNCATE já documentados em DECISIONS permanecem fora desta mudança.
 
 ---
 

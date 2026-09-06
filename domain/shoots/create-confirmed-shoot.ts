@@ -12,14 +12,15 @@ export function buildInitialPreparationTasks(): {
   type: string;
   title: string;
   visibleToClient: boolean;
+  clientActionable: boolean;
 }[] {
   return [
-    { type: "moodboard", title: "Definir moodboard e referências", visibleToClient: true },
-    { type: "figurino", title: "Escolher figurinos", visibleToClient: true },
-    { type: "clutch", title: "Selecionar clutch e acessórios", visibleToClient: true },
-    { type: "make", title: "Enviar referência de maquiagem", visibleToClient: true },
-    { type: "confirmacao_horario", title: "Confirmar data e horário do ensaio", visibleToClient: true },
-    { type: "pagamento", title: "Acompanhar pagamento do ensaio", visibleToClient: false },
+    { type: "moodboard", title: "Definir moodboard e referências", visibleToClient: true, clientActionable: true },
+    { type: "figurino", title: "Escolher figurinos", visibleToClient: true, clientActionable: true },
+    { type: "clutch", title: "Selecionar clutch e acessórios", visibleToClient: true, clientActionable: true },
+    { type: "make", title: "Enviar referência de maquiagem", visibleToClient: true, clientActionable: true },
+    { type: "confirmacao_horario", title: "Confirmar data e horário do ensaio", visibleToClient: true, clientActionable: true },
+    { type: "pagamento", title: "Acompanhar pagamento do ensaio", visibleToClient: false, clientActionable: false },
   ];
 }
 
@@ -47,6 +48,7 @@ export async function createConfirmedShoot(
         type: t.type,
         title: t.title,
         visibleToClient: t.visibleToClient,
+        clientActionable: t.clientActionable,
       })),
     );
 

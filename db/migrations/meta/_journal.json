@@ -169,6 +169,20 @@
       "when": 1788579854475,
       "tag": "0023_clients_auth_user_fk",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1788718008556,
+      "tag": "0024_epic3_client_fields",
+      "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1788718039860,
+      "tag": "0025_epic3_client_access",
+      "breakpoints": true
     }
   ]
 }

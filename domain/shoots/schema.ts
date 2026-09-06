@@ -26,6 +26,9 @@ export const createShootSchema = z.object({
   // validate both here so malformed input is rejected by Zod before the insert.
   shootDate: z.iso.date(), // "YYYY-MM-DD", e.g. "2026-12-01"
   startTime: z.iso.time().optional(), // "HH:mm" or "HH:mm:ss"
+  locationName: z.string().trim().max(120).optional(),
+  locationAddress: z.string().trim().max(300).optional(),
+  clientGuidance: z.string().trim().max(2000).optional(),
   status: z.enum(shootStatusValues).default("reserva"),
   agreedPrice: z.string().regex(/^\d+(\.\d{1,2})?$/, "must be a decimal string like \"1200.00\""),
   // NOTE: `paymentStatus` is deliberately absent from this schema. db/schema/shoots.ts
@@ -55,6 +58,9 @@ export type CreateShootInput = z.input<typeof createShootSchema>;
 // changeShootStatusAction (SCL-231-adjacent), not this generic update.
 export const updateShootSchema = z.object({
   startTime: z.iso.time().optional(),
+  locationName: z.string().trim().max(120).optional(),
+  locationAddress: z.string().trim().max(300).optional(),
+  clientGuidance: z.string().trim().max(2000).optional(),
   agreedPrice: z
     .string()
     .regex(/^\d+(\.\d{1,2})?$/, "must be a decimal string like \"1200.00\"")
