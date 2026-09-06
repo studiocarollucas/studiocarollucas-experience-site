@@ -27,7 +27,7 @@
 |---|---|---:|---|---|---|---|
 | SCL-001 | Inicializar repositório | P0 | infra | DONE | agent:claude-code | none |
 | SCL-002 | Lint/format/typecheck/tests | P0 | infra | DONE | agent:claude-code | SCL-001 |
-| SCL-003 | CI + preview deploys | P0 | infra | BLOCKED | agent:claude-code | SCL-001,SCL-002 |
+| SCL-003 | CI + preview deploys | P0 | infra | DONE | agent:claude-code + human:Hudson | SCL-001,SCL-002 |
 | SCL-004 | Projeto Supabase + ambientes | P0 | db | DONE | agent:claude-code + human:Hudson | none |
 | SCL-005 | Drizzle + migrations | P0 | db | DONE | agent:claude-code | SCL-001,SCL-004 |
 | SCL-006 | Auth base | P0 | auth | DONE | agent:claude-code + human:Hudson | SCL-004,SCL-005 |
@@ -138,17 +138,17 @@ Criar a base do projeto Next.js + TypeScript, pronta para desenvolvimento em equ
 
 ### SCL-003 — CI + preview deploys
 
-- Status: BLOCKED
+- Status: DONE
 - Priority: P0
 - Area: infra
-- Owner: agent:claude-code
+- Owner: agent:claude-code + human:Hudson
 - Branch: —
 - PR: —
 - Depends on: SCL-001, SCL-002
 - Blocks: `IN_REVIEW → MERGE_READY` transition (PRD §19.3) para todas as tasks dos Epics 1–6
-- Files/Scope: `.github/workflows/ci.yml`, `docs/runbooks/deploy.md`
+- Files/Scope: `.github/workflows/ci.yml`, `docs/runbooks/deploy.md`, `.npmrc`, `package.json` (`@types/node`)
 - Migration: no
-- Updated at: 2026-09-03
+- Updated at: 2026-09-06
 
 **Goal**
 
@@ -157,14 +157,18 @@ Dar todo PR um sinal de CI (lint, typecheck, test, build) e documentar o procedi
 **Acceptance criteria**
 
 - [x] `.github/workflows/ci.yml` criado rodando lint, typecheck, test e build em `push`/`pull_request`, com env vars placeholder no passo de build (nenhum segredo real commitado);
-- [ ] branch enviada para um remoto GitHub e workflow confirmado rodando verde na aba Actions;
-- [ ] repositório conectado a um projeto Vercel, com env vars reais configuradas separadamente em Production e Preview;
+- [x] branch enviada para um remoto GitHub (`github.com/studiocarollucas/studiocarollucas-experience-site`) e workflow confirmado rodando verde na aba Actions (commits `1d714ef` e `f2f5de0`, branch `main`);
+- [x] repositório conectado a um projeto Vercel, deploy de produção confirmado ao vivo em `studiocarollucas-experience-site.vercel.app` renderizando a home real;
 - [x] `docs/runbooks/deploy.md` documentando o procedimento de deploy.
+
+**Implementation notes**
+
+- O push inicial foi feito para `master` (nome default do `git init` local); o repositório remoto e o próprio `ci.yml` (`on: push: branches: [main]`) esperavam `main`. Renomeado localmente (`git branch -m master main`) e reenviado; branch `master` remoto removido para não duplicar.
+- O primeiro deploy na Vercel falhou (`npm error ERESOLVE`): `@types/node` estava fixado em `^20` no `package.json`, mas `vitest@5.0.0` exige `^22.0.0 || >=24.0.0` via peer dependency — conflito nunca visível localmente porque o `~/.npmrc` global do usuário tinha `legacy-peer-deps=true`, mascarando o erro. Corrigido: `@types/node` → `^22` (compatível com `engines.node >=22.9` já declarado), e adicionado `.npmrc` no projeto fixando `legacy-peer-deps=false` para que esse tipo de "funciona local, quebra no deploy" não se repita para nenhum colaborador futuro. `package-lock.json` regenerado do zero sob resolução estrita (reproduzindo o mesmo erro da Vercel localmente antes do fix, confirmando a causa raiz).
 
 **Blocker/Hand-off notes**
 
-- concluído: workflow CI e runbook de deploy prontos; falta o usuário conectar um remoto GitHub e um projeto Vercel para validar o pipeline de verdade — mesma categoria de bloqueio de SCL-004/005/006/007, mas por falta de remoto/conta, não pela indisponibilidade do Supabase.
-- falta: `git push -u origin HEAD` para um remoto GitHub real, confirmação visual do workflow `CI` verde na aba Actions, e a conexão do repositório a um projeto Vercel (import, framework preset, env vars de Production/Preview, deploy, e um PR de teste confirmando o Preview Deployment).
+—
 - arquivos alterados: `.github/workflows/ci.yml`, `docs/runbooks/deploy.md`.
 - testes: verificação local equivalente aos passos do workflow — `npm run lint`, `npm run typecheck`, `npm run test` e `npm run build` (com as mesmas env vars placeholder do workflow) todos verdes na working tree atual.
 - próximo passo: assim que o usuário criar/conectar o remoto GitHub e o projeto Vercel, fazer o push, confirmar o workflow `CI` verde na aba Actions, conectar o repositório no dashboard da Vercel conforme `docs/runbooks/deploy.md`, então marcar SCL-003 `DONE`.
