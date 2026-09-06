@@ -1,18 +1,6 @@
+import { toCents, fromCents } from "@/lib/money";
+
 type PaymentForBalance = { amount: string; status: "pendente" | "confirmado" | "estornado" };
-
-function toCents(decimalString: string): number {
-  const [whole, fraction = "0"] = decimalString.split(".");
-  const cents = `${fraction}00`.slice(0, 2);
-  return Number(whole) * 100 + Number(cents) * (whole.startsWith("-") ? -1 : 1);
-}
-
-function fromCents(cents: number): string {
-  const sign = cents < 0 ? "-" : "";
-  const abs = Math.abs(cents);
-  const whole = Math.floor(abs / 100);
-  const fraction = String(abs % 100).padStart(2, "0");
-  return `${sign}${whole}.${fraction}`;
-}
 
 function sumConfirmed(payments: PaymentForBalance[]): number {
   return payments
