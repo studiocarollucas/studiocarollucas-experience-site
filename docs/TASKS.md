@@ -53,6 +53,7 @@
 | SCL-212 | Ficha do ensaio | P1 | admin | DONE | agent:claude-code | SCL-103,SCL-104,SCL-106,SCL-105,SCL-211 |
 | SCL-220 | Registrar pagamento | P1 | finance | DONE | agent:claude-code | SCL-104,SCL-200 |
 | SCL-221 | Livro-caixa + dashboard financeiro | P1 | finance | DONE | agent:claude-code | SCL-104,SCL-201,SCL-220 |
+| SCL-222 | Despesas | P1 | finance | DONE | agent:claude-code | SCL-104,SCL-221 |
 | SCL-230 | Kanban Produção | P1 | production | BACKLOG | unassigned | SCL-106,SCL-200 |
 | SCL-300 | Passwordless cliente | P1 | client | BACKLOG | unassigned | SCL-006,SCL-007 |
 | SCL-301 | Shell Minha Experiência | P1 | client | BACKLOG | unassigned | SCL-300,SCL-009 |
@@ -1127,6 +1128,50 @@ Livro-caixa (recebimentos + despesas) e KPIs financeiros, tudo recalculado a par
 - arquivos alterados: ver Files/Scope acima.
 - testes: `tests/domain/finance-ledger.test.ts` (6 puros, TDD RED→GREEN).
 - próximo passo: CRUD de despesas preenche o link "Despesas"; nenhum bloqueio pendente.
+
+---
+
+### SCL-222 — Despesas
+
+- Status: DONE
+- Priority: P1
+- Area: finance
+- Owner: agent:claude-code
+- Branch: —
+- PR: —
+- Depends on: SCL-104, SCL-221
+- Blocks: —
+- Files/Scope: `domain/finance/expense-form-schema.ts`, `domain/finance/expense-queries.ts`, `domain/finance/expense-actions.ts`, `app/admin/(protected)/financeiro/despesas/page.tsx`, `app/admin/(protected)/financeiro/despesas/expense-form.tsx`, `tests/domain/expense-form-schema.test.ts`
+- Migration: no
+- Updated at: 2026-09-06
+
+**Goal**
+
+Tela `/admin/financeiro/despesas` para registrar e listar despesas — saídas independentes de um ensaio (PRD §7.5). Preenche o link "Despesas" que a página `/admin/financeiro` (SCL-221) já apontava.
+
+**Acceptance criteria**
+
+- [x] `expenseFormSchema` puro/testado — TDD RED→GREEN, 4 casos em `tests/domain/expense-form-schema.test.ts` (mínimo válido com `recurring` default `false`; `recurring: true` normalizado sobrevive; rejeita `type` desconhecido; rejeita `amount` e `date` malformados);
+- [x] `expenses` não tem FK para um ensaio — por design (PRD §7.5), é um registro independente; `listExpenses` filtra só por `expenses.date` no intervalo;
+- [x] `createExpenseAction` passa pelo wrapper RBAC (`defineAdminAction`, `role: "staff"`) e audita `expense.created` (`before: null`, `after: created`) via `recordAuditEvent`;
+- [x] action revalida `/admin/financeiro/despesas`, `/admin/financeiro` e `/admin`;
+- [x] período por `searchParams` `from`/`to` (validados por regex ISO, fallback = últimos ~3 meses); página renderiza dinâmico por ler `searchParams`;
+- [x] DB vazio no período → `EmptyState`.
+
+**Implementation notes**
+
+- `expenseFormSchema = createExpenseSchema.extend({ recurring: z.coerce.boolean().default(false) })` — única extensão necessária. `createExpenseSchema` (Epic 1, `domain/payments/schema.ts`, **frozen — não tocado**) já valida `date` como `z.iso.date()` e `type` como `z.enum(expenseTypeValues)`, então os casos "rejeita 10/09/2026" e "rejeita type desconhecido" passam sem override. O `.extend` só troca `recurring` pela versão `z.coerce.boolean()` para o valor do checkbox (já normalizado por `toFormAction({ booleans: ["recurring"] })`) sobreviver.
+- `domain/finance/expense-queries.ts` = leitura Drizzle pura (`listExpenses`, ordena por `date` desc); `domain/finance/expense-actions.ts` = `"use server"`, só a `createExpenseAction` embrulhada. `createExpense` (Epic 1, `domain/payments/service.ts`) é reusado como está — insert puro com re-parse do schema.
+- `expense-form.tsx` é `"use client"` e importa `toFormAction`/`ActionResult` de `@/lib/auth/action-result` (client-safe), nunca de `@/lib/auth/admin-action` — mesma convenção de SCL-203/SCL-220. `router.refresh()` no sucesso para a lista re-renderizar.
+- Sem migração: a tabela `expenses` já existe desde SCL-104.
+
+**Blocker/Hand-off notes**
+
+- concluído: `expenseFormSchema` (puro/testado, TDD RED→GREEN 4 casos), `listExpenses`, `createExpenseAction` (embrulhada + auditada), página `/admin/financeiro/despesas` + form. `npm run test` (181 + 6 skip), `npm run typecheck`, `npm run lint` (0 erros; 5 warnings pré-existentes em outros testes), `npm run check:admin-auth`, `npm run build` todos verdes.
+- falta: nada pendente nesta task.
+- arquivos alterados: ver Files/Scope acima.
+- testes: `tests/domain/expense-form-schema.test.ts` (4 puros, TDD RED→GREEN).
+- próximo passo: nenhum bloqueio pendente; SCL-221 "próximo passo" (preencher o link "Despesas") está fechado.
 
 ---
 
