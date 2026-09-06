@@ -7,6 +7,7 @@ import { DataTable, type Column } from "@/components/ui/data-table";
 import { EmptyState } from "@/components/ui/empty-state";
 import { DetailSection, DetailRow } from "@/components/admin/detail-section";
 import { EditShootPanel } from "./edit-shoot-panel";
+import { ShootStatusControl } from "./shoot-status-control";
 import { formatBRL, formatShootDate, formatDateTime } from "@/lib/format";
 import type { Payment } from "@/db/schema";
 
@@ -40,8 +41,8 @@ export default async function ShootDetailPage({ params }: { params: Params }) {
         title={`${clientName} — ${packageName}`}
         description={`${formatShootDate(shoot.shootDate)}${shoot.startTime ? ` · ${shoot.startTime.slice(0, 5)}` : ""}`}
         action={
-          <div className="flex gap-2">
-            <Badge tone="active">{shoot.status}</Badge>
+          <div className="flex items-start gap-2">
+            <ShootStatusControl id={id} status={shoot.status} />
             <Badge tone={shoot.paymentStatus === "pago" ? "success" : shoot.paymentStatus === "parcial" ? "warning" : "neutral"}>
               {shoot.paymentStatus}
             </Badge>
