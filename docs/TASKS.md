@@ -1322,7 +1322,7 @@ Rota `/admin/agenda/[id]/preparacao` (link já existente na ficha do ensaio, SCL
 - PR: —
 - Depends on: SCL-006, SCL-007
 - Blocks: SCL-301
-- Files/Scope: `lib/auth/client-link.ts`, `app/auth/callback/route.ts`, `app/(client)/login/page.tsx`, `tests/lib/client-link.test.ts`
+- Files/Scope: `lib/auth/client-link.ts`, `app/auth/callback/route.ts`, `app/(client)/login/page.tsx`, `tests/lib/client-link.test.ts`, `tests/app/auth-callback.test.ts`
 - Migration: no
 - Updated at: 2026-09-06
 
@@ -1335,21 +1335,21 @@ Vincular com segurança cada usuário verificado por Magic Link a exatamente um 
 - [x] `normalizeClientEmail` e `decideClientLink` são puros e cobertos por teste: normalização, vínculo novo, idempotência, ausência, ambiguidade e vínculo de outro usuário;
 - [x] o lookup limita a dois candidatos pelo e-mail normalizado; zero, múltiplos ou um registro de outro usuário são negados;
 - [x] a atualização usa compare-and-set (`id` e `auth_user_id IS NULL`) e relê o registro após corrida, aceitando somente o mesmo `auth_user_id`;
-- [x] após o exchange PKCE, o callback verifica o usuário Supabase e exige o vínculo antes do redirect; toda rejeição/erro de vínculo faz sign-out;
+- [x] após o exchange PKCE, o callback verifica o usuário Supabase e exige o vínculo antes do redirect; toda falha posterior ao exchange — `getUser` com erro/usuário ausente/e-mail ausente, rejeição ou exceção de vínculo — chama `signOut` antes do erro neutro;
 - [x] a falha é neutra (`/login?error=access`), sem enumerar clientes ou motivo interno, e a página mostra a cópia aprovada;
 - [x] `getLinkedClientByAuthUserId` fornece a leitura mínima (`id`, `name`) para o shell do portal seguinte.
 
 **Implementation notes**
 
 - O vínculo não cria nem escolhe um CRM Client: ele só associa uma correspondência única pelo `lower(trim(email))`. A unicidade de `clients.auth_user_id` continua como defesa do banco.
-- A rota mantém `safeRedirect`; o pedido usa dados de request e Supabase/cookies, portanto permanece dinâmico conforme a convenção de Route Handlers do Next 16.
+- A rota mantém `safeRedirect`; `denyClientAccess` centraliza o `signOut` + redirect neutro de toda falha posterior ao exchange. O pedido usa dados de request e Supabase/cookies, portanto permanece dinâmico conforme a convenção de Route Handlers do Next 16.
 
 **Blocker/Hand-off notes**
 
-- concluído: decisão pura, vínculo Drizzle race-safe, callback PKCE fail-closed com log estruturado e sign-out, e mensagem neutra na tela de login.
+- concluído: decisão pura, vínculo Drizzle race-safe, callback PKCE fail-closed com log estruturado e `signOut` em toda falha pós-exchange, e mensagem neutra na tela de login.
 - falta: nada para esta task.
-- arquivos alterados: `lib/auth/client-link.ts`, `app/auth/callback/route.ts`, `app/(client)/login/page.tsx`, `tests/lib/client-link.test.ts`, `docs/TASKS.md`.
-- testes: TDD RED (`npm run test -- tests/lib/client-link.test.ts`, import inexistente) e GREEN (6 testes); gate focado: `npm run test -- tests/lib/client-link.test.ts tests/lib/safe-redirect.test.ts tests/lib/session.test.ts`.
+- arquivos alterados: `lib/auth/client-link.ts`, `app/auth/callback/route.ts`, `app/(client)/login/page.tsx`, `tests/lib/client-link.test.ts`, `tests/app/auth-callback.test.ts`, `docs/TASKS.md`.
+- testes: TDD RED (`npm run test -- tests/lib/client-link.test.ts`, import inexistente) e GREEN (6 testes); cobertura cumulativa de vínculo/callback/redirect: `npm run test -- tests/lib/client-link.test.ts tests/app/auth-callback.test.ts tests/lib/safe-redirect.test.ts` — 25/25.
 - próximo passo: SCL-301 pode usar `getLinkedClientByAuthUserId` para montar o shell protegido.
 
 ---
