@@ -51,7 +51,7 @@
 | SCL-210 | Agenda/Ensaios | P1 | admin | DONE | agent:claude-code | SCL-103,SCL-200 |
 | SCL-211 | Criar ensaio | P1 | admin | DONE | agent:claude-code | SCL-103,SCL-106,SCL-105 |
 | SCL-212 | Ficha do ensaio | P1 | admin | DONE | agent:claude-code | SCL-103,SCL-104,SCL-106,SCL-105,SCL-211 |
-| SCL-220 | Registrar pagamento | P1 | finance | BACKLOG | unassigned | SCL-104,SCL-200 |
+| SCL-220 | Registrar pagamento | P1 | finance | DONE | agent:claude-code | SCL-104,SCL-200 |
 | SCL-230 | Kanban Produção | P1 | production | BACKLOG | unassigned | SCL-106,SCL-200 |
 | SCL-300 | Passwordless cliente | P1 | client | BACKLOG | unassigned | SCL-006,SCL-007 |
 | SCL-301 | Shell Minha Experiência | P1 | client | BACKLOG | unassigned | SCL-300,SCL-009 |
@@ -1037,17 +1037,17 @@ Uma única ficha por ensaio reunindo o registro central + financeiro + produçã
 
 ### SCL-220 — Registrar pagamento conectado
 
-- Status: BACKLOG
+- Status: DONE
 - Priority: P1
 - Area: finance
-- Owner: unassigned
+- Owner: agent:claude-code
 - Branch: —
 - PR: —
 - Depends on: SCL-104, SCL-200
 - Blocks: dashboard financeiro, marco E2E
-- Files/Scope: domain/payments/**, app/admin/**
+- Files/Scope: `domain/payments/register-payment.ts`, `domain/payments/actions.ts`, `app/admin/(protected)/agenda/[id]/pagamento/page.tsx`, `app/admin/(protected)/agenda/[id]/pagamento/payment-form.tsx`, `tests/domain/register-payment.test.ts`
 - Migration: no
-- Updated at: 2026-09-03
+- Updated at: 2026-09-06
 
 **Goal**
 
@@ -1055,13 +1055,32 @@ Registrar pagamento uma única vez e derivar saldo/status financeiro do ensaio.
 
 **Acceptance criteria**
 
-- [ ] Payment persistido;
-- [ ] somente pagamentos confirmados entram no saldo;
-- [ ] saldo calculado como valor acordado menos pagamentos confirmados;
-- [ ] pagamento parcial suportado;
-- [ ] histórico preservado;
-- [ ] teste para saldo zero, parcial e excesso/erro de entrada;
-- [ ] nenhuma segunda receita precisa ser digitada em outra tela.
+- [x] Payment persistido — `registerPayment()` faz `tx.insert(payments)` dentro de um único `db.transaction`;
+- [x] somente pagamentos confirmados entram no saldo — a aritmética é delegada a `calculateBalance()`/`deriveShootPaymentStatus()` (Epic 1), que já filtram `status === "confirmado"`; SCL-220 não reimplementa nada;
+- [x] saldo calculado como valor acordado menos pagamentos confirmados — idem, `calculateBalance(agreedPrice, todasAsLinhas)`;
+- [x] pagamento parcial suportado — `nextStatus: "parcial"` quando `0 < confirmado < valor_acordado`;
+- [x] histórico preservado — cada registro é uma linha nova em `payments`; nada é sobrescrito;
+- [x] teste para saldo zero, parcial e excesso/erro de entrada — `planPaymentStatusUpdate` puro, TDD RED→GREEN, 5 casos (`nao_iniciado`/`parcial`/`pago`/overpayment com saldo negativo não-clampado/ignora `estornado`); `createPaymentSchema` (Epic 1) rejeita `amount` negativo/malformado;
+- [x] nenhuma segunda receita precisa ser digitada em outra tela — o formulário `/admin/agenda/[id]/pagamento` é a única entrada; `shoots.payment_status` e o saldo saem derivados.
+
+**Implementation notes**
+
+- `domain/payments/register-payment.ts` = `planPaymentStatusUpdate` (puro, TDD RED→GREEN, 5 casos) + `registerPayment` (a transação). `planPaymentStatusUpdate` só delega para `deriveShootPaymentStatus`/`calculateBalance` sobre `[...existing, newPayment]` — nenhuma aritmética própria (PRD §7.5, fonte única).
+- `shoots.payment_status` é escrito em **exatamente um lugar**: o `db.transaction` de `registerPayment`, logo após o insert do pagamento, recomputado sobre **todas** as linhas de `payments` daquele ensaio via `deriveShootPaymentStatus`. Sequência da transação: select do shoot (throw `"ensaio inexistente"` se não existir) → `tx.insert(payments)` → re-select de todas as linhas do shoot → `deriveShootPaymentStatus` + `calculateBalance` → `tx.update(shoots).set({ paymentStatus })`. Tudo em `tx`; rollback conjunto. Não é editável pelo usuário e não é escrito em nenhum outro lugar.
+- Overpayment: `calculateBalance` devolve saldo negativo sem clamp; `deriveShootPaymentStatus` devolve `"pago"`. Coberto no teste (`-200.00`).
+- `domain/payments/actions.ts` é `"use server"`, envolvido por `defineAdminAction({ role: "staff", input: createPaymentSchema })`, audita `payment.registered` via `recordAuditEvent` e chama `revalidatePath` em `/admin/agenda/[id]`, `/admin/financeiro` e `/admin`.
+- Client form (`payment-form.tsx`) importa `toFormAction`/`ActionResult` de `@/lib/auth/action-result` (não de `@/lib/auth/admin-action`). O `<Select name="status">` é o status da **linha de pagamento** (`pendente`/`confirmado`/`estornado`), não o `payment_status` do ensaio.
+- `paidAt`: `createPaymentSchema.paidAt` é `z.iso.datetime({ offset: true })` (Epic 1, não afrouxado). O `<input type="datetime-local">` emite `"YYYY-MM-DDTHH:mm"` (sem segundos, sem offset), então o campo se chama `paidAtLocal` e o reducer do `useActionState` o reescreve antes de chamar a action: comprimento 16 → `"${local}:00Z"`, senão `"${local}Z"`.
+- Teste live-DB (`tests/domain/register-payment.test.ts`, guardado por `RUN_LIVE_DB_TESTS === "true"`, `afterAll` apaga o cliente `Teste Epic2 SCL-220` + shoot + pagamentos) rodado uma vez contra o Supabase real: `npm run test` = 176/176 verdes (6 blocos de integração antes pulados executaram). O `it` de integração leva `timeout: 30_000` — duas chamadas de `registerPayment`, cada uma um `db.transaction` multi-round-trip contra o pooler remoto, estouram o default de 5s do vitest. Limpeza verificada por query direta ao Postgres depois da run: `clients LIKE 'Teste Epic2 %'` = 0, `clients LIKE 'Teste Epic%'` = 0, shoots de cliente `Teste Epic2 SCL-220` = 0, pagamentos órfãos = 0, shoots `shoot_date=2026-12-01 agreed_price=1000.00` = 0.
+- Com SCL-211 (criar ensaio) já feito, SCL-220 fecha a espinha do marco E2E do Studio OS: criar ensaio → registrar pagamento → saldo/status financeiro derivados na ficha.
+
+**Blocker/Hand-off notes**
+
+- concluído: `planPaymentStatusUpdate` (puro/testado) + `registerPayment` (transação), action auditada, página + formulário. `npm run test` (170 + 6 skip), `npm run typecheck`, `npm run lint` (0 erros; 5 warnings pré-existentes em outros testes), `npm run check:admin-auth`, `npm run build` todos verdes. Uma run live-DB verde (176/176) com limpeza confirmada em zero linhas.
+- falta: nada pendente nesta task. `/admin/financeiro` é revalidado mas ainda não existe (link/rota morta inofensiva até a task do dashboard financeiro).
+- arquivos alterados: ver Files/Scope acima.
+- testes: `tests/domain/register-payment.test.ts` (5 puros TDD RED→GREEN + 1 integração guardado por `RUN_LIVE_DB_TESTS` com `afterAll` completo).
+- próximo passo: dashboard financeiro consome `payment.registered` / `shoots.payment_status`; SCL-302 (home da cliente) fecha o marco E2E completo do lado da cliente.
 
 ---
 
