@@ -18,8 +18,13 @@ export function PaymentForm({ shootId }: { shootId: string }) {
       const local = fd.get("paidAtLocal");
       fd.delete("paidAtLocal");
       if (typeof local === "string" && local !== "") {
-        // "2026-10-18T14:30" -> "2026-10-18T14:30:00Z" (Z is an accepted offset)
-        fd.set("paidAt", local.length === 16 ? `${local}:00Z` : `${local}Z`);
+        // <input type="datetime-local"> emits a LOCAL wall-clock string with no
+        // offset ("2026-10-18T14:30"). Appending "Z" would mislabel it as UTC and
+        // skew the financial record by the browser's offset (and bucket it into the
+        // wrong ledger month). `new Date(local)` parses it as local time, so
+        // toISOString() yields the correct instant carrying an explicit offset —
+        // which is what createPaymentSchema's z.iso.datetime({ offset: true }) wants.
+        fd.set("paidAt", new Date(local).toISOString());
       }
       const result = await toFormAction(registerPaymentAction)(prev, fd);
       if (result.ok) router.push(`/admin/agenda/${result.data.shootId}`);

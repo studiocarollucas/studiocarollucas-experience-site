@@ -30,25 +30,31 @@ export async function registerPayment(
   const parsed = createPaymentSchema.parse(input);
 
   return db.transaction(async (tx) => {
+    // FOR UPDATE locks the shoot row for the life of the transaction, so two
+    // concurrent registrations on the same shoot serialize instead of both reading
+    // the same "before" payment set and leaving a stale `parcial` cache behind.
     const [shoot] = await tx
       .select({ id: shoots.id, agreedPrice: shoots.agreedPrice })
       .from(shoots)
       .where(eq(shoots.id, parsed.shootId))
-      .limit(1);
+      .limit(1)
+      .for("update");
     if (!shoot) throw new Error("ensaio inexistente");
 
-    const [payment] = await tx.insert(payments).values(parsed).returning();
-
-    const rows = await tx
+    const existing = await tx
       .select({ amount: payments.amount, status: payments.status })
       .from(payments)
       .where(eq(payments.shootId, parsed.shootId));
 
-    const nextStatus = deriveShootPaymentStatus(shoot.agreedPrice, rows);
-    const balance = calculateBalance(shoot.agreedPrice, rows);
+    // The unit-tested planner is the single derivation path — no inline re-derivation.
+    const { nextStatus, nextBalance } = planPaymentStatusUpdate(shoot.agreedPrice, existing, {
+      amount: parsed.amount,
+      status: parsed.status,
+    });
 
+    const [payment] = await tx.insert(payments).values(parsed).returning();
     await tx.update(shoots).set({ paymentStatus: nextStatus }).where(eq(shoots.id, parsed.shootId));
 
-    return { payment, shootPaymentStatus: nextStatus, balance };
+    return { payment, shootPaymentStatus: nextStatus, balance: nextBalance };
   });
 }
