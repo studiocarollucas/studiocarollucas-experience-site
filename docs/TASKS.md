@@ -45,7 +45,7 @@
 | SCL-107 | Schema AuditLog | P0 | db | DONE | agent:claude-code | SCL-005 |
 | SCL-200 | Shell Admin | P1 | admin | DONE | agent:claude-code | SCL-007,SCL-009,SCL-100 |
 | SCL-201 | Dashboard | P1 | admin | DONE | agent:claude-code | SCL-103,SCL-104,SCL-106,SCL-200 |
-| SCL-202 | Lista de clientes | P1 | admin | BACKLOG | unassigned | SCL-100,SCL-200 |
+| SCL-202 | Lista de clientes | P1 | admin | DONE | agent:claude-code | SCL-100,SCL-200 |
 | SCL-203 | Ficha da cliente | P1 | admin | BACKLOG | unassigned | SCL-100,SCL-200 |
 | SCL-210 | Agenda/Ensaios | P1 | admin | BACKLOG | unassigned | SCL-103,SCL-200 |
 | SCL-211 | Criar ensaio | P1 | admin | BACKLOG | unassigned | SCL-103,SCL-106,SCL-105 |
@@ -803,6 +803,38 @@ Segunda task do Epic 2: substituir o placeholder de `app/admin/(protected)/page.
 - concluído: `domain/dashboard/kpis.ts` (reducer puro), `domain/dashboard/queries.ts` (leituras Drizzle + `AttentionItem`), `components/admin/kpi-tile.tsx`, `app/admin/(protected)/page.tsx` (dashboard real no lugar do placeholder). `npm run test` / `typecheck` / `lint` / `check:admin-auth` / `build` verdes.
 - testes: `tests/domain/dashboard-kpis.test.ts` (8 casos) — TDD RED (módulo inexistente) → GREEN. Suíte completa: 140 passando, 3 skipped, inalterada fora do novo arquivo.
 - próximo passo: SCL-202+ constroem as telas de lista/ficha sobre as mesmas primitivas.
+
+---
+
+### SCL-202 — Lista de clientes
+
+- Status: DONE
+- Priority: P1
+- Area: admin
+- Owner: agent:claude-code
+- Branch: —
+- PR: —
+- Depends on: SCL-100, SCL-200
+- Blocks: —
+- Files/Scope: `domain/clients/queries.ts`, `app/admin/(protected)/clientes/page.tsx`, `components/admin/search-input.tsx`, `components/admin/pagination.tsx`, `tests/domain/clients-queries.test.ts`
+- Migration: no
+- Updated at: 2026-09-06
+
+**Goal**
+
+Terceira task do Epic 2: tela de lista do CRM em `/admin/clientes` — busca por nome/telefone/e-mail/Instagram e paginação server-side (PRD §14), sobre as primitivas de SCL-200 (`DataTable`, `PageHeader`, `EmptyState`, `Input`).
+
+**Decisões de implementação**
+
+- **Query paginada no domínio, `normalizeListParams` como unidade testada.** `domain/clients/queries.ts` exporta `normalizeListParams` (pura: default page 1 / pageSize 25, parse de string de query param, clamp de page em `>= 1` e pageSize em `1..100`, trim de `search` com vazio/whitespace → `undefined`), `buildClientSearchPredicate` (helper puro que devolve `SQL | undefined` — `ilike` em `name`/`phone`/`email`/`instagramHandle`; testado indiretamente via `listClients`) e `listClients` (count + página de linhas, `orderBy(desc(createdAt))`, `limit`/`offset`). `createdAt` é serializado com `::text` para o Server Component.
+- **Página é Server Component read-only.** Guarda de leitura = `app/admin/(protected)/layout.tsx`, sem `defineAdminAction`. Lê `searchParams` (Promise, `await`) → a rota é `ƒ` (dynamic) no build, esperado para uma tela que depende da query string. Com a tabela `clients` vazia o build não executa a query (rota dinâmica) e a tela renderiza o `EmptyState` em runtime.
+- **`SearchInput` e `Pagination` (`components/admin/`) são criados aqui e reutilizados por SCL-210/SCL-221.** `SearchInput` é Client Component (`useRouter`/`usePathname`/`useSearchParams`), faz `router.push` no submit e reseta `page`. `Pagination` é apresentação pura (links Anterior/Próxima), retorna `null` quando há só uma página.
+
+**Blocker/Hand-off notes**
+
+- concluído: `domain/clients/queries.ts`, `app/admin/(protected)/clientes/page.tsx`, `components/admin/search-input.tsx`, `components/admin/pagination.tsx`. `npm run test` / `typecheck` / `lint` / `check:admin-auth` / `build` verdes.
+- testes: `tests/domain/clients-queries.test.ts` (4 casos para `normalizeListParams`) — TDD RED (módulo inexistente) → GREEN. Suíte completa: 144 passando, 3 skipped, inalterada fora do novo arquivo.
+- próximo passo: SCL-203 (ficha da cliente) e SCL-210+ constroem sobre `listClients` e os componentes `SearchInput`/`Pagination`.
 
 ---
 
