@@ -47,7 +47,7 @@
 | SCL-201 | Dashboard | P1 | admin | DONE | agent:claude-code | SCL-103,SCL-104,SCL-106,SCL-200 |
 | SCL-202 | Lista de clientes | P1 | admin | DONE | agent:claude-code | SCL-100,SCL-200 |
 | SCL-204 | Criar cliente | P1 | admin | DONE | agent:claude-code | SCL-100,SCL-200 |
-| SCL-203 | Ficha da cliente | P1 | admin | BACKLOG | unassigned | SCL-100,SCL-200 |
+| SCL-203 | Ficha da cliente | P1 | admin | DONE | agent:claude-code | SCL-100,SCL-200 |
 | SCL-210 | Agenda/Ensaios | P1 | admin | BACKLOG | unassigned | SCL-103,SCL-200 |
 | SCL-211 | Criar ensaio | P1 | admin | BACKLOG | unassigned | SCL-103,SCL-106,SCL-105 |
 | SCL-220 | Registrar pagamento | P1 | finance | BACKLOG | unassigned | SCL-104,SCL-200 |
@@ -871,6 +871,40 @@ Quarta task do Epic 2: cadastro de cliente em `/admin/clientes/novo` (PRD §14 /
 - concluído: todos os arquivos acima. `npm run test` (153 passando, 3 skipped) / `typecheck` / `lint` (0 erros) / `check:admin-auth` / `build` verdes.
 - desvio do brief: o Step 8 do brief importava `toFormAction` de `@/lib/auth/admin-action` num Client Component, o que não compila (`next build`). Resolvido com o split `lib/auth/action-result.ts` + re-export; nenhuma mudança de comportamento em `defineAdminAction`.
 - próximo passo: SCL-203 reusa `ClientForm` (com `initialValues`/`hiddenId`) e `updateClientAction` para a edição na ficha da cliente.
+
+---
+
+### SCL-203 — Ficha da cliente
+
+- Status: DONE
+- Priority: P1
+- Area: admin
+- Owner: agent:claude-code
+- Branch: —
+- PR: —
+- Depends on: SCL-100, SCL-200
+- Blocks: —
+- Files/Scope: `domain/clients/queries.ts` (+`summarizeClientHistory`, `getClientDetail`), `domain/clients/service.ts` (guard de patch vazio em `updateClient`), `components/admin/detail-section.tsx`, `app/admin/(protected)/clientes/[id]/page.tsx`, `app/admin/(protected)/clientes/[id]/editar/page.tsx`, `app/admin/(protected)/clientes/[id]/editar/edit-client-form.tsx`, `tests/domain/client-detail.test.ts`
+- Migration: no
+- Updated at: 2026-09-06
+
+**Goal**
+
+Quinta task do Epic 2: ficha da cliente em `/admin/clientes/[id]` — dados do CRM, métricas de relacionamento e histórico de ensaios, tudo somente-leitura, mais uma página de edição em `/admin/clientes/[id]/editar` que reusa o `ClientForm` de SCL-204.
+
+**Decisões de implementação**
+
+- **Histórico, receita e saldo são todos derivados na hora — nenhum agregado armazenado (PRD §7.2).** `summarizeClientHistory(shootRows, paymentRows)` (pura, em `domain/clients/queries.ts`) agrupa pagamentos por ensaio e, por ensaio, calcula `confirmedPaid` (soma dos pagamentos `confirmado`) e `balance` via `calculateBalance` (valor acordado menos pagamentos confirmados — PRD §7.5). `lifetimeRevenue` é a soma dos `confirmedPaid` de todos os ensaios; `openBalance` soma apenas os saldos por ensaio estritamente positivos (ignora `"0.00"` e negativos/pagamento a maior). Toda soma de string decimal passa por `addDecimal` de `@/lib/money` (cents de ponto fixo, nunca `parseFloat`); `calculateBalance` cuida só do saldo por ensaio.
+- **`summarizeClientHistory` pura e testada via TDD.** `tests/domain/client-detail.test.ts` (4 casos: `confirmedPaid`/`balance` por ensaio com pagamentos mistos confirmado/pendente, soma de receita vitalícia, saldo em aberto só de positivos, cliente sem ensaios) — RED (`summarizeClientHistory` não exportado) → GREEN. `getClientDetail(id)` faz o join `shoots` + `experiencePackages` (ordenado por `shootDate` desc), carrega os pagamentos com `inArray` e delega a matemática à função pura; devolve `null` se a cliente não existe (página chama `notFound()`).
+- **Página de detalhe é Server Component somente-leitura.** Guarda = `app/admin/(protected)/layout.tsx`, sem `defineAdminAction`. `DetailSection`/`DetailRow` (`components/admin/detail-section.tsx`) são apresentação pura reusável; o histórico usa o `DataTable`/`EmptyState` de SCL-200.
+- **Edição reusa `ClientForm` e a `updateClientAction` já embrulhada de SCL-204 — nenhuma Server Action nova nesta task.** A página `/editar` é Server Component (carrega o `before` via `getClientById`, `notFound()` se ausente) e passa os valores atuais para um wrapper `"use client"` (`edit-client-form.tsx`) que chama `updateClientAction` e faz `router.push` para a ficha no sucesso. O wrapper importa `ActionResult` de `@/lib/auth/action-result` (client-safe), não de `@/lib/auth/admin-action`.
+- **Guard de patch vazio em `updateClient`.** Se o patch parseado não tem nenhuma chave, `updateClient` devolve `getClientById(id)` (lança se `null`) em vez de chamar `.set({})`, que o Drizzle rejeita com "No values to set". Limitação de MVP documentada em comentário de uma linha: um campo opcional não pode ser limpo de volta para `null` por aqui — `toFormAction` descarta strings vazias, então um campo apagado simplesmente permanece inalterado.
+
+**Blocker/Hand-off notes**
+
+- concluído: todos os arquivos acima. `npm run test` (157 passando, 3 skipped) / `typecheck` / `lint` (0 erros; 5 warnings pré-existentes em `tests/domain/*` não relacionados) / `check:admin-auth` / `build` verdes.
+- desvio do brief: o Step 3 do brief definia um `addDecimal` quebrado (auxiliar de raciocínio) e um hack `sumViaBalance()` que somava strings decimais via `calculateBalance`; ambos descartados em favor de `addDecimal` de `@/lib/money`. O import de `updateClientAction` não usado na página server `/editar` do brief foi removido (falharia no lint).
+- próximo passo: SCL-210 (agenda/ensaios) usa o link `/admin/agenda/[id]` que as linhas do histórico já apontam (rota ainda inexistente até lá — link morto inofensivo).
 
 ---
 
