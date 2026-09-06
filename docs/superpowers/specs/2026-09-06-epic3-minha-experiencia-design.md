@@ -1,7 +1,7 @@
 # Epic 3 — Minha Experiência Design
 
 **Date:** 2026-09-06  
-**Status:** Approved in conversation; awaiting written-spec review  
+**Status:** Approved by the user on 2026-09-06
 **Scope:** SCL-300 through SCL-305, client-row RLS/grants, Supabase Storage for styling references, and the deferred Shoot+Payment integration test
 
 ## Goal
