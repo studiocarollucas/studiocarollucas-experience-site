@@ -44,6 +44,7 @@
 | SCL-105 | Schema PreparationTask | P1 | db | DONE | agent:claude-code | SCL-103 |
 | SCL-107 | Schema AuditLog | P0 | db | DONE | agent:claude-code | SCL-005 |
 | SCL-200 | Shell Admin | P1 | admin | DONE | agent:claude-code | SCL-007,SCL-009,SCL-100 |
+| SCL-201 | Dashboard | P1 | admin | DONE | agent:claude-code | SCL-103,SCL-104,SCL-106,SCL-200 |
 | SCL-202 | Lista de clientes | P1 | admin | BACKLOG | unassigned | SCL-100,SCL-200 |
 | SCL-203 | Ficha da cliente | P1 | admin | BACKLOG | unassigned | SCL-100,SCL-200 |
 | SCL-210 | Agenda/Ensaios | P1 | admin | BACKLOG | unassigned | SCL-103,SCL-200 |
@@ -769,6 +770,39 @@ Três camadas, verificáveis por máquina:
 - concluído: `lib/cn.ts`, `lib/money.ts` (+ refactor de `balance.ts`), `lib/format.ts`, `lib/auth/admin-action.ts`, `scripts/check-admin-auth.mjs` (+ script `check:admin-auth` + passo no `ci.yml`), 10 primitivas em `components/ui/`, `components/admin/{admin-nav,sign-out-button}.tsx`, `app/admin/(protected)/sign-out.ts`, casca em `layout.tsx` (guard + comentário existentes preservados verbatim), placeholder em `page.tsx`, token `--danger` em `globals.css`. `npm run test` / `typecheck` / `lint` / `check:admin-auth` / `build` verdes.
 - testes: `tests/lib/money.test.ts` (25 casos), `tests/lib/format.test.ts` (7), `tests/lib/admin-action.test.ts` (7), `tests/scripts/check-admin-auth.test.ts` (4) — todos TDD RED→GREEN. `tests/domain/balance.test.ts` (8) segue passando inalterado após o refactor.
 - próximo passo: SCL-201 substitui o placeholder de `page.tsx` pelo dashboard real; SCL-202+ constroem as telas sobre as primitivas e o wrapper.
+
+---
+
+### SCL-201 — Dashboard
+
+- Status: DONE
+- Priority: P1
+- Area: admin
+- Owner: agent:claude-code
+- Branch: —
+- PR: —
+- Depends on: SCL-103, SCL-104, SCL-106, SCL-200
+- Blocks: —
+- Files/Scope: `domain/dashboard/kpis.ts`, `domain/dashboard/queries.ts`, `components/admin/kpi-tile.tsx`, `app/admin/(protected)/page.tsx` (substitui o placeholder de SCL-200), `tests/domain/dashboard-kpis.test.ts`
+- Migration: no
+- Updated at: 2026-09-06
+
+**Goal**
+
+Segunda task do Epic 2: substituir o placeholder de `app/admin/(protected)/page.tsx` pelo dashboard real do Studio OS — KPIs do período (mês corrente) e a lista "Ações que exigem atenção", tudo derivado dos dados normalizados (PRD §7.1), sem indicadores armazenados.
+
+**Decisões de implementação**
+
+- **Todos os KPIs são derivados, nada é lido de coluna de indicador.** `computeDashboardKpis` é um reducer puro e testado (`domain/dashboard/kpis.ts`): recebe shoots/payments/expenses do período e devolve `shootsInPeriod`, `billed` (soma dos `agreedPrice`), `received` (só pagamentos `confirmado`), `receivable` (soma por-shoot de `agreedPrice - confirmado`, com clamp em zero por shoot antes de somar), `expenses`, `result` (`received - expenses`), `averageTicket` (`billed / count`, `0.00` sem shoots), `productionInProgress` (`realizado`/`edicao`), `finishedShoots` (`finalizado`/`reveal`/`entregue`).
+- **Aritmética em centavos via `@/lib/money`.** `kpis.ts` importa `toCents`/`fromCents` de `@/lib/money` (desvio do brief, que reinlinava cópias privadas byte-idênticas) — mesma convenção de ponto-fixo de `domain/payments/balance.ts`, nunca `parseFloat`.
+- **`upcomingDeliveries` e `attention` vêm de `production_jobs` e do `paymentStatus` do shoot, fora do reducer puro.** `getDashboardData` (`domain/dashboard/queries.ts`) faz as leituras Drizzle (guarda de leitura = `app/admin/(protected)/layout.tsx`, sem `defineAdminAction` — read-only), monta o input do reducer, conta production jobs vencidos (`deliveryDueAt <= hoje`, status ainda não `entregue`) para `upcomingDeliveries`, e monta `AttentionItem[]` (`unpaid` para shoots `nao_iniciado`/`parcial`; `delivery_overdue` para os jobs vencidos).
+- **Página é Server Component read-only.** `currentMonthRange()` calcula o período em UTC; `KpiTile` (`components/admin/kpi-tile.tsx`) é apresentação pura sobre `Card`.
+
+**Blocker/Hand-off notes**
+
+- concluído: `domain/dashboard/kpis.ts` (reducer puro), `domain/dashboard/queries.ts` (leituras Drizzle + `AttentionItem`), `components/admin/kpi-tile.tsx`, `app/admin/(protected)/page.tsx` (dashboard real no lugar do placeholder). `npm run test` / `typecheck` / `lint` / `check:admin-auth` / `build` verdes.
+- testes: `tests/domain/dashboard-kpis.test.ts` (8 casos) — TDD RED (módulo inexistente) → GREEN. Suíte completa: 140 passando, 3 skipped, inalterada fora do novo arquivo.
+- próximo passo: SCL-202+ constroem as telas de lista/ficha sobre as mesmas primitivas.
 
 ---
 
