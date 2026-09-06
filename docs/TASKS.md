@@ -57,7 +57,7 @@
 | SCL-230 | Kanban Produção | P1 | production | DONE | agent:claude-code | SCL-106,SCL-200 |
 | SCL-231 | Mudar status do ProductionJob | P1 | production | DONE | agent:claude-code | SCL-106,SCL-230 |
 | SCL-240 | Checklist de preparação interno | P1 | admin | DONE | agent:claude-code | SCL-105,SCL-212 |
-| SCL-300 | Passwordless cliente | P1 | client | BACKLOG | unassigned | SCL-006,SCL-007 |
+| SCL-300 | Passwordless cliente | P1 | client | DONE | agent:codex | SCL-006,SCL-007 |
 | SCL-301 | Shell Minha Experiência | P1 | client | BACKLOG | unassigned | SCL-300,SCL-009 |
 | SCL-302 | Home cliente + progresso | P1 | client | BACKLOG | unassigned | SCL-103,SCL-105,SCL-301 |
 | SCL-400 | Home pública editorial | P1 | site | BACKLOG | unassigned | SCL-009 |
@@ -1309,6 +1309,48 @@ Rota `/admin/agenda/[id]/preparacao` (link já existente na ficha do ensaio, SCL
 - arquivos alterados: ver Files/Scope acima.
 - testes: `tests/domain/preparation-progress.test.ts` (4 puros, TDD RED→GREEN) + `tests/domain/preparation-tasks.test.ts` (Epic 1, reusado).
 - próximo passo: portal da cliente (Epic 3, SCL-302) lê as mesmas `preparation_tasks` filtrando `visible_to_client`.
+
+---
+
+### SCL-300 — Passwordless cliente
+
+- Status: DONE
+- Priority: P1
+- Area: client
+- Owner: agent:codex
+- Branch: main
+- PR: —
+- Depends on: SCL-006, SCL-007
+- Blocks: SCL-301
+- Files/Scope: `lib/auth/client-link.ts`, `app/auth/callback/route.ts`, `app/(client)/login/page.tsx`, `tests/lib/client-link.test.ts`
+- Migration: no
+- Updated at: 2026-09-06
+
+**Goal**
+
+Vincular com segurança cada usuário verificado por Magic Link a exatamente um registro CRM `clients`, pelo e-mail normalizado, antes de liberar a Minha Experiência.
+
+**Acceptance criteria**
+
+- [x] `normalizeClientEmail` e `decideClientLink` são puros e cobertos por teste: normalização, vínculo novo, idempotência, ausência, ambiguidade e vínculo de outro usuário;
+- [x] o lookup limita a dois candidatos pelo e-mail normalizado; zero, múltiplos ou um registro de outro usuário são negados;
+- [x] a atualização usa compare-and-set (`id` e `auth_user_id IS NULL`) e relê o registro após corrida, aceitando somente o mesmo `auth_user_id`;
+- [x] após o exchange PKCE, o callback verifica o usuário Supabase e exige o vínculo antes do redirect; toda rejeição/erro de vínculo faz sign-out;
+- [x] a falha é neutra (`/login?error=access`), sem enumerar clientes ou motivo interno, e a página mostra a cópia aprovada;
+- [x] `getLinkedClientByAuthUserId` fornece a leitura mínima (`id`, `name`) para o shell do portal seguinte.
+
+**Implementation notes**
+
+- O vínculo não cria nem escolhe um CRM Client: ele só associa uma correspondência única pelo `lower(trim(email))`. A unicidade de `clients.auth_user_id` continua como defesa do banco.
+- A rota mantém `safeRedirect`; o pedido usa dados de request e Supabase/cookies, portanto permanece dinâmico conforme a convenção de Route Handlers do Next 16.
+
+**Blocker/Hand-off notes**
+
+- concluído: decisão pura, vínculo Drizzle race-safe, callback PKCE fail-closed com log estruturado e sign-out, e mensagem neutra na tela de login.
+- falta: nada para esta task.
+- arquivos alterados: `lib/auth/client-link.ts`, `app/auth/callback/route.ts`, `app/(client)/login/page.tsx`, `tests/lib/client-link.test.ts`, `docs/TASKS.md`.
+- testes: TDD RED (`npm run test -- tests/lib/client-link.test.ts`, import inexistente) e GREEN (6 testes); gate focado: `npm run test -- tests/lib/client-link.test.ts tests/lib/safe-redirect.test.ts tests/lib/session.test.ts`.
+- próximo passo: SCL-301 pode usar `getLinkedClientByAuthUserId` para montar o shell protegido.
 
 ---
 

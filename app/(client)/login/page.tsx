@@ -24,7 +24,11 @@ export default async function ClientLoginPage({ searchParams }: { searchParams: 
         ) : null}
         {error ? (
           <p role="alert" className="border border-line bg-white px-4 py-3 font-sans text-sm">
-            {error === "auth" ? "Não foi possível validar o link de acesso." : error}
+            {error === "access"
+              ? "Não foi possível liberar seu acesso. Fale com o estúdio para confirmar seu cadastro."
+              : error === "auth"
+                ? "Não foi possível validar o link de acesso."
+                : error}
           </p>
         ) : null}
         <input type="hidden" name="redirect" value={redirectTo} />
