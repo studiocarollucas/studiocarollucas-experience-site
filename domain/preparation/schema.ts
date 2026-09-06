@@ -20,3 +20,7 @@ export const createPreparationTaskSchema = z.object({
 // z.input matches the pre-parse shape, consistent with domain/clients|leads|shoots|
 // payments/schema.ts.
 export type CreatePreparationTaskInput = z.input<typeof createPreparationTaskSchema>;
+
+export const addPreparationTaskFormSchema = createPreparationTaskSchema.extend({
+  visibleToClient: z.coerce.boolean().default(true),
+});
