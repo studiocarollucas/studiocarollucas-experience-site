@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { FormStatus } from "@/components/admin/form-status";
 import { SubmitButton } from "@/components/admin/submit-button";
+import { ClientTaskAccessFields } from "@/components/admin/client-task-access-fields";
 
 type Task = {
   id: string;
@@ -100,14 +101,9 @@ export function Checklist({ shootId, tasks }: { shootId: string; tasks: Task[] }
             <Input id="title" name="title" required />
           </Field>
         </div>
-        <label className="flex min-h-11 items-center gap-2 font-sans text-sm text-ink">
-          <input type="checkbox" name="visibleToClient" defaultChecked />
-          Visível para a cliente
-        </label>
-        <label className="flex min-h-11 items-center gap-2 font-sans text-sm text-ink">
-          <input type="checkbox" name="clientActionable" />
-          A cliente pode alterar o status
-        </label>
+        <ClientTaskAccessFields
+          fieldErrors={state && !state.ok ? state.fieldErrors : undefined}
+        />
         <div>
           <SubmitButton>Adicionar tarefa</SubmitButton>
         </div>

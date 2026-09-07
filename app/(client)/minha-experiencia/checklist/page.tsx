@@ -14,6 +14,7 @@ export default async function ClientChecklistPage() {
         <h1 className="mt-2 font-serif text-4xl font-light">Seu checklist</h1>
       </div>
       <ClientChecklist
+        key={snapshot.tasks.map((task) => `${task.id}:${task.status}`).join("|")}
         tasks={snapshot.tasks.map((task) => ({
           id: task.id,
           title: task.title,

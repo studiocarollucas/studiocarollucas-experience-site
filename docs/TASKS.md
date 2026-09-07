@@ -1490,13 +1490,16 @@ Permitir que a cliente autenticada altere somente o status das tarefas explicita
 
 - `setClientTaskStatus()` usa uma interface estrutural browser-safe e a cadeia `from("preparation_tasks").update({ status }).eq("id", taskId).select("id,status,completed_at").single()`; o boundary converte qualquer falha em erro neutro.
 - A página permanece Server Component e `ClientChecklist` concentra apenas a interação. O contrato serializado é um `Pick<PortalTask, ...>` sem `shootId`, Client ID, tipo interno ou timestamps não usados.
+- O select mantém o valor anterior durante a escrita e só aplica um overlay local depois que o banco devolve a linha confirmada; a key derivada dos statuses do RSC descarta esse overlay na reconciliação, sem effect ou loop.
 - O Admin continua usando `defineAdminAction`, `addPreparationTaskFormSchema` e `recordAuditEvent`; nenhuma credencial privilegiada foi introduzida no caminho da cliente.
 - Layouts cliente e Admin permanecem fluidos em 320 px; selects, labels dos checkboxes e botão de ciclo têm área mínima de 44 px e usam somente tokens existentes.
+- Contrato concorrente aprovado para o MVP: o banco e a RLS garantem autorização, e a última escrita válida vence (last-write-wins). Versionamento/CAS e aviso de conflito ficam como follow-up somente se concorrência real justificar, sem ampliar este brief.
 
 **Blocker/Hand-off notes**
 
 - concluído: mutação client-side RLS-bound, checklist cliente, rota, controles Admin, cobertura live e gates.
 - concern: lint mantém cinco warnings `no-unused-vars` preexistentes em testes não tocados; zero erros.
+- decisão consciente: não há detecção de conflito concorrente neste MVP; vale last-write-wins conforme o contrato aprovado.
 
 ---
 

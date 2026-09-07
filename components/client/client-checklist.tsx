@@ -22,17 +22,33 @@ type ClientChecklistTask = Pick<
   "id" | "title" | "status" | "dueAt" | "clientActionable"
 >;
 
+type ConfirmedStatus = {
+  baselineStatus: ClientTaskStatus;
+  status: ClientTaskStatus;
+};
+
 export function ClientChecklist({ tasks }: { tasks: ClientChecklistTask[] }) {
   const router = useRouter();
   const client = useMemo(() => createSupabaseBrowserClient(), []);
   const [pendingTaskId, setPendingTaskId] = useState<string | null>(null);
+  const [confirmedStatuses, setConfirmedStatuses] = useState<Record<string, ConfirmedStatus>>(
+    {},
+  );
   const [error, setError] = useState<string | null>(null);
 
-  async function changeStatus(taskId: string, status: ClientTaskStatus) {
+  async function changeStatus(
+    taskId: string,
+    baselineStatus: ClientTaskStatus,
+    status: ClientTaskStatus,
+  ) {
     setError(null);
     setPendingTaskId(taskId);
     try {
-      await setClientTaskStatus(client, taskId, status);
+      const confirmed = await setClientTaskStatus(client, taskId, status);
+      setConfirmedStatuses((current) => ({
+        ...current,
+        [taskId]: { baselineStatus, status: confirmed.status },
+      }));
       router.refresh();
     } catch {
       setError("Não foi possível atualizar esta tarefa.");
@@ -63,6 +79,9 @@ export function ClientChecklist({ tasks }: { tasks: ClientChecklistTask[] }) {
       <ul className="divide-y divide-line border-y border-line">
         {tasks.map((task) => {
           const isPending = pendingTaskId === task.id;
+          const confirmed = confirmedStatuses[task.id];
+          const displayedStatus =
+            confirmed && task.status === confirmed.baselineStatus ? confirmed.status : task.status;
 
           return (
             <li key={task.id} className="grid gap-4 py-5 sm:grid-cols-[minmax(0,1fr)_13rem] sm:items-center">
@@ -79,10 +98,14 @@ export function ClientChecklist({ tasks }: { tasks: ClientChecklistTask[] }) {
                 <div className="flex flex-col gap-1.5">
                   <Select
                     aria-label={`Status de ${task.title}`}
-                    value={task.status}
+                    value={displayedStatus}
                     disabled={pendingTaskId !== null}
                     onChange={(event) =>
-                      void changeStatus(task.id, event.target.value as ClientTaskStatus)
+                      void changeStatus(
+                        task.id,
+                        task.status,
+                        event.target.value as ClientTaskStatus,
+                      )
                     }
                     className="min-h-11"
                   >

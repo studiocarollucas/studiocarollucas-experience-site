@@ -98,6 +98,7 @@ describe("ClientChecklist", () => {
       expect(screen.getByLabelText(`Status de ${actionableTask.title}`)).toBeDisabled();
       expect(screen.getByLabelText(`Status de ${secondActionableTask.title}`)).toBeDisabled();
     });
+    expect(screen.getByLabelText(`Status de ${actionableTask.title}`)).toHaveValue("pendente");
     expect(screen.getByText("Atualizando status…")).toBeInTheDocument();
 
     await act(async () => {
@@ -106,6 +107,13 @@ describe("ClientChecklist", () => {
         status: "em_andamento",
         completedAt: null,
       });
+    });
+
+    await waitFor(() => {
+      expect(screen.getByLabelText(`Status de ${actionableTask.title}`)).toHaveValue(
+        "em_andamento",
+      );
+      expect(screen.getByLabelText(`Status de ${actionableTask.title}`)).toBeEnabled();
     });
   });
 
@@ -120,6 +128,8 @@ describe("ClientChecklist", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent(
       "Não foi possível atualizar esta tarefa.",
     );
+    expect(screen.getByLabelText(`Status de ${actionableTask.title}`)).toHaveValue("pendente");
+    expect(screen.getByLabelText(`Status de ${actionableTask.title}`)).toBeEnabled();
     expect(mocks.refresh).not.toHaveBeenCalled();
   });
 });

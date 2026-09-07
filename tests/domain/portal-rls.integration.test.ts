@@ -355,7 +355,7 @@ describeIfLiveDb("readPortalSnapshot (live RLS integration)", () => {
 
     const crossClientDenied = await secondSupabase
       .from("preparation_tasks")
-      .update({ status: "concluida" })
+      .update({ status: "pendente" })
       .eq("id", actionableTaskId)
       .select("id");
     expect(crossClientDenied.error).toBeNull();
