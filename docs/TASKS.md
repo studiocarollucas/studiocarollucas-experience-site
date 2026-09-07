@@ -61,6 +61,7 @@
 | SCL-301 | Shell Minha Experiência | P1 | client | DONE | agent:codex | SCL-300,SCL-009 |
 | SCL-302 | Home cliente + progresso | P1 | client | DONE | agent:codex | SCL-103,SCL-105,SCL-301 |
 | SCL-303 | Checklist acionável pela cliente | P1 | client/admin | DONE | agent:codex | SCL-240,SCL-302 |
+| SCL-304 | Meu ensaio | P1 | client/admin | DONE | agent:codex | SCL-220,SCL-302 |
 | SCL-400 | Home pública editorial | P1 | site | BACKLOG | unassigned | SCL-009 |
 | SCL-403 | Quiz | P1 | site | BACKLOG | unassigned | SCL-009 |
 | SCL-500 | Schema Gallery | P2 | gallery | BACKLOG | unassigned | SCL-103 |
@@ -1500,6 +1501,53 @@ Permitir que a cliente autenticada altere somente o status das tarefas explicita
 - concluído: mutação client-side RLS-bound, checklist cliente, rota, controles Admin, cobertura live e gates.
 - concern: lint mantém cinco warnings `no-unused-vars` preexistentes em testes não tocados; zero erros.
 - decisão consciente: não há detecção de conflito concorrente neste MVP; vale last-write-wins conforme o contrato aprovado.
+
+---
+
+### SCL-304 — Meu Ensaio e composição Shoot+Payment
+
+- Status: DONE
+- Priority: P1
+- Area: client/admin
+- Owner: agent:codex
+- Branch: main
+- PR: —
+- Depends on: SCL-220, SCL-302
+- Blocks: primeiro marco E2E
+- Files/Scope: `components/client/my-shoot.tsx`, `app/(client)/minha-experiencia/ensaio/page.tsx`, formulários/detalhe de ensaio do Admin, contrato `NEXT_PUBLIC_STUDIO_WHATSAPP_URL`, runbooks e testes `my-shoot`, `admin-shoot-logistics` e `portal-shoot-payment.integration`
+- Migration: no
+- Updated at: 2026-09-07
+
+**Goal**
+
+Refletir no portal os detalhes client-safe do ensaio ativo e a mesma composição financeira do Studio OS, dando ao Admin um lugar explícito para manter local, ponto de encontro e orientações da cliente.
+
+**Acceptance criteria**
+
+- [x] rota protegida `/minha-experiencia/ensaio` lê o `PortalSnapshot` existente com o cliente Supabase da sessão, sem nova fonte de dados ou estado financeiro paralelo;
+- [x] página apresenta data/horário, experiência, etapa atual da jornada, resumo de preparação, logística e financeiro em português, com hierarquia semântica e layout fluido;
+- [x] financeiro mostra exatamente valor contratado, total confirmado pago, saldo derivado e status client-facing; linhas pendentes/estornadas não entram no total;
+- [x] props do componente não aceitam notas ou comprovantes de Payment, e a tela não renderiza observações internas do Shoot;
+- [x] ausência de ensaio, pacote, horário, logística ou URL de contato tem copy orientativa e não produz link incompleto;
+- [x] CTA externo “Falar com o estúdio” usa `NEXT_PUBLIC_STUDIO_WHATSAPP_URL`, `rel="noreferrer"`, target de 44 px e foco visível;
+- [x] formulários Admin de criação/edição coletam `locationName`, `locationAddress` e `clientGuidance`, exibem erros por campo e o detalhe separa logística da cliente de observações internas;
+- [x] teste live cria Auth/Client/Shoot pelo fluxo transacional, registra pagamentos confirmado e pendente, lê com JWT da cliente e comprova somente `250.00` pago, saldo `750.00` e status `parcial`;
+- [x] teardown live remove e verifica zero resíduos em pagamentos, tarefas iniciais, job de produção, ensaio, cliente e Auth user;
+- [x] testes focados, suíte completa, typecheck, lint, guard admin, build e diff-check passaram.
+
+**Implementation notes**
+
+- `MyShoot` permanece Server Component e recebe somente o snapshot client-safe já aprovado. Usa `formatShootDate`, `formatBRL`, `getJourney`, `summarizePortalPreparation` e `summarizePortalMoney`; não há JavaScript de interação novo no browser.
+- A narrativa C+ organiza os dados em quatro capítulos reais da experiência — data, pacote, logística e financeiro — usando somente tokens existentes, sem asset, gradiente, emoji ou dependência adicional.
+- O WhatsApp é configuração pública por ambiente no formato completo `https://wa.me/...`; o contrato foi documentado em `.env.example`, setup Supabase e checklist Vercel.
+- A limitação de edição opcional permanece deliberadamente a mesma do Studio OS: `toFormAction` descarta string vazia, portanto apagar um campo e enviar não o converte em `null`; o valor anterior fica inalterado. O refactor de nullable clearing continua como follow-up registrado em `docs/DECISIONS.md`.
+
+**Blocker/Hand-off notes**
+
+- concluído: leitura client-safe do ensaio, logística Admin, resumo Shoot+Payment compartilhado, contrato WhatsApp, cobertura unitária/live e todos os gates.
+- concern: lint mantém cinco warnings `no-unused-vars` preexistentes em testes não tocados; zero erros.
+- infraestrutura: o primeiro comando live dentro do sandbox foi bloqueado com `EACCES` antes de criar a identidade; a repetição autorizada com rede passou e validou o teardown completo.
+- próximo passo: SCL-305 adiciona o styling/moodboard colaborativo com Storage privado, sem alterar o contrato desta página.
 
 ---
 

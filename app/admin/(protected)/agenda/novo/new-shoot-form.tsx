@@ -83,6 +83,23 @@ export function NewShootForm({
       <Field label="Ocasião" htmlFor="occasion" error={err("occasion")}>
         <Input id="occasion" name="occasion" />
       </Field>
+      <Field label="Local" htmlFor="locationName" error={err("locationName")}>
+        <Input id="locationName" name="locationName" />
+      </Field>
+      <Field
+        label="Endereço / ponto de encontro"
+        htmlFor="locationAddress"
+        error={err("locationAddress")}
+      >
+        <Input id="locationAddress" name="locationAddress" />
+      </Field>
+      <Field
+        label="Orientações para a cliente"
+        htmlFor="clientGuidance"
+        error={err("clientGuidance")}
+      >
+        <Textarea id="clientGuidance" name="clientGuidance" />
+      </Field>
       <Field label="Indicação / origem" htmlFor="referral" error={err("referral")}>
         <Input id="referral" name="referral" />
       </Field>

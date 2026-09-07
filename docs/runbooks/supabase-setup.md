@@ -2,7 +2,7 @@
 
 1. Criar projeto em supabase.com (região `sa-east-1`).
 2. Copiar credenciais de **Project Settings → API** e **Database → Connection string** para `.env.local` (nunca commitar `.env.local`).
-3. Variáveis necessárias: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `DATABASE_URL`, `NEXT_PUBLIC_SITE_URL`.
+3. Variáveis necessárias: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `DATABASE_URL`, `NEXT_PUBLIC_SITE_URL`, `NEXT_PUBLIC_STUDIO_WHATSAPP_URL`.
 4. `SUPABASE_SERVICE_ROLE_KEY` só pode ser usada em código server-side (Route Handlers, Server Actions). Nunca importar em um Client Component nem prefixar com `NEXT_PUBLIC_`.
 5. Ambiente de produção deve usar um projeto Supabase separado do ambiente de desenvolvimento; configurar as mesmas variáveis nas env vars do Vercel (ver `docs/runbooks/deploy.md`, Task 9).
 
@@ -13,6 +13,10 @@ Em **Database → Connection string**, copiar a URI do **Transaction pooler** (p
 ## `NEXT_PUBLIC_SITE_URL` — magic link
 
 O fluxo passwordless do cliente usa PKCE (padrão do `@supabase/ssr`): o Supabase envia um link com `?code=...` que precisa cair em `/auth/callback` desta aplicação. `NEXT_PUBLIC_SITE_URL` é a origem absoluta usada para montar esse `emailRedirectTo` — `http://localhost:3000` em desenvolvimento, a URL publicada em produção. A mesma URL (`<site>/auth/callback`) precisa estar cadastrada em **Authentication → URL Configuration → Redirect URLs** no dashboard do Supabase.
+
+## `NEXT_PUBLIC_STUDIO_WHATSAPP_URL` — contato da Minha Experiência
+
+O CTA “Falar com o estúdio” usa uma URL pública completa no formato `https://wa.me/<DDI><DDD><numero>`, somente com dígitos depois do domínio (por exemplo, `https://wa.me/5592999999999`). Configure o mesmo valor nos ambientes locais e no checklist de variáveis da Vercel. Se a variável ficar vazia, o portal orienta a cliente a usar o contato habitual e não renderiza um link incompleto.
 
 ## `npm run db:generate` / `npm run db:migrate` e o `.env.local`
 

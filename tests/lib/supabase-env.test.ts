@@ -8,6 +8,7 @@ describe("supabase env contract", () => {
     expect(envExample).toContain("NEXT_PUBLIC_SUPABASE_URL");
     expect(envExample).toContain("NEXT_PUBLIC_SUPABASE_ANON_KEY");
     expect(envExample).toContain("SUPABASE_SERVICE_ROLE_KEY");
+    expect(envExample).toContain("NEXT_PUBLIC_STUDIO_WHATSAPP_URL");
   });
 
   it("service role key is never referenced with the NEXT_PUBLIC_ prefix anywhere in lib/", () => {

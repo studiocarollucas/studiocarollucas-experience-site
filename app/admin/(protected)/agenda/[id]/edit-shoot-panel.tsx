@@ -20,6 +20,9 @@ export function EditShootPanel({
     agreedPrice: string;
     participantCount?: number;
     occasion: string;
+    locationName: string;
+    locationAddress: string;
+    clientGuidance: string;
     referral: string;
     notes: string;
     portalEnabled: boolean;
@@ -57,6 +60,31 @@ export function EditShootPanel({
       </Field>
       <Field label="Ocasião" htmlFor="occasion" error={err("occasion")}>
         <Input id="occasion" name="occasion" defaultValue={initialValues.occasion} />
+      </Field>
+      <Field label="Local" htmlFor="locationName" error={err("locationName")}>
+        <Input id="locationName" name="locationName" defaultValue={initialValues.locationName} />
+      </Field>
+      <Field
+        label="Endereço / ponto de encontro"
+        htmlFor="locationAddress"
+        error={err("locationAddress")}
+      >
+        <Input
+          id="locationAddress"
+          name="locationAddress"
+          defaultValue={initialValues.locationAddress}
+        />
+      </Field>
+      <Field
+        label="Orientações para a cliente"
+        htmlFor="clientGuidance"
+        error={err("clientGuidance")}
+      >
+        <Textarea
+          id="clientGuidance"
+          name="clientGuidance"
+          defaultValue={initialValues.clientGuidance}
+        />
       </Field>
       <Field label="Indicação / origem" htmlFor="referral" error={err("referral")}>
         <Input id="referral" name="referral" defaultValue={initialValues.referral} />

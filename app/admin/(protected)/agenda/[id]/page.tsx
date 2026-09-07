@@ -59,6 +59,7 @@ export default async function ShootDetailPage({ params }: { params: Params }) {
           <DetailRow label="Participantes" value={shoot.participantCount ?? "—"} />
           <DetailRow label="Indicação / origem" value={shoot.referral ?? "—"} />
           <DetailRow label="Portal liberado" value={shoot.portalEnabled ? "Sim" : "Não"} />
+          <DetailRow label="Observações internas" value={shoot.notes ?? "—"} />
         </DetailSection>
 
         <DetailSection title="Financeiro">
@@ -75,6 +76,12 @@ export default async function ShootDetailPage({ params }: { params: Params }) {
           </div>
         </DetailSection>
       </div>
+
+      <DetailSection title="Logística para a cliente">
+        <DetailRow label="Local" value={shoot.locationName ?? "—"} />
+        <DetailRow label="Endereço / ponto de encontro" value={shoot.locationAddress ?? "—"} />
+        <DetailRow label="Orientações para a cliente" value={shoot.clientGuidance ?? "—"} />
+      </DetailSection>
 
       <DetailSection title="Pagamentos">
         <DataTable
@@ -114,6 +121,9 @@ export default async function ShootDetailPage({ params }: { params: Params }) {
             agreedPrice: shoot.agreedPrice,
             participantCount: shoot.participantCount ?? undefined,
             occasion: shoot.occasion ?? "",
+            locationName: shoot.locationName ?? "",
+            locationAddress: shoot.locationAddress ?? "",
+            clientGuidance: shoot.clientGuidance ?? "",
             referral: shoot.referral ?? "",
             notes: shoot.notes ?? "",
             portalEnabled: shoot.portalEnabled,
