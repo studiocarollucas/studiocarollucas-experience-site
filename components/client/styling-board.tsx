@@ -179,7 +179,10 @@ export function StylingBoard({
       ) : (
         <ol className="grid list-none gap-x-5 gap-y-8 sm:grid-cols-2 lg:grid-cols-3">
           {visibleReferences.map((reference, index) => {
-            const canDelete = canDeleteAll || reference.uploadedByAuthUserId === viewerAuthUserId;
+            const canDelete =
+              canDeleteAll ||
+              (reference.origin === "client" &&
+                reference.uploadedByAuthUserId === viewerAuthUserId);
             const removeLabel = reference.caption
               ? `Remover referência ${reference.caption}`
               : reference.origin === "studio"

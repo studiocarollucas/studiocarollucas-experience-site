@@ -103,6 +103,27 @@ describe("StylingBoard", () => {
     expect(screen.getByRole("button", { name: "Remover referência do estúdio" })).toBeEnabled();
   });
 
+  it("does not offer a client delete for a studio reference attributed to their user", () => {
+    const delegatedStudioReference: PortalReference = {
+      ...studioReference,
+      id: "00000000-0000-4000-8000-000000000023",
+      caption: "Curadoria delegada",
+      uploadedByAuthUserId: VIEWER_ID,
+    };
+
+    render(
+      <StylingBoard
+        shootId={SHOOT_ID}
+        viewerAuthUserId={VIEWER_ID}
+        references={[delegatedStudioReference]}
+      />
+    );
+
+    expect(
+      screen.queryByRole("button", { name: "Remover referência Curadoria delegada" })
+    ).not.toBeInTheDocument();
+  });
+
   it("disables all mutations and announces upload progress", async () => {
     let finishUpload!: (value: unknown) => void;
     mocks.uploadStylingReference.mockReturnValue(
