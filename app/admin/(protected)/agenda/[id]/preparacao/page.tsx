@@ -35,6 +35,7 @@ export default async function PreparationPage({ params }: { params: Params }) {
               title: t.title,
               status: t.status,
               visibleToClient: t.visibleToClient,
+              clientActionable: t.clientActionable,
             }))}
           />
         </div>

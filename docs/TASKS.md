@@ -60,6 +60,7 @@
 | SCL-300 | Passwordless cliente | P1 | client | DONE | agent:codex | SCL-006,SCL-007 |
 | SCL-301 | Shell Minha Experiência | P1 | client | DONE | agent:codex | SCL-300,SCL-009 |
 | SCL-302 | Home cliente + progresso | P1 | client | DONE | agent:codex | SCL-103,SCL-105,SCL-301 |
+| SCL-303 | Checklist acionável pela cliente | P1 | client/admin | DONE | agent:codex | SCL-240,SCL-302 |
 | SCL-400 | Home pública editorial | P1 | site | BACKLOG | unassigned | SCL-009 |
 | SCL-403 | Quiz | P1 | site | BACKLOG | unassigned | SCL-009 |
 | SCL-500 | Schema Gallery | P2 | gallery | BACKLOG | unassigned | SCL-103 |
@@ -1452,6 +1453,50 @@ Exibir para a cliente autenticada a visão do mesmo Shoot usado pelo Studio OS.
 - RED/GREEN, gates e revisão detalhados em `.superpowers/sdd/task-5-report.md`.
 - Fix round 1: os dois UUIDs de Auth agora são pré-alocados e registrados antes de qualquer `createUser`, passados explicitamente ao SDK e sempre percorridos no teardown. A ausência é aceita somente no shape real `AuthApiError` + HTTP 404 + `user_not_found`; rede, permissão, resposta ambígua ou usuário ainda existente entram no `AggregateError`. O live A/B foi repetido com 2/2 e zero resíduos.
 - A página captura um único `Date` para seleção e calendário Manaus, evitando divergência ao cruzar meia-noite; tarefas de styling visíveis mas não acionáveis agora preservam o destino e usam o rótulo coerente `Ver styling`.
+
+---
+
+### SCL-303 — Checklist acionável pela cliente
+
+- Status: DONE
+- Priority: P1
+- Area: client/admin
+- Owner: agent:codex
+- Branch: main
+- PR: —
+- Depends on: SCL-240, SCL-302
+- Blocks: primeiro marco E2E
+- Files/Scope: `domain/portal/checklist.ts`, `components/client/client-checklist.tsx`, `app/(client)/minha-experiencia/checklist/page.tsx`, `app/admin/(protected)/agenda/[id]/preparacao/{page,checklist}.tsx`, `tests/{domain/client-checklist,components/client-checklist,domain/portal-rls.integration}.test.ts(x)`
+- Migration: no
+- Updated at: 2026-09-07
+
+**Goal**
+
+Permitir que a cliente autenticada altere somente o status das tarefas explicitamente acionáveis, mantendo tarefas acompanhadas pelo estúdio em modo somente leitura e os controles de visibilidade/acionabilidade no Admin.
+
+**Acceptance criteria**
+
+- [x] checklist usa as mesmas `preparation_tasks` do Admin, sem fonte ou estado otimista paralelo;
+- [x] browser envia somente `{ status }`, filtra por task ID e usa o JWT Supabase da sessão;
+- [x] Server Component projeta ao browser somente ID da tarefa, título, status, prazo e acionabilidade;
+- [x] tarefa acionável tem select rotulado e target de 44 px; somente leitura não renderiza controle e informa “Acompanhada pelo estúdio”;
+- [x] loading desabilita os controles de status, anuncia progresso e `router.refresh()` ocorre somente após sucesso;
+- [x] falha apresenta mensagem neutra com `role="alert"`, sem expor `PostgrestError`;
+- [x] Admin distingue interno, visível somente e editável pela cliente; criação envia os dois booleanos à action protegida, cujo schema rejeita acionável oculta e cujo fluxo registra auditoria;
+- [x] teste live A/B prova update permitido, trigger de `completed_at`, negação read-only/hidden/portal desabilitado/cross-client e persistência inalterada das negações, com cleanup verificado;
+- [x] testes focados, typecheck, lint, guard admin, build e suíte completa passaram.
+
+**Implementation notes**
+
+- `setClientTaskStatus()` usa uma interface estrutural browser-safe e a cadeia `from("preparation_tasks").update({ status }).eq("id", taskId).select("id,status,completed_at").single()`; o boundary converte qualquer falha em erro neutro.
+- A página permanece Server Component e `ClientChecklist` concentra apenas a interação. O contrato serializado é um `Pick<PortalTask, ...>` sem `shootId`, Client ID, tipo interno ou timestamps não usados.
+- O Admin continua usando `defineAdminAction`, `addPreparationTaskFormSchema` e `recordAuditEvent`; nenhuma credencial privilegiada foi introduzida no caminho da cliente.
+- Layouts cliente e Admin permanecem fluidos em 320 px; selects, labels dos checkboxes e botão de ciclo têm área mínima de 44 px e usam somente tokens existentes.
+
+**Blocker/Hand-off notes**
+
+- concluído: mutação client-side RLS-bound, checklist cliente, rota, controles Admin, cobertura live e gates.
+- concern: lint mantém cinco warnings `no-unused-vars` preexistentes em testes não tocados; zero erros.
 
 ---
 

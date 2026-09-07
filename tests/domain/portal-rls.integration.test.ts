@@ -23,9 +23,15 @@ describeIfLiveDb("readPortalSnapshot (live RLS integration)", () => {
   const secondClientId = randomUUID();
   const firstShootId = randomUUID();
   const secondShootId = randomUUID();
+  const disabledShootId = randomUUID();
   const firstAuthUserId = randomUUID();
   const secondAuthUserId = randomUUID();
-  const shootIds = [firstShootId, secondShootId];
+  const actionableTaskId = randomUUID();
+  const readOnlyTaskId = randomUUID();
+  const hiddenTaskId = randomUUID();
+  const disabledTaskId = randomUUID();
+  const secondClientTaskId = randomUUID();
+  const shootIds = [firstShootId, secondShootId, disabledShootId];
   const clientIds = [firstClientId, secondClientId];
   const authUserIds = [firstAuthUserId, secondAuthUserId];
   let admin: SupabaseClient | undefined;
@@ -105,6 +111,15 @@ describeIfLiveDb("readPortalSnapshot (live RLS integration)", () => {
         agreedPrice: "1200.00",
         portalEnabled: true,
       },
+      {
+        id: disabledShootId,
+        clientId: firstClientId,
+        experiencePackageId: experience.id,
+        shootDate: "2030-12-12",
+        status: "preparacao",
+        agreedPrice: "1400.00",
+        portalEnabled: false,
+      },
     ]);
     await db.insert(payments).values([
       {
@@ -131,15 +146,23 @@ describeIfLiveDb("readPortalSnapshot (live RLS integration)", () => {
     ]);
     await db.insert(preparationTasks).values([
       {
-        id: randomUUID(),
+        id: actionableTaskId,
         shootId: firstShootId,
         type: "figurino",
-        title: "Tarefa visível A",
+        title: "Tarefa acionável A",
         visibleToClient: true,
         clientActionable: true,
       },
       {
-        id: randomUUID(),
+        id: readOnlyTaskId,
+        shootId: firstShootId,
+        type: "orientacao",
+        title: "Tarefa somente leitura A",
+        visibleToClient: true,
+        clientActionable: false,
+      },
+      {
+        id: hiddenTaskId,
         shootId: firstShootId,
         type: "interno",
         title: "Tarefa oculta A",
@@ -147,10 +170,18 @@ describeIfLiveDb("readPortalSnapshot (live RLS integration)", () => {
         clientActionable: false,
       },
       {
-        id: randomUUID(),
+        id: secondClientTaskId,
         shootId: secondShootId,
         type: "moodboard",
         title: "Tarefa visível B",
+        visibleToClient: true,
+        clientActionable: true,
+      },
+      {
+        id: disabledTaskId,
+        shootId: disabledShootId,
+        type: "figurino",
+        title: "Tarefa de portal desabilitado A",
         visibleToClient: true,
         clientActionable: true,
       },
@@ -268,7 +299,10 @@ describeIfLiveDb("readPortalSnapshot (live RLS integration)", () => {
     expect(firstSnapshot.client.id).toBe(firstClientId);
     expect(firstSnapshot.shoot?.id).toBe(firstShootId);
     expect(firstSnapshot.payments.map((row) => row.amount)).toEqual(["250.00"]);
-    expect(firstSnapshot.tasks.map((row) => row.title)).toEqual(["Tarefa visível A"]);
+    expect(firstSnapshot.tasks.map((row) => row.title)).toEqual([
+      "Tarefa acionável A",
+      "Tarefa somente leitura A",
+    ]);
     expect(secondSnapshot.client.id).toBe(secondClientId);
     expect(secondSnapshot.shoot?.id).toBe(secondShootId);
 
@@ -283,4 +317,80 @@ describeIfLiveDb("readPortalSnapshot (live RLS integration)", () => {
     expect(result.error).toBeNull();
     expect(result.data).toEqual([]);
   });
+
+  it("allows only the owning client to update an actionable visible task", async () => {
+    const allowed = await firstSupabase
+      .from("preparation_tasks")
+      .update({ status: "concluida" })
+      .eq("id", actionableTaskId)
+      .select("id,status,completed_at")
+      .single();
+    expect(allowed.error).toBeNull();
+    expect(allowed.data?.status).toBe("concluida");
+    expect(allowed.data?.completed_at).not.toBeNull();
+
+    const readOnlyDenied = await firstSupabase
+      .from("preparation_tasks")
+      .update({ status: "concluida" })
+      .eq("id", readOnlyTaskId)
+      .select("id");
+    expect(readOnlyDenied.error).toBeNull();
+    expect(readOnlyDenied.data).toEqual([]);
+
+    const hiddenDenied = await firstSupabase
+      .from("preparation_tasks")
+      .update({ status: "concluida" })
+      .eq("id", hiddenTaskId)
+      .select("id");
+    expect(hiddenDenied.error).toBeNull();
+    expect(hiddenDenied.data).toEqual([]);
+
+    const disabledDenied = await firstSupabase
+      .from("preparation_tasks")
+      .update({ status: "concluida" })
+      .eq("id", disabledTaskId)
+      .select("id");
+    expect(disabledDenied.error).toBeNull();
+    expect(disabledDenied.data).toEqual([]);
+
+    const crossClientDenied = await secondSupabase
+      .from("preparation_tasks")
+      .update({ status: "concluida" })
+      .eq("id", actionableTaskId)
+      .select("id");
+    expect(crossClientDenied.error).toBeNull();
+    expect(crossClientDenied.data).toEqual([]);
+
+    const persisted = await db
+      .select({
+        id: preparationTasks.id,
+        status: preparationTasks.status,
+        completedAt: preparationTasks.completedAt,
+      })
+      .from(preparationTasks)
+      .where(
+        inArray(preparationTasks.id, [
+          actionableTaskId,
+          readOnlyTaskId,
+          hiddenTaskId,
+          disabledTaskId,
+        ]),
+      );
+    const persistedById = new Map(persisted.map((task) => [task.id, task]));
+
+    expect(persistedById.get(actionableTaskId)).toMatchObject({ status: "concluida" });
+    expect(persistedById.get(actionableTaskId)?.completedAt).not.toBeNull();
+    expect(persistedById.get(readOnlyTaskId)).toMatchObject({
+      status: "pendente",
+      completedAt: null,
+    });
+    expect(persistedById.get(hiddenTaskId)).toMatchObject({
+      status: "pendente",
+      completedAt: null,
+    });
+    expect(persistedById.get(disabledTaskId)).toMatchObject({
+      status: "pendente",
+      completedAt: null,
+    });
+  }, 30_000);
 });
