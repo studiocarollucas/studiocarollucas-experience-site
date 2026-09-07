@@ -239,6 +239,13 @@
       "when": 1788814800000,
       "tag": "0033_family_scoped_package_names",
       "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "7",
+      "when": 1788821495156,
+      "tag": "0034_contracts",
+      "breakpoints": true
     }
   ]
 }

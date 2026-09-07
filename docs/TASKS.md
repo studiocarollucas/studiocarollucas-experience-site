@@ -63,6 +63,7 @@
 | SCL-303 | Checklist acionável pela cliente | P1 | client/admin | DONE | agent:codex | SCL-240,SCL-302 |
 | SCL-304 | Meu ensaio | P1 | client/admin | DONE | agent:codex | SCL-220,SCL-302 |
 | SCL-305 | Styling e referências colaborativas | P1 | client/admin | DONE | agent:codex | SCL-103,SCL-105,SCL-302 |
+| SCL-310 | Contratos PDF privados | P1 | admin/db | IN_PROGRESS | agent:codex | SCL-100,SCL-103,SCL-104,SCL-107 |
 | SCL-400 | Home pública editorial | P1 | site | DONE | codex | SCL-009 |
 | SCL-401 | Catálogo de experiências | P1 | site | DONE | codex | SCL-400 |
 | SCL-402 | Páginas verticais — quatro entregues; família pendente | P1 | site | IN_PROGRESS | codex | SCL-401 |
@@ -1612,6 +1613,46 @@ Oferecer um moodboard privado e colaborativo do ensaio ativo, no qual cliente e 
 - fechamento: a revisão inteira teve duas ondas de hardening. A primeira eliminou autorização admin dependente de layout, TOCTOU do vínculo, upload sem reserva, leitura excessiva por rota e timestamp escrito pela aplicação. A segunda fechou objetos órfãos e serializou reserva/Storage/delete pelo mesmo lock. Revisão final dupla: nenhum Critical/Important; um minor não bloqueante de idempotência em deletes simultâneos.
 - gates finais: `npm run test` — 385 passed/20 skipped; full live — 405/405; `typecheck` — 0 erro; `lint` — 0 erro/5 warnings históricos; `check:admin-auth` — OK; `predb:migrate` — OK; `build` — 18 entradas processadas e as quatro rotas do portal dinâmicas; `git diff --check` — 0 erro. Auditoria externa final: zero rows, Auth users e objetos Storage dos fixtures Epic 3.
 - próximo passo: nenhum para o Epic 3; após o push, confirmar GitHub Actions verde e deploy de produção da Vercel disponível.
+
+---
+
+### SCL-310 — Contratos PDF privados
+
+- Status: IN_PROGRESS
+- Priority: P1
+- Area: admin/db
+- Owner: agent:codex
+- Branch: codex/contracts-pdf
+- PR: —
+- Depends on: SCL-100, SCL-103, SCL-104, SCL-107
+- Blocks: emissão administrativa de contratos
+- Files/Scope: contratos, campos civis da cliente, Storage privado e emissão Admin
+- Migration: yes
+- Updated at: 2026-09-07 America/Manaus
+
+**Goal**
+
+Estabelecer o registro imutável de contratos e a base privada de Storage para futuras emissões administrativas.
+
+**Acceptance criteria**
+
+- [ ] schema expõe o contrato imutável, snapshots e estados emitido/anulado;
+- [ ] dados civis da cliente permanecem opcionais;
+- [ ] tabela e objetos de contrato permitem acesso somente a staff autenticado;
+- [ ] bucket `contracts` permanece privado;
+- [ ] migration serial e testes de contrato passam.
+
+**Implementation notes**
+
+- Nenhum dado pessoal real é registrado nesta task; valores civis existem somente no runtime privado.
+
+**Blocker/Hand-off notes**
+
+- concluído: —
+- falta: implementação e verificação do modelo de dados privado.
+- arquivos alterados: —
+- testes: pendentes (TDD).
+- próximo passo: criar testes RED do schema e migration.
 
 ---
 
