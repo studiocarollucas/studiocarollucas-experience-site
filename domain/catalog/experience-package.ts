@@ -49,6 +49,7 @@ export const updateExperiencePackageSchema = experiencePackageFields.partial();
 // domain schema module in this epic (clients, leads, shoots, payments, preparation,
 // production). This module predates that convention and was retrofitted afterwards.
 export type CreateExperiencePackageInput = z.input<typeof createExperiencePackageSchema>;
+export type UpdateExperiencePackageInput = z.input<typeof updateExperiencePackageSchema>;
 
 export async function createExperiencePackage(
   input: CreateExperiencePackageInput
@@ -65,4 +66,19 @@ export async function getExperiencePackageById(id: string): Promise<ExperiencePa
     .where(eq(experiencePackages.id, id))
     .limit(1);
   return row ?? null;
+}
+
+export async function updateExperiencePackage(
+  id: string,
+  patch: UpdateExperiencePackageInput,
+): Promise<ExperiencePackage> {
+  const before = await getExperiencePackageById(id);
+  if (!before) throw new Error("pacote inexistente");
+  const parsed = createExperiencePackageSchema.parse({ ...before, ...patch });
+  const [row] = await db
+    .update(experiencePackages)
+    .set(parsed)
+    .where(eq(experiencePackages.id, id))
+    .returning();
+  return row;
 }

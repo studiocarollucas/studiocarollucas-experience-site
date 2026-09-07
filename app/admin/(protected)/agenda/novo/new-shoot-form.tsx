@@ -16,7 +16,7 @@ export function NewShootForm({
   packages,
 }: {
   clients: { id: string; name: string }[];
-  packages: { id: string; name: string }[];
+  packages: { id: string; name: string; familyName: string }[];
 }) {
   const router = useRouter();
   const [state, formAction] = useActionState(
@@ -54,11 +54,17 @@ export function NewShootForm({
           <option value="" disabled>
             Selecione…
           </option>
-          {packages.map((p) => (
-            <option key={p.id} value={p.id}>
-              {p.name}
-            </option>
-          ))}
+          {Object.entries(Object.groupBy(packages, (packageItem) => packageItem.familyName)).map(
+            ([familyName, familyPackages]) => (
+              <optgroup key={familyName} label={familyName}>
+                {familyPackages?.map((packageItem) => (
+                  <option key={packageItem.id} value={packageItem.id}>
+                    {packageItem.name}
+                  </option>
+                ))}
+              </optgroup>
+            ),
+          )}
         </Select>
       </Field>
 

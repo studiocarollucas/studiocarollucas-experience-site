@@ -18,6 +18,8 @@ type PackageSeed = {
   sceneCount: number;
   participantLimit?: number;
   videoCount: number;
+  makeIncluded?: boolean;
+  hairIncluded?: boolean;
 };
 
 const FAMILIES: FamilySeed[] = [
@@ -38,17 +40,17 @@ const INITIAL_PACKAGES: PackageSeed[] = [
   { familySlug: "15-anos", name: "Debutante 2", basePrice: "599.00", includedPhotos: 20, durationMinutes: 60, outfitsLimit: 3, sceneCount: 2, videoCount: 1 },
   { familySlug: "15-anos", name: "Debutante 3", basePrice: "799.00", includedPhotos: 30, durationMinutes: 60, outfitsLimit: 4, sceneCount: 3, videoCount: 2 },
   { familySlug: "15-anos", name: "Debutante 4 Duo", basePrice: "1500.00", includedPhotos: 40, durationMinutes: 100, outfitsLimit: 4, sceneCount: 3, videoCount: 3 },
-  { familySlug: "aniversario", name: "Cinderela", basePrice: "350.00", includedPhotos: 15, durationMinutes: 50, outfitsLimit: 2, sceneCount: 1, videoCount: 0 },
+  { familySlug: "aniversario", name: "Cinderela", basePrice: "350.00", includedPhotos: 15, durationMinutes: 50, outfitsLimit: 2, sceneCount: 1, videoCount: 0, makeIncluded: false, hairIncluded: false },
   { familySlug: "aniversario", name: "Aurora", basePrice: "590.00", includedPhotos: 30, durationMinutes: 50, outfitsLimit: 3, sceneCount: 2, videoCount: 1 },
   { familySlug: "aniversario", name: "Diana", basePrice: "800.00", includedPhotos: 40, durationMinutes: 80, outfitsLimit: 4, sceneCount: 3, participantLimit: 3, videoCount: 3 },
   { familySlug: "gestante", name: "Gestante 1", basePrice: "550.00", includedPhotos: 15, durationMinutes: 50, outfitsLimit: 1, sceneCount: 1, participantLimit: 1, videoCount: 0 },
   { familySlug: "gestante", name: "Gestante 2", basePrice: "650.00", includedPhotos: 20, durationMinutes: 80, outfitsLimit: 2, sceneCount: 1, participantLimit: 3, videoCount: 0 },
   { familySlug: "gestante", name: "Gestante 3", basePrice: "899.00", includedPhotos: 30, durationMinutes: 90, outfitsLimit: 2, sceneCount: 2, participantLimit: 4, videoCount: 2 },
-  { familySlug: "newborn", name: "Newborn 1", basePrice: "480.00", includedPhotos: 15, durationMinutes: 120, sceneCount: 2, videoCount: 0 },
+  { familySlug: "newborn", name: "Newborn 1", basePrice: "480.00", includedPhotos: 15, durationMinutes: 120, sceneCount: 2, videoCount: 0, makeIncluded: false, hairIncluded: false },
   { familySlug: "newborn", name: "Newborn 2", basePrice: "780.00", includedPhotos: 25, durationMinutes: 180, sceneCount: 3, videoCount: 1 },
   { familySlug: "newborn", name: "Newborn 3", basePrice: "1500.00", includedPhotos: 35, durationMinutes: 180, sceneCount: 4, videoCount: 2 },
   { familySlug: "newborn", name: "Gestante + Newborn", basePrice: "1900.00", includedPhotos: 40, durationMinutes: 210, outfitsLimit: 2, sceneCount: 4, participantLimit: 4, videoCount: 2 },
-  { familySlug: "casal", name: "Namorados 1", basePrice: "350.00", includedPhotos: 15, durationMinutes: 50, outfitsLimit: 2, sceneCount: 1, videoCount: 0 },
+  { familySlug: "casal", name: "Namorados 1", basePrice: "350.00", includedPhotos: 15, durationMinutes: 50, outfitsLimit: 2, sceneCount: 1, videoCount: 0, makeIncluded: false, hairIncluded: false },
   { familySlug: "casal", name: "Namorados 2", basePrice: "550.00", includedPhotos: 25, durationMinutes: 50, outfitsLimit: 1, sceneCount: 1, videoCount: 0 },
   { familySlug: "formatura", name: "Formatura 1", basePrice: "500.00", includedPhotos: 15, durationMinutes: 50, outfitsLimit: 2, sceneCount: 1, videoCount: 0 },
   { familySlug: "formatura", name: "Formatura 2", basePrice: "650.00", includedPhotos: 25, durationMinutes: 50, outfitsLimit: 2, sceneCount: 1, participantLimit: 2, videoCount: 1 },
@@ -83,8 +85,8 @@ export async function seedCatalog() {
       sceneCount: item.sceneCount,
       participantLimit: item.participantLimit,
       videoCount: item.videoCount,
-      makeIncluded: true,
-      hairIncluded: true,
+      makeIncluded: item.makeIncluded ?? true,
+      hairIncluded: item.hairIncluded ?? true,
       paletteEligible: item.familySlug !== "newborn",
       sortOrder: sortOrder + 1,
       active: true,

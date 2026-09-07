@@ -8,6 +8,7 @@ const LINKS = [
   { href: "/admin", label: "Dashboard" },
   { href: "/admin/clientes", label: "Clientes" },
   { href: "/admin/agenda", label: "Agenda" },
+  { href: "/admin/pacotes", label: "Pacotes" },
   { href: "/admin/financeiro", label: "Financeiro" },
   { href: "/admin/producao", label: "Produção" },
 ];

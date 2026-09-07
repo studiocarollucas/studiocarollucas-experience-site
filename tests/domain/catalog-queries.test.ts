@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { sortPackageOptions } from "@/domain/catalog/queries";
+import { canDeactivateExperienceFamily, sortPackageOptions } from "@/domain/catalog/queries";
 
 describe("sortPackageOptions", () => {
   it("orders package options by family and package order", () => {
@@ -14,5 +14,12 @@ describe("sortPackageOptions", () => {
       "Debutante 2",
       "Gestante 1",
     ]);
+  });
+});
+
+describe("canDeactivateExperienceFamily", () => {
+  it("only permits deactivation when no active package remains", () => {
+    expect(canDeactivateExperienceFamily(0)).toBe(true);
+    expect(canDeactivateExperienceFamily(1)).toBe(false);
   });
 });

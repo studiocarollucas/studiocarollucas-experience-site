@@ -18,7 +18,7 @@ describe("Admin shoot logistics fields", () => {
   beforeEach(() => vi.clearAllMocks());
 
   it("collects client-safe logistics when creating a shoot", () => {
-    render(<NewShootForm clients={[]} packages={[]} />);
+    render(<NewShootForm clients={[]} packages={[{ id: "pkg-1", name: "Debutante 2", familyName: "15 anos / Debutante" }]} />);
 
     expect(screen.getByLabelText("Local")).toHaveAttribute("name", "locationName");
     expect(screen.getByLabelText("Endereço / ponto de encontro")).toHaveAttribute(
@@ -28,6 +28,10 @@ describe("Admin shoot logistics fields", () => {
     expect(screen.getByLabelText("Orientações para a cliente")).toHaveAttribute(
       "name",
       "clientGuidance",
+    );
+    expect(screen.getByRole("option", { name: "Debutante 2" }).closest("optgroup")).toHaveAttribute(
+      "label",
+      "15 anos / Debutante",
     );
   });
 

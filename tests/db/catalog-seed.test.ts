@@ -24,4 +24,10 @@ describe("catalog seed", () => {
     const packageSchema = fs.readFileSync(path.resolve("db/schema/experience-packages.ts"), "utf8");
     expect(packageSchema).toContain('from "./experience-families.ts"');
   });
+
+  it("preserves exclusions that differ between package tiers", () => {
+    expect(source).toContain('name: "Cinderela"');
+    expect(source).toContain('makeIncluded: item.makeIncluded ?? true');
+    expect(source).toContain('hairIncluded: item.hairIncluded ?? true');
+  });
 });
