@@ -45,7 +45,13 @@ export async function linkAuthUserToClient(user: {
   const [linked] = await db
     .update(clients)
     .set({ authUserId: user.id })
-    .where(and(eq(clients.id, decision.clientId), isNull(clients.authUserId)))
+    .where(
+      and(
+        eq(clients.id, decision.clientId),
+        isNull(clients.authUserId),
+        sql`lower(trim(${clients.email})) = ${normalized}`,
+      ),
+    )
     .returning({ id: clients.id });
   if (linked) return { clientId: linked.id };
 

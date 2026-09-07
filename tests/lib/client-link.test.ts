@@ -91,6 +91,12 @@ describe("linkAuthUserToClient", () => {
 
     expect(db.update).toHaveBeenCalledOnce();
     expect(update.where).toHaveBeenCalledOnce();
+    expect(sql).toHaveBeenCalledTimes(2);
+    expect(sql).toHaveBeenLastCalledWith(
+      expect.any(Array),
+      expect.anything(),
+      "maria@example.com",
+    );
   });
 
   it("accepts a race only when the record was linked to the same Auth user", async () => {

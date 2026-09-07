@@ -5,6 +5,8 @@ const mocks = vi.hoisted(() => ({
   authGetUser: vi.fn(),
   createSupabaseServerClient: vi.fn(),
   getShootDetail: vi.fn(),
+  getCurrentUser: vi.fn(),
+  hasMinimumRole: vi.fn(),
   readStylingReferences: vi.fn(),
   redirect: vi.fn((path: string) => {
     throw new Error(`REDIRECT:${path}`);
@@ -25,6 +27,8 @@ vi.mock("@/lib/supabase/server", () => ({
   createSupabaseServerClient: mocks.createSupabaseServerClient,
 }));
 vi.mock("@/domain/shoots/queries", () => ({ getShootDetail: mocks.getShootDetail }));
+vi.mock("@/lib/auth/session", () => ({ getCurrentUser: mocks.getCurrentUser }));
+vi.mock("@/lib/auth/rbac", () => ({ hasMinimumRole: mocks.hasMinimumRole }));
 vi.mock("@/domain/styling/read", () => ({
   readStylingReferences: mocks.readStylingReferences,
 }));
@@ -61,6 +65,12 @@ describe("ShootDetailPage styling management", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.createSupabaseServerClient.mockResolvedValue(serverClient);
+    mocks.getCurrentUser.mockResolvedValue({
+      id: "staff-auth-1",
+      email: "staff@example.com",
+      role: "staff",
+    });
+    mocks.hasMinimumRole.mockReturnValue(true);
     mocks.authGetUser.mockResolvedValue({
       data: { user: { id: "staff-auth-1" } },
       error: null,
@@ -80,7 +90,7 @@ describe("ShootDetailPage styling management", () => {
   });
 
   it("fails closed before data reads when the cookie session has no user", async () => {
-    mocks.authGetUser.mockResolvedValueOnce({ data: { user: null }, error: null });
+    mocks.getCurrentUser.mockResolvedValueOnce(null);
 
     await expect(ShootDetailPage({ params: Promise.resolve({ id: "shoot-1" }) })).rejects.toThrow(
       "REDIRECT:/admin/login"
@@ -88,5 +98,19 @@ describe("ShootDetailPage styling management", () => {
 
     expect(mocks.getShootDetail).not.toHaveBeenCalled();
     expect(mocks.readStylingReferences).not.toHaveBeenCalled();
+    expect(mocks.createSupabaseServerClient).not.toHaveBeenCalled();
+  });
+
+  it("checks the local staff role before every privileged detail read", async () => {
+    mocks.hasMinimumRole.mockReturnValueOnce(false);
+
+    await expect(ShootDetailPage({ params: Promise.resolve({ id: "shoot-1" }) })).rejects.toThrow(
+      "REDIRECT:/admin/login?error=Sua%20conta%20n%C3%A3o%20tem%20permiss%C3%A3o%20de%20acesso%20ao%20Studio%20OS."
+    );
+
+    expect(mocks.hasMinimumRole).toHaveBeenCalledWith("staff", "staff");
+    expect(mocks.getShootDetail).not.toHaveBeenCalled();
+    expect(mocks.readStylingReferences).not.toHaveBeenCalled();
+    expect(mocks.createSupabaseServerClient).not.toHaveBeenCalled();
   });
 });

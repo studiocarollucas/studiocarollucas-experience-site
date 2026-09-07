@@ -14,6 +14,8 @@ import { ProductionFieldsForm } from "./production-fields-form";
 import { formatBRL, formatShootDate, formatDateTime } from "@/lib/format";
 import type { Payment } from "@/db/schema";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { getCurrentUser } from "@/lib/auth/session";
+import { hasMinimumRole } from "@/lib/auth/rbac";
 
 type Params = Promise<{ id: string }>;
 
@@ -37,6 +39,14 @@ const paymentColumns: Column<Payment>[] = [
 ];
 
 export default async function ShootDetailPage({ params }: { params: Params }) {
+  const currentUser = await getCurrentUser();
+  if (!currentUser) redirect("/admin/login");
+  if (!hasMinimumRole(currentUser.role, "staff")) {
+    redirect(
+      `/admin/login?error=${encodeURIComponent("Sua conta não tem permissão de acesso ao Studio OS.")}`,
+    );
+  }
+
   const { id } = await params;
   const supabase = await createSupabaseServerClient();
   const { data: authData, error: authError } = await supabase.auth.getUser();
