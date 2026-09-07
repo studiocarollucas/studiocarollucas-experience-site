@@ -362,4 +362,3 @@ Run: git diff --check; git status --short --branch
 git add docs/TASKS.md docs/DECISIONS.md
 git commit -m "docs: record quiz discovery boundary"
 ~~~
-
