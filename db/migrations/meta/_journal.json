@@ -225,6 +225,13 @@
       "when": 1788786500000,
       "tag": "0031_serialize_styling_lifecycle",
       "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1788810470548,
+      "tag": "0032_stale_gwen_stacy",
+      "breakpoints": true
     }
   ]
 }

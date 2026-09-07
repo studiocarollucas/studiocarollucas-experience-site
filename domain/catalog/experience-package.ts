@@ -3,17 +3,44 @@ import { db } from "@/db/client";
 import { experiencePackages, type ExperiencePackage } from "@/db/schema";
 import { eq } from "drizzle-orm";
 
-export const createExperiencePackageSchema = z.object({
-  name: z.string().min(1),
+const experiencePackageFields = z.object({
+  familyId: z.string().uuid(),
+  name: z.string().trim().min(1).max(100),
+  description: z.string().trim().max(500).optional(),
   basePrice: z.string().regex(/^\d+(\.\d{1,2})?$/, "must be a decimal string like \"890.00\""),
   includedPhotos: z.number().int().positive(),
   durationMinutes: z.number().int().positive(),
   scenes: z.string().optional(),
+  sceneCount: z.number().int().positive().optional(),
   makeIncluded: z.boolean().default(false),
+  hairIncluded: z.boolean().default(false),
   outfitsLimit: z.number().int().positive().optional(),
+  participantLimit: z.number().int().positive().optional(),
+  videoCount: z.number().int().min(0).default(0),
   clutchIncluded: z.boolean().default(false),
+  paletteEligible: z.boolean().default(false),
+  sortOrder: z.number().int().min(0).default(0),
   active: z.boolean().default(true),
+  published: z.boolean().default(false),
+  quizEligible: z.boolean().default(false),
 });
+
+function validateQuizEligibility(
+  value: { active?: boolean; published?: boolean; quizEligible?: boolean },
+  ctx: z.RefinementCtx,
+) {
+  if (value.quizEligible && (!value.active || !value.published)) {
+    ctx.addIssue({
+      code: "custom",
+      path: ["quizEligible"],
+      message: "Pacote do quiz precisa estar ativo e publicado.",
+    });
+  }
+}
+
+export const createExperiencePackageSchema = experiencePackageFields.superRefine(validateQuizEligibility);
+
+export const updateExperiencePackageSchema = experiencePackageFields.partial();
 
 // z.input (not z.infer/z.output): see docs/DECISIONS.md, 2026-09-04 — `makeIncluded`,
 // `clutchIncluded`, and `active` all use `.default()`, so z.infer would make them
