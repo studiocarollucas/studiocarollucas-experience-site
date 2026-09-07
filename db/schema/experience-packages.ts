@@ -1,5 +1,5 @@
 import { pgTable, uuid, text, integer, numeric, boolean, timestamp, unique } from "drizzle-orm/pg-core";
-import { experienceFamilies } from "./experience-families";
+import { experienceFamilies } from "./experience-families.ts";
 
 export const experiencePackages = pgTable(
   "experience_packages",
