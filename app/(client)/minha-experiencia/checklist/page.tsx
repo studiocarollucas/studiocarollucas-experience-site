@@ -1,9 +1,8 @@
 import { ClientChecklist } from "@/components/client/client-checklist";
-import { readPortalSnapshot } from "@/domain/portal/read";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { getPortalChecklistSnapshot } from "@/domain/portal/server";
 
 export default async function ClientChecklistPage() {
-  const snapshot = await readPortalSnapshot(await createSupabaseServerClient());
+  const snapshot = await getPortalChecklistSnapshot();
 
   return (
     <section className="flex flex-col gap-6">

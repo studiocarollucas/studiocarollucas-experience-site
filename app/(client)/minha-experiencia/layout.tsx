@@ -1,15 +1,25 @@
 import { redirect } from "next/navigation";
 import { ClientNav } from "@/components/client/client-nav";
 import { ClientSignOutButton } from "@/components/client/client-sign-out-button";
-import { getLinkedClientByAuthUserId } from "@/lib/auth/client-link";
-import { getCurrentUser } from "@/lib/auth/session";
+import { PortalReadError } from "@/domain/portal/read";
+import { getPortalRequestContext } from "@/domain/portal/server";
 
 export default async function MinhaExperienciaLayout({ children }: { children: React.ReactNode }) {
-  const user = await getCurrentUser();
-  if (!user) redirect("/login?redirect=%2Fminha-experiencia");
+  let hasLinkedClient = true;
+  try {
+    await getPortalRequestContext();
+  } catch (error) {
+    if (error instanceof PortalReadError && error.code === "unauthenticated") {
+      redirect("/login?redirect=%2Fminha-experiencia");
+    }
+    if (error instanceof PortalReadError && error.code === "unlinked") {
+      hasLinkedClient = false;
+    } else {
+      throw error;
+    }
+  }
 
-  const client = await getLinkedClientByAuthUserId(user.id);
-  if (!client) {
+  if (!hasLinkedClient) {
     return (
       <main className="mx-auto flex min-h-screen max-w-lg flex-col justify-center gap-5 px-6 py-12">
         <p className="font-sans text-[10px] uppercase tracking-[0.18em] text-muted">

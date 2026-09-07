@@ -1,9 +1,8 @@
 import { MyShoot } from "@/components/client/my-shoot";
-import { readPortalSnapshot } from "@/domain/portal/read";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { getPortalShootSnapshot } from "@/domain/portal/server";
 
 export default async function MyShootPage() {
-  const snapshot = await readPortalSnapshot(await createSupabaseServerClient());
+  const snapshot = await getPortalShootSnapshot();
   return (
     <MyShoot
       snapshot={snapshot}

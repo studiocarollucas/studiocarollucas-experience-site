@@ -1,9 +1,8 @@
 import { StylingBoard } from "@/components/client/styling-board";
-import { readPortalSnapshot } from "@/domain/portal/read";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { getPortalStylingSnapshot } from "@/domain/portal/server";
 
 export default async function ClientStylingPage() {
-  const snapshot = await readPortalSnapshot(await createSupabaseServerClient());
+  const snapshot = await getPortalStylingSnapshot();
 
   return (
     <section className="flex flex-col gap-6" aria-labelledby="styling-title">

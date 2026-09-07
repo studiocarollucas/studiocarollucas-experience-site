@@ -1,6 +1,12 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { describe, expect, it } from "vitest";
-import { readPortalSnapshot } from "@/domain/portal/read";
+import {
+  readPortalChecklistSnapshot,
+  readPortalHomeSnapshot,
+  readPortalShootSnapshot,
+  readPortalSnapshot,
+  readPortalStylingSnapshot,
+} from "@/domain/portal/read";
 
 type QueryResult = { data: unknown; error: unknown };
 
@@ -42,7 +48,7 @@ function portalFixture(options: FixtureOptions = {}) {
           shoot_date: "2030-12-10",
           start_time: "15:00:00",
           status: "preparacao",
-          agreed_price: 9999999999.99,
+          agreed_price: 99999999.99,
           payment_status: "parcial",
           portal_enabled: true,
           location_name: null,
@@ -145,11 +151,24 @@ function portalFixture(options: FixtureOptions = {}) {
 }
 
 describe("readPortalSnapshot", () => {
+  it.each([
+    ["home", readPortalHomeSnapshot, ["clients", "shoots", "experience_packages", "preparation_tasks"]],
+    ["checklist", readPortalChecklistSnapshot, ["clients", "shoots", "preparation_tasks"]],
+    ["shoot", readPortalShootSnapshot, ["clients", "shoots", "experience_packages", "preparation_tasks", "payments"]],
+    ["styling", readPortalStylingSnapshot, ["clients", "shoots", "styling_references"]],
+  ] as const)("reads only the %s route section", async (_section, readSection, expectedTables) => {
+    const { supabase, fromCalls } = portalFixture();
+
+    await readSection(supabase, new Date("2030-01-01T12:00:00-04:00"));
+
+    expect(fromCalls).toEqual(expectedTables);
+  });
+
   it("normalizes PostgREST numeric values into canonical decimal strings", async () => {
     const { supabase } = portalFixture({ amount: 250 });
     const snapshot = await readPortalSnapshot(supabase, new Date("2030-01-01T12:00:00-04:00"));
 
-    expect(snapshot.shoot?.agreedPrice).toBe("9999999999.99");
+    expect(snapshot.shoot?.agreedPrice).toBe("99999999.99");
     expect(snapshot.payments[0].amount).toBe("250.00");
     expect(snapshot.experience).toMatchObject({ id: "package-1", name: "Aurora" });
     expect(snapshot.tasks).toEqual([

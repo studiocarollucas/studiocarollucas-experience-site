@@ -1,12 +1,8 @@
 import { JourneyHome } from "@/components/client/journey-home";
-import { studioDate } from "@/domain/portal/countdown";
-import { readPortalSnapshot } from "@/domain/portal/read";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { getPortalHomeData } from "@/domain/portal/server";
 
 export default async function ClientHome() {
-  const now = new Date();
-  const supabase = await createSupabaseServerClient();
-  const snapshot = await readPortalSnapshot(supabase, now);
+  const { snapshot, today } = await getPortalHomeData();
 
-  return <JourneyHome snapshot={snapshot} today={studioDate(now)} />;
+  return <JourneyHome snapshot={snapshot} today={today} />;
 }

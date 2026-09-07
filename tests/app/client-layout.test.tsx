@@ -3,11 +3,12 @@ import { describe, expect, it, vi } from "vitest";
 import MinhaExperienciaLayout from "@/app/(client)/minha-experiencia/layout";
 
 vi.mock("next/navigation", () => ({ redirect: vi.fn() }));
-vi.mock("@/lib/auth/session", () => ({
-  getCurrentUser: vi.fn().mockResolvedValue({ id: "auth-user" }),
-}));
-vi.mock("@/lib/auth/client-link", () => ({
-  getLinkedClientByAuthUserId: vi.fn().mockResolvedValue({ id: "client", name: "Cliente" }),
+vi.mock("@/domain/portal/server", () => ({
+  getPortalRequestContext: vi.fn().mockResolvedValue({
+    client: { id: "client", name: "Cliente" },
+    viewerAuthUserId: "auth-user",
+    shoot: null,
+  }),
 }));
 vi.mock("@/components/client/client-nav", () => ({ ClientNav: () => <nav>Portal</nav> }));
 vi.mock("@/components/client/client-sign-out-button", () => ({
