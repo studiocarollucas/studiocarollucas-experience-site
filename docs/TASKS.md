@@ -1569,8 +1569,8 @@ Refletir no portal os detalhes client-safe do ensaio ativo e a mesma composiçã
 - PR: —
 - Depends on: SCL-103, SCL-105, SCL-302
 - Blocks: primeiro marco E2E
-- Files/Scope: `db/schema/styling-references.ts`, migrations `0026`–`0029`, `domain/styling/*`, `components/{client/styling-board,admin/styling-manager}.tsx`, páginas de Styling/agenda e testes de schema, migration, RLS, Storage, read model e UI
-- Migration: yes — `0026_styling_references.sql`, `0027_styling_storage_access.sql`, `0028_harden_styling_paths.sql` aplicadas no Supabase real; `0029_styling_upload_reservations.sql` pendente de aplicação controlada pelo controller
+- Files/Scope: `db/schema/styling-references.ts`, migrations `0026`–`0031`, `domain/styling/*`, `components/{client/styling-board,admin/styling-manager}.tsx`, páginas de Styling/agenda e testes de schema, migration, RLS, Storage, read model e UI
+- Migration: yes — `0026_styling_references.sql` a `0031_serialize_styling_lifecycle.sql` aplicadas no Supabase real
 - Updated at: 2026-09-07
 
 **Goal**
@@ -1584,31 +1584,31 @@ Oferecer um moodboard privado e colaborativo do ensaio ativo, no qual cliente e 
 - [x] path canônico usa `<auth-user-uuid>/<shoot-uuid>/<object-key>`; o browser gera UUID e extensão pelo MIME, nunca pelo nome original;
 - [x] RLS de tabela e Storage isola clientes por ensaio, permite leitura das referências do estúdio para o próprio ensaio e restringe exclusão da cliente às referências `origin = client` enviadas por ela;
 - [x] staff/admin pode ler, adicionar e remover todas as referências por policies autenticadas; `anon` não recebe grants;
-- [x] upload reserva metadata antes de tocar Storage; falha do upload remove objeto parcial antes de liberar a row; delete negado não alcança Storage; erros de lifecycle mantêm mensagem neutra e chegam ao Sentry com `shootId`/`storagePath`/`referenceId`;
+- [x] upload reserva metadata antes de tocar Storage; falha do upload remove objeto parcial antes de liberar a row; exclusão é object-first e mantém a row se a ausência do objeto não for confirmada; erros de lifecycle mantêm mensagem neutra e chegam ao Sentry com `shootId`/`storagePath`/`referenceId`;
 - [x] `readStylingReferences` assina URLs privadas em lote por uma hora e falha fechado em erro ou cardinalidade divergente;
 - [x] `PortalSnapshot` inclui o Auth viewer e as referências do ensaio selecionado sem cachear signed URLs além do render;
 - [x] cliente e Admin usam o mesmo board responsivo, com autoria, legenda opcional, empty/loading/error states, ownership de remoção, targets de 44 px, foco visível e reduced motion;
 - [x] a página Admin cria um único cliente Supabase cookie-bound, valida `auth.getUser()` fail-closed e reutiliza o mesmo JWT na leitura staff, sem passar por `readPortalSnapshot`;
-- [x] testes live comprovam upload e delete pelas funções reais, URL assinada, isolamento A/B, persistência após tentativa alheia, rejeição `23514` da 21ª linha e teardown sem resíduos;
+- [x] testes live comprovam upload e delete pelas funções reais, URL assinada, isolamento A/B, persistência após tentativa alheia, cota sobre objetos órfãos, serialização concorrente upload/delete/insert, rejeição `23514` da 21ª ocupação e teardown sem resíduos;
 - [x] testes focados, suíte completa, typecheck, lint, guard Admin e build passaram.
 
 **Implementation notes**
 
-- O limite client-side oferece feedback antecipado; o trigger transacional com advisory lock continua como autoridade em corridas.
+- O limite client-side oferece feedback antecipado; o banco conta rows e objetos, e os helpers de Storage/delete compartilham com o trigger o advisory transaction lock por Shoot.
 - O board usa `<img>` nativo com exceção eslint local e documentada: as URLs Supabase são privadas, efêmeras e o host não integra a configuração de `next/image` neste marco.
 - O grid cronológico mantém a direção editorial C+: numeração funcional, autoria “Você/Estúdio” e um único formulário de contribuição, usando somente os tokens visuais existentes.
-- O SDK Storage responde sucesso vazio quando uma policy de delete filtra todos os objetos. Por isso o fluxo do produto exclui a row com `.single()` primeiro: uma cliente alheia recebe erro neutro antes de qualquer chamada de Storage, e o teste live confirma que o objeto permanece.
+- O SDK Storage responde sucesso vazio quando uma policy de delete filtra todos os objetos. Por isso o fluxo lê a row autorizada, remove e confirma a ausência do objeto, e só então apaga a metadata; a policy do banco também impede apagar a row enquanto o objeto existir.
 - No harness jsdom, `File` pertence a outra realm e o fetch Node o serializa como `text/plain`; o teste live usa `Blob` nativo de `node:buffer` somente na borda do fixture. Os testes unitários continuam usando `File` browser real.
 
 **Blocker/Hand-off notes**
 
 - concluído: schema/bucket/policies, operações browser-safe, signed reads, board cliente/Admin, integração no snapshot e cobertura unitária/live.
 - concern: lint mantém cinco warnings `no-unused-vars` preexistentes em testes não tocados; zero erros e zero warnings novos.
-- infraestrutura: a primeira execução live no sandbox falhou com `EACCES`; a execução autorizada passou 5/5 e o teardown verificou rows, shoots, clients, profiles, prefixes Storage e Auth users vazios.
-- QA visual em browser autenticado fica para a aceitação integrada do Epic 3 na Task 10, junto das demais rotas do portal.
-- fechamento: a primeira full live com rede revelou que a consulta staff do próprio teste não filtrava os paths do fixture e enxergava 20 rows criadas em paralelo por outro arquivo. RED: 385 passed/1 failed; correção restrita ao harness com `.in("storage_path", fixturePaths)`; GREEN focado 5/5 e full live 386/386, zero skips. A auditoria final encontrou zero referências, objetos, Client/Shoot/Profile/Auth ou dependências dos prefixos Epic 3.
-- gates finais desta preparação: `npm run test` — 366 passed/20 skipped; `typecheck` — 0 erro; `lint` — 0 erro/5 warnings históricos; `check:admin-auth` — OK; `build` — 18 entradas de geração processadas e as quatro rotas do portal dinâmicas; `git diff --check` — 0 erro.
-- próximo passo: caminhada visual/autenticada e screenshots descartáveis pela Task 10, seguida da revisão dupla do diff inteiro; nenhuma aresta PRD §23 precisou ser reaberta.
+- infraestrutura: migrations `0029`–`0031` aplicadas no Supabase real; integração focada final passou em RLS 5/5 e Storage 2/2, incluindo a corrida upload/delete/insert.
+- QA visual autenticada concluída com 25 verificações em viewport mobile/desktop: navegação por skip link, responsividade, checklist acionável/read-only, composição financeira, URLs assinadas, upload/visualização, cancelamento/confirmação de exclusão, avanço Admin refletido no portal, logout mobile e link inválido. Screenshots descartáveis ficaram em `.superpowers/sdd/screenshots/`.
+- fechamento: a revisão inteira teve duas ondas de hardening. A primeira eliminou autorização admin dependente de layout, TOCTOU do vínculo, upload sem reserva, leitura excessiva por rota e timestamp escrito pela aplicação. A segunda fechou objetos órfãos e serializou reserva/Storage/delete pelo mesmo lock. Revisão final dupla: nenhum Critical/Important; um minor não bloqueante de idempotência em deletes simultâneos.
+- gates finais: `npm run test` — 385 passed/20 skipped; full live — 405/405; `typecheck` — 0 erro; `lint` — 0 erro/5 warnings históricos; `check:admin-auth` — OK; `predb:migrate` — OK; `build` — 18 entradas processadas e as quatro rotas do portal dinâmicas; `git diff --check` — 0 erro. Auditoria externa final: zero rows, Auth users e objetos Storage dos fixtures Epic 3.
+- próximo passo: nenhum para o Epic 3; após o push, confirmar GitHub Actions verde e deploy de produção da Vercel disponível.
 
 ---
 
