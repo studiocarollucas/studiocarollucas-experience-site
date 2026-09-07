@@ -77,6 +77,8 @@ describe("StylingBoard", () => {
       "src",
       ownReference.signedUrl
     );
+    expect(screen.getByRole("img", { name: "Luz suave" })).toHaveAttribute("loading", "lazy");
+    expect(screen.getByRole("img", { name: "Luz suave" })).toHaveAttribute("decoding", "async");
     expect(screen.getByRole("img", { name: "Referência de styling" })).toHaveAttribute(
       "src",
       studioReference.signedUrl
@@ -184,6 +186,48 @@ describe("StylingBoard", () => {
     );
     expect(screen.getByRole("button", { name: "Adicionar referência" })).toBeEnabled();
     expect(mocks.refresh).not.toHaveBeenCalled();
+    expect(mocks.captureException).toHaveBeenCalledWith(expect.any(Error), {
+      tags: { operation: "styling-reference-upload" },
+    });
+  });
+
+  it("does not capture allowlisted validation messages", async () => {
+    mocks.uploadStylingReference.mockRejectedValue(new Error("A imagem deve ter no máximo 8 MB."));
+    render(<StylingBoard shootId={SHOOT_ID} viewerAuthUserId={VIEWER_ID} references={[]} />);
+    fireEvent.change(screen.getByLabelText(/escolher imagem/i), {
+      target: { files: [new File(["image"], "ref.png", { type: "image/png" })] },
+    });
+    fireEvent.submit(screen.getByRole("button", { name: "Adicionar referência" }).closest("form")!);
+    expect(await screen.findByRole("alert")).toHaveTextContent("A imagem deve ter no máximo 8 MB.");
+    expect(mocks.captureException).not.toHaveBeenCalled();
+  });
+
+  it("uses a synchronous shared lock against duplicate uploads", async () => {
+    mocks.uploadStylingReference.mockReturnValue(new Promise(() => undefined));
+    render(<StylingBoard shootId={SHOOT_ID} viewerAuthUserId={VIEWER_ID} references={[]} />);
+    fireEvent.change(screen.getByLabelText(/escolher imagem/i), {
+      target: { files: [new File(["image"], "ref.png", { type: "image/png" })] },
+    });
+    const form = screen.getByRole("button", { name: "Adicionar referência" }).closest("form")!;
+    await act(async () => {
+      form.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
+      form.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
+    });
+    expect(mocks.uploadStylingReference).toHaveBeenCalledOnce();
+  });
+
+  it("announces delete progress and synchronously prevents duplicate deletion", async () => {
+    mocks.deleteStylingReference.mockReturnValue(new Promise(() => undefined));
+    render(
+      <StylingBoard shootId={SHOOT_ID} viewerAuthUserId={VIEWER_ID} references={[ownReference]} />
+    );
+    const button = screen.getByRole("button", { name: "Remover referência Luz suave" });
+    await act(async () => {
+      button.click();
+      button.click();
+    });
+    expect(mocks.deleteStylingReference).toHaveBeenCalledOnce();
+    expect(screen.getByRole("status")).toHaveTextContent("Removendo referência…");
   });
 
   it("logs a failed post-row object cleanup and keeps the public message neutral", async () => {
@@ -202,6 +246,23 @@ describe("StylingBoard", () => {
     expect(mocks.captureException).toHaveBeenCalledWith(internalError, {
       tags: { operation: "styling-reference-delete" },
     });
-    expect(mocks.refresh).not.toHaveBeenCalled();
+    expect(mocks.refresh).toHaveBeenCalledOnce();
+  });
+
+  it("trims captions and falls back for whitespace-only captions", () => {
+    render(
+      <StylingBoard
+        shootId={SHOOT_ID}
+        viewerAuthUserId={VIEWER_ID}
+        references={[
+          { ...ownReference, caption: "  Luz editorial  " },
+          { ...studioReference, caption: "   " },
+        ]}
+      />
+    );
+    expect(screen.getByRole("img", { name: "Luz editorial" })).toBeInTheDocument();
+    expect(screen.getByText("Luz editorial")).toHaveClass("break-words");
+    expect(screen.getByRole("img", { name: "Referência de styling" })).toBeInTheDocument();
+    expect(screen.getByText("Sem legenda")).toBeInTheDocument();
   });
 });

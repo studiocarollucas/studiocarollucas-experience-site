@@ -13,10 +13,16 @@ const REFERENCE_ID = "00000000-0000-4000-8000-000000000021";
 type FakeOptions = {
   uploadError?: unknown;
   insertError?: unknown;
+  insertReject?: unknown;
   insertedData?: Record<string, unknown> | null;
   deleteError?: unknown;
   deletedData?: { storage_path: string } | null;
   removeError?: unknown;
+  removeReject?: unknown;
+  removeData?: Array<{ name: string }> | null;
+  existsError?: unknown;
+  existsReject?: unknown;
+  existsData?: boolean;
 };
 
 function createMutationFixture(options: FakeOptions = {}) {
@@ -33,26 +39,39 @@ function createMutationFixture(options: FakeOptions = {}) {
       error: options.uploadError ?? null,
     }));
   const remove = vi
-    .fn<(paths: string[]) => Promise<{ data: never[] | null; error: unknown }>>()
-    .mockImplementation(async () => ({
-      data: options.removeError ? null : [],
-      error: options.removeError ?? null,
-    }));
-  const insertSingle = vi.fn(async () => ({
-    data:
-      options.insertedData === undefined
-        ? {
-            id: REFERENCE_ID,
-            shoot_id: SHOOT_ID,
-            storage_path: `${USER_ID}/${SHOOT_ID}/generated.webp`,
-            caption: "Retrato leve",
-            origin: "client",
-            uploaded_by_auth_user_id: USER_ID,
-            created_at: "2026-09-07T12:00:00Z",
-          }
-        : options.insertedData,
-    error: options.insertError ?? null,
-  }));
+    .fn<(paths: string[]) => Promise<{ data: Array<{ name: string }> | null; error: unknown }>>()
+    .mockImplementation(async (paths) => {
+      if (options.removeReject) throw options.removeReject;
+      return {
+        data:
+          options.removeData === undefined ? paths.map((name) => ({ name })) : options.removeData,
+        error: options.removeError ?? null,
+      };
+    });
+  const exists = vi
+    .fn<(path: string) => Promise<{ data: boolean | null; error: unknown }>>()
+    .mockImplementation(async () => {
+      if (options.existsReject) throw options.existsReject;
+      return { data: options.existsData ?? false, error: options.existsError ?? null };
+    });
+  const insertSingle = vi.fn(async () => {
+    if (options.insertReject) throw options.insertReject;
+    return {
+      data:
+        options.insertedData === undefined
+          ? {
+              id: REFERENCE_ID,
+              shoot_id: SHOOT_ID,
+              storage_path: `${USER_ID}/${SHOOT_ID}/generated.webp`,
+              caption: "Retrato leve",
+              origin: "client",
+              uploaded_by_auth_user_id: USER_ID,
+              created_at: "2026-09-07T12:00:00Z",
+            }
+          : options.insertedData,
+      error: options.insertError ?? null,
+    };
+  });
   const insertSelect = vi.fn(() => ({ single: insertSingle }));
   const insert = vi
     .fn<(values: Record<string, unknown>) => { select: typeof insertSelect }>()
@@ -77,7 +96,7 @@ function createMutationFixture(options: FakeOptions = {}) {
     .mockImplementation(() => ({ select: deleteSelect }));
   const deleteRow = vi.fn(() => ({ eq }));
   const fromTable = vi.fn(() => ({ insert, delete: deleteRow }));
-  const fromBucket = vi.fn(() => ({ upload, remove }));
+  const fromBucket = vi.fn(() => ({ upload, remove, exists }));
   const client = {
     from: fromTable,
     storage: { from: fromBucket },
@@ -87,6 +106,7 @@ function createMutationFixture(options: FakeOptions = {}) {
     client,
     upload,
     remove,
+    exists,
     insert,
     insertSelect,
     deleteRow,
@@ -182,6 +202,77 @@ describe("styling browser mutations", () => {
     const createdPath = fixture.upload.mock.calls[0]?.[0];
     expect(fixture.remove).toHaveBeenCalledOnce();
     expect(fixture.remove).toHaveBeenCalledWith([createdPath]);
+    expect(fixture.exists).toHaveBeenCalledWith(createdPath);
+  });
+
+  it("compensates when the metadata insert promise rejects", async () => {
+    const original = new Error("insert network rejection");
+    const fixture = createMutationFixture({ insertReject: original });
+
+    await expect(
+      uploadStylingReference(fixture.client, {
+        file: validFile(),
+        shootId: SHOOT_ID,
+        authUserId: USER_ID,
+        caption: "Teste",
+        origin: "client",
+        currentCount: 0,
+      })
+    ).rejects.toMatchObject({
+      message: "Não foi possível salvar esta referência.",
+      cause: original,
+    });
+    expect(fixture.remove).toHaveBeenCalledOnce();
+    expect(fixture.exists).toHaveBeenCalledOnce();
+  });
+
+  it.each([
+    ["remove result error", { removeError: new Error("remove failed"), existsData: true }],
+    ["remove rejection", { removeReject: new Error("remove rejected"), existsData: true }],
+    ["empty remove result", { removeData: [] as Array<{ name: string }>, existsData: true }],
+  ] as const)("preserves insert and cleanup causes after %s", async (_label, cleanupOptions) => {
+    const original = new Error("row failure");
+    const fixture = createMutationFixture({ insertError: original, ...cleanupOptions });
+
+    const rejection = uploadStylingReference(fixture.client, {
+      file: validFile(),
+      shootId: SHOOT_ID,
+      authUserId: USER_ID,
+      caption: "Teste",
+      origin: "client",
+      currentCount: 0,
+    });
+    await expect(rejection).rejects.toMatchObject({
+      message: "Não foi possível salvar esta referência.",
+    });
+    await rejection.catch((error: unknown) => {
+      expect(error).toBeInstanceOf(Error);
+      expect((error as Error).cause).toBeInstanceOf(AggregateError);
+      expect(((error as Error).cause as AggregateError).errors).toContain(original);
+    });
+  });
+
+  it("accepts an empty remove result only when exists confirms compensation", async () => {
+    const original = new Error("row failure");
+    const fixture = createMutationFixture({
+      insertError: original,
+      removeData: [],
+      existsData: false,
+    });
+
+    await expect(
+      uploadStylingReference(fixture.client, {
+        file: validFile(),
+        shootId: SHOOT_ID,
+        authUserId: USER_ID,
+        caption: "Teste",
+        origin: "client",
+        currentCount: 0,
+      })
+    ).rejects.toMatchObject({
+      message: "Não foi possível salvar esta referência.",
+      cause: original,
+    });
   });
 
   it("keeps a raw Storage upload error only as an internal cause", async () => {
@@ -225,16 +316,37 @@ describe("styling browser mutations", () => {
     expect(fixture.eq).toHaveBeenCalledWith("id", REFERENCE_ID);
     expect(fixture.deleteSelect).toHaveBeenCalledWith("storage_path");
     expect(fixture.remove).toHaveBeenCalledWith([`${USER_ID}/${SHOOT_ID}/generated.webp`]);
+    expect(fixture.exists).toHaveBeenCalledWith(`${USER_ID}/${SHOOT_ID}/generated.webp`);
     expect(fixture.deleteRow.mock.invocationCallOrder[0]).toBeLessThan(
       fixture.remove.mock.invocationCallOrder[0]
     );
   });
 
   it("reports a neutral error when object cleanup fails after row deletion", async () => {
-    const fixture = createMutationFixture({ removeError: new Error("raw storage failure") });
+    const raw = new Error("raw storage failure");
+    const fixture = createMutationFixture({ removeError: raw, existsData: true });
 
-    await expect(deleteStylingReference(fixture.client, REFERENCE_ID)).rejects.toThrow(
-      "Não foi possível concluir a remoção desta referência."
-    );
+    await expect(deleteStylingReference(fixture.client, REFERENCE_ID)).rejects.toMatchObject({
+      message: "Não foi possível concluir a remoção desta referência.",
+      cause: expect.any(AggregateError),
+    });
+  });
+
+  it("fails delete when remove returns no object and exists confirms it remains", async () => {
+    const fixture = createMutationFixture({ removeData: [], existsData: true });
+    const rejection = deleteStylingReference(fixture.client, REFERENCE_ID);
+
+    await expect(rejection).rejects.toMatchObject({
+      message: "Não foi possível concluir a remoção desta referência.",
+      cause: expect.any(AggregateError),
+    });
+    await rejection.catch((error: unknown) => {
+      const cause = (error as Error).cause as AggregateError;
+      expect(cause.errors).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ message: "storage object still exists" }),
+        ])
+      );
+    });
   });
 });

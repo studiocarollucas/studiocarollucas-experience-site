@@ -12,13 +12,16 @@ type StylingReferenceRow = {
   created_at: string;
 };
 
+type StorageFileObject = { name: string };
+
 type StorageBucketClient = {
   upload(
     path: string,
     file: File,
     options: { contentType: string; upsert: false }
   ): MutationResult<{ path: string }>;
-  remove(paths: string[]): MutationResult<unknown>;
+  remove(paths: string[]): MutationResult<StorageFileObject[]>;
+  exists(path: string): MutationResult<boolean>;
 };
 
 type StylingReferenceTableClient = {
@@ -68,6 +71,62 @@ const EXTENSION = {
 const REFERENCE_COLUMNS =
   "id,shoot_id,storage_path,caption,origin,uploaded_by_auth_user_id,created_at";
 
+function missingObjectError(error: unknown): boolean {
+  if (!error || typeof error !== "object") return false;
+  const status = "status" in error ? error.status : "statusCode" in error ? error.statusCode : null;
+  return status === 400 || status === 404 || status === "400" || status === "404";
+}
+
+async function removeObjectAndConfirmAbsent(
+  bucket: StorageBucketClient,
+  path: string
+): Promise<void> {
+  const issues: unknown[] = [];
+  try {
+    const removed = await bucket.remove([path]);
+    if (removed.error) issues.push(removed.error);
+    if (!removed.data?.some((item) => item.name === path)) {
+      issues.push(new Error("storage remove result did not include the requested path"));
+    }
+  } catch (error) {
+    issues.push(error);
+  }
+
+  try {
+    const existence = await bucket.exists(path);
+    if (existence.data === false && (!existence.error || missingObjectError(existence.error)))
+      return;
+    if (existence.error) issues.push(existence.error);
+    issues.push(
+      new Error(
+        existence.data === true ? "storage object still exists" : "storage absence inconclusive"
+      )
+    );
+  } catch (error) {
+    issues.push(error);
+  }
+
+  throw new AggregateError(issues, "styling object cleanup could not confirm absence");
+}
+
+async function compensateInsertFailure(
+  bucket: StorageBucketClient,
+  path: string,
+  originalCause: unknown
+): Promise<never> {
+  try {
+    await removeObjectAndConfirmAbsent(bucket, path);
+  } catch (cleanupCause) {
+    throw new Error("Não foi possível salvar esta referência.", {
+      cause: new AggregateError(
+        [originalCause, cleanupCause],
+        "styling metadata insert and object compensation failed"
+      ),
+    });
+  }
+  throw new Error("Não foi possível salvar esta referência.", { cause: originalCause });
+}
+
 export async function uploadStylingReference(
   supabase: StylingMutationClient,
   input: UploadStylingReferenceInput
@@ -90,21 +149,29 @@ export async function uploadStylingReference(
     throw new Error("Não foi possível enviar esta referência.", { cause: upload.error });
   }
 
-  const inserted = await supabase
-    .from("styling_references")
-    .insert({
-      shoot_id: input.shootId,
-      storage_path: path,
-      caption: input.caption.trim() || null,
-      origin: input.origin,
-      uploaded_by_auth_user_id: input.authUserId,
-    })
-    .select(REFERENCE_COLUMNS)
-    .single();
+  let inserted: { data: StylingReferenceRow | null; error: unknown };
+  try {
+    inserted = await supabase
+      .from("styling_references")
+      .insert({
+        shoot_id: input.shootId,
+        storage_path: path,
+        caption: input.caption.trim() || null,
+        origin: input.origin,
+        uploaded_by_auth_user_id: input.authUserId,
+      })
+      .select(REFERENCE_COLUMNS)
+      .single();
+  } catch (error) {
+    return compensateInsertFailure(bucket, path, error);
+  }
 
   if (inserted.error || !inserted.data) {
-    await bucket.remove([path]);
-    throw new Error("Não foi possível salvar esta referência.");
+    return compensateInsertFailure(
+      bucket,
+      path,
+      inserted.error ?? new Error("styling reference insert returned no data")
+    );
   }
 
   return inserted.data;
@@ -124,8 +191,12 @@ export async function deleteStylingReference(
     throw new Error("Não foi possível remover esta referência.");
   }
 
-  const removed = await supabase.storage.from(STYLING_BUCKET).remove([deleted.data.storage_path]);
-  if (removed.error) {
-    throw new Error("Não foi possível concluir a remoção desta referência.");
+  try {
+    await removeObjectAndConfirmAbsent(
+      supabase.storage.from(STYLING_BUCKET),
+      deleted.data.storage_path
+    );
+  } catch (error) {
+    throw new Error("Não foi possível concluir a remoção desta referência.", { cause: error });
   }
 }

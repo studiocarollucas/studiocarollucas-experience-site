@@ -256,6 +256,8 @@ describeIfLiveDb("styling client operations (live Storage/RLS integration)", () 
     await deleteStylingReference(firstSupabase as unknown as StylingMutationClient, uploaded.id);
     expect(await readStylingReferences(firstSupabase, firstShootId)).toEqual([]);
     if (!admin) throw new Error("Admin fixture is unavailable");
+    const deletedExists = await admin.storage.from(STYLING_BUCKET).exists(uploaded.storage_path);
+    expect(deletedExists.data).toBe(false);
     const deletedObject = await admin.storage.from(STYLING_BUCKET).download(uploaded.storage_path);
     expect(deletedObject.error).not.toBeNull();
   }, 60_000);

@@ -1,7 +1,7 @@
 "use client";
 
 import * as Sentry from "@sentry/nextjs";
-import { useMemo, useState, type FormEvent } from "react";
+import { useMemo, useRef, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import type { PortalReference } from "@/domain/portal/types";
 import {
@@ -25,6 +25,10 @@ function uploadFeedback(error: unknown) {
   return "Não foi possível adicionar esta referência.";
 }
 
+function isSafeUploadError(error: unknown): boolean {
+  return error instanceof Error && SAFE_UPLOAD_MESSAGES.has(error.message);
+}
+
 export function StylingBoard({
   shootId,
   viewerAuthUserId,
@@ -46,11 +50,13 @@ export function StylingBoard({
   const [pending, setPending] = useState<"upload" | string | null>(null);
   const [feedback, setFeedback] = useState<Feedback>(null);
   const [removedIds, setRemovedIds] = useState<Set<string>>(() => new Set());
+  const mutationLock = useRef(false);
   const visibleReferences = references.filter((reference) => !removedIds.has(reference.id));
   const reachedLimit = visibleReferences.length >= MAX_STYLING_REFERENCES;
 
   async function submitReference(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (mutationLock.current) return;
     const form = event.currentTarget;
     const formData = new FormData(form);
     const fileInput = form.elements.namedItem("stylingFile");
@@ -60,6 +66,7 @@ export function StylingBoard({
       return;
     }
 
+    mutationLock.current = true;
     setFeedback(null);
     setPending("upload");
     try {
@@ -75,13 +82,19 @@ export function StylingBoard({
       setFeedback({ kind: "status", message: "Referência adicionada." });
       router.refresh();
     } catch (error) {
+      if (!isSafeUploadError(error)) {
+        Sentry.captureException(error, { tags: { operation: "styling-reference-upload" } });
+      }
       setFeedback({ kind: "alert", message: uploadFeedback(error) });
     } finally {
+      mutationLock.current = false;
       setPending(null);
     }
   }
 
   async function removeReference(reference: PortalReference) {
+    if (mutationLock.current) return;
+    mutationLock.current = true;
     setFeedback(null);
     setPending(reference.id);
     try {
@@ -92,7 +105,9 @@ export function StylingBoard({
     } catch (error) {
       Sentry.captureException(error, { tags: { operation: "styling-reference-delete" } });
       setFeedback({ kind: "alert", message: "Não foi possível remover esta referência." });
+      router.refresh();
     } finally {
+      mutationLock.current = false;
       setPending(null);
     }
   }
@@ -164,6 +179,10 @@ export function StylingBoard({
         <p role="status" className="font-sans text-sm text-muted">
           Enviando referência…
         </p>
+      ) : pending ? (
+        <p role="status" className="font-sans text-sm text-muted">
+          Removendo referência…
+        </p>
       ) : null}
 
       {visibleReferences.length === 0 ? (
@@ -179,12 +198,13 @@ export function StylingBoard({
       ) : (
         <ol className="grid list-none gap-x-5 gap-y-8 sm:grid-cols-2 lg:grid-cols-3">
           {visibleReferences.map((reference, index) => {
+            const caption = reference.caption?.trim() || null;
             const canDelete =
               canDeleteAll ||
               (reference.origin === "client" &&
                 reference.uploadedByAuthUserId === viewerAuthUserId);
-            const removeLabel = reference.caption
-              ? `Remover referência ${reference.caption}`
+            const removeLabel = caption
+              ? `Remover referência ${caption}`
               : reference.origin === "studio"
                 ? "Remover referência do estúdio"
                 : "Remover referência";
@@ -200,13 +220,15 @@ export function StylingBoard({
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={reference.signedUrl}
-                    alt={reference.caption ?? "Referência de styling"}
+                    alt={caption ?? "Referência de styling"}
+                    loading="lazy"
+                    decoding="async"
                     className="h-full w-full object-cover"
                   />
                 </div>
                 <div className="mt-3 flex min-h-11 items-start justify-between gap-3">
-                  <p className="min-w-0 font-sans text-sm leading-5 text-ink">
-                    {reference.caption ?? "Sem legenda"}
+                  <p className="min-w-0 break-words font-sans text-sm leading-5 text-ink">
+                    {caption ?? "Sem legenda"}
                   </p>
                   {canDelete ? (
                     <button

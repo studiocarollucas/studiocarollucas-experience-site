@@ -115,7 +115,13 @@ function portalFixture(options: FixtureOptions = {}) {
   const createSignedUrls = async () => ({
     data: options.signedError
       ? null
-      : [{ signedUrl: "https://private.example.test/reference?signed=1" }],
+      : [
+          {
+            path: "auth-1/shoot-1/reference.webp",
+            error: null,
+            signedUrl: "https://private.example.test/reference?signed=1",
+          },
+        ],
     error: options.signedError ?? null,
   });
 

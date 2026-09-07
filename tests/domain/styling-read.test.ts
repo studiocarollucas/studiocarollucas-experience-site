@@ -8,7 +8,11 @@ const SHOOT_ID = "00000000-0000-4000-8000-000000000011";
 function stylingReadFixture(options?: {
   rowError?: unknown;
   signedError?: unknown;
-  signedData?: Array<{ signedUrl: string }> | null;
+  signedData?: Array<{
+    path: string | null;
+    error: string | null;
+    signedUrl: string | null;
+  }> | null;
 }) {
   const rows = [
     {
@@ -37,8 +41,16 @@ function stylingReadFixture(options?: {
     data:
       options?.signedData === undefined
         ? [
-            { signedUrl: "https://private.test/one?signed=1" },
-            { signedUrl: "https://private.test/two?signed=2" },
+            {
+              path: "staff/shoot/two.jpg",
+              error: null,
+              signedUrl: "https://private.test/two?signed=2",
+            },
+            {
+              path: "user/shoot/one.webp",
+              error: null,
+              signedUrl: "https://private.test/one?signed=1",
+            },
           ]
         : options.signedData,
     error: options?.signedError ?? null,
@@ -110,7 +122,36 @@ describe("readStylingReferences", () => {
 
     await expect(
       readStylingReferences(
-        stylingReadFixture({ signedData: [{ signedUrl: "https://only-one" }] }).supabase,
+        stylingReadFixture({
+          signedData: [{ path: "user/shoot/one.webp", error: null, signedUrl: "https://only-one" }],
+        }).supabase,
+        SHOOT_ID
+      )
+    ).rejects.toThrow("styling references unavailable");
+  });
+
+  it("rejects signed item errors and duplicate paths while preserving the item cause", async () => {
+    const itemError = "Object not found";
+    await expect(
+      readStylingReferences(
+        stylingReadFixture({
+          signedData: [
+            { path: "user/shoot/one.webp", error: itemError, signedUrl: null },
+            { path: "staff/shoot/two.jpg", error: null, signedUrl: "https://two" },
+          ],
+        }).supabase,
+        SHOOT_ID
+      )
+    ).rejects.toMatchObject({ cause: itemError });
+
+    await expect(
+      readStylingReferences(
+        stylingReadFixture({
+          signedData: [
+            { path: "user/shoot/one.webp", error: null, signedUrl: "https://one" },
+            { path: "user/shoot/one.webp", error: null, signedUrl: "https://duplicate" },
+          ],
+        }).supabase,
         SHOOT_ID
       )
     ).rejects.toThrow("styling references unavailable");
