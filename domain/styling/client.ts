@@ -25,6 +25,11 @@ type StorageBucketClient = {
 };
 
 type StylingReferenceTableClient = {
+  select(columns: "shoot_id,storage_path"): {
+    eq(column: "id", value: string): {
+      single(): MutationResult<{ shoot_id: string; storage_path: string }>;
+    };
+  };
   insert(values: {
     shoot_id: string;
     storage_path: string;
@@ -63,8 +68,8 @@ type UploadStylingReferenceInput = {
 };
 
 export type StylingLifecycleContext = {
-  shootId: string;
-  storagePath: string;
+  shootId: string | null;
+  storagePath: string | null;
   referenceId: string | null;
 };
 
@@ -251,6 +256,38 @@ export async function deleteStylingReference(
   supabase: StylingMutationClient,
   referenceId: string
 ): Promise<void> {
+  const selected = await supabase
+    .from("styling_references")
+    .select("shoot_id,storage_path")
+    .eq("id", referenceId)
+    .single();
+  if (selected.error || !selected.data) {
+    throw new StylingLifecycleError(
+      "Não foi possível remover esta referência.",
+      { shootId: null, storagePath: null, referenceId },
+      selected.error ?? new Error("styling reference read returned no data")
+    );
+  }
+
+  const context = {
+    shootId: selected.data.shoot_id,
+    storagePath: selected.data.storage_path,
+    referenceId,
+  };
+
+  try {
+    await removeObjectAndConfirmAbsent(
+      supabase.storage.from(STYLING_BUCKET),
+      selected.data.storage_path
+    );
+  } catch (error) {
+    throw new StylingLifecycleError(
+      "Não foi possível concluir a remoção desta referência.",
+      context,
+      error
+    );
+  }
+
   const deleted = await supabase
     .from("styling_references")
     .delete()
@@ -258,17 +295,10 @@ export async function deleteStylingReference(
     .select("storage_path")
     .single();
   if (deleted.error || !deleted.data) {
-    throw new Error("Não foi possível remover esta referência.", {
-      cause: deleted.error ?? new Error("styling row delete returned no data"),
-    });
-  }
-
-  try {
-    await removeObjectAndConfirmAbsent(
-      supabase.storage.from(STYLING_BUCKET),
-      deleted.data.storage_path
+    throw new StylingLifecycleError(
+      "Não foi possível concluir a remoção desta referência.",
+      context,
+      deleted.error ?? new Error("styling row delete returned no data")
     );
-  } catch (error) {
-    throw new Error("Não foi possível concluir a remoção desta referência.", { cause: error });
   }
 }

@@ -39,7 +39,8 @@ const paymentColumns: Column<Payment>[] = [
 ];
 
 export default async function ShootDetailPage({ params }: { params: Params }) {
-  const currentUser = await getCurrentUser();
+  const supabase = await createSupabaseServerClient();
+  const currentUser = await getCurrentUser(supabase);
   if (!currentUser) redirect("/admin/login");
   if (!hasMinimumRole(currentUser.role, "staff")) {
     redirect(
@@ -48,10 +49,6 @@ export default async function ShootDetailPage({ params }: { params: Params }) {
   }
 
   const { id } = await params;
-  const supabase = await createSupabaseServerClient();
-  const { data: authData, error: authError } = await supabase.auth.getUser();
-  if (authError || !authData.user) redirect("/admin/login");
-
   const [detail, stylingReferences] = await Promise.all([
     getShootDetail(id),
     readStylingReferences(supabase, id),
@@ -192,7 +189,7 @@ export default async function ShootDetailPage({ params }: { params: Params }) {
       <DetailSection title="Styling e referências">
         <StylingManager
           shootId={id}
-          viewerAuthUserId={authData.user.id}
+          viewerAuthUserId={currentUser.id}
           references={stylingReferences}
         />
       </DetailSection>

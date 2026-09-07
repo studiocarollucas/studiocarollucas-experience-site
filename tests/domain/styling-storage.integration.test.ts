@@ -299,5 +299,27 @@ describeIfLiveDb("styling client operations (live Storage/RLS integration)", () 
           )
         )
     ).toHaveLength(20);
+
+    if (!admin) throw new Error("Admin fixture is unavailable");
+    for (const row of rows) {
+      objectPaths.add(row.storagePath);
+      const uploaded = await admin.storage
+        .from(STYLING_BUCKET)
+        .upload(row.storagePath, new Uint8Array([0x52, 0x49, 0x46, 0x46]), {
+          contentType: "image/webp",
+          upsert: false,
+        });
+      expect(uploaded.error).toBeNull();
+    }
+    await db.delete(stylingReferences).where(inArray(stylingReferences.id, rows.map((row) => row.id)));
+
+    const orphanBypass = await firstSupabase.from("styling_references").insert({
+      shoot_id: limitShootId,
+      storage_path: `${firstAuthUserId}/${limitShootId}/${runId}-orphan-bypass.webp`,
+      caption: "Não deve ultrapassar objetos órfãos",
+      origin: "client",
+      uploaded_by_auth_user_id: firstAuthUserId,
+    });
+    expect(orphanBypass.error?.code).toBe("23514");
   }, 60_000);
 });

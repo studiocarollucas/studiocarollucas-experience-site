@@ -420,11 +420,13 @@ describeIfLiveDb("styling references (live RLS and Storage integration)", () => 
       where p.proname in (
         'owns_styling_object',
         'enforce_styling_reference_limit',
-        'is_canonical_styling_path'
+        'has_styling_reference',
+        'is_canonical_styling_path',
+        'styling_object_is_absent'
       )
       order by p.proname
     `);
-    expect(helpers).toHaveLength(3);
+    expect(helpers).toHaveLength(5);
     expect(helpers[0]).toMatchObject({
       schema_name: "private",
       proname: "enforce_styling_reference_limit",
@@ -435,19 +437,27 @@ describeIfLiveDb("styling references (live RLS and Storage integration)", () => 
     });
     expect(helpers[1]).toMatchObject({
       schema_name: "private",
+      proname: "has_styling_reference",
+      prosecdef: true,
+      owner_bypasses_rls: true,
+      authenticated_execute: true,
+      anon_execute: false,
+    });
+    expect(helpers[2]).toMatchObject({
+      schema_name: "private",
       proname: "is_canonical_styling_path",
       prosecdef: false,
       owner_bypasses_rls: true,
       authenticated_execute: true,
       anon_execute: false,
     });
-    expect(helpers[1]?.identity_arguments).toBe(
+    expect(helpers[2]?.identity_arguments).toBe(
       "object_name text, expected_uploader_id uuid, expected_shoot_id uuid",
     );
-    expect(String(helpers[1]?.definition).toLowerCase()).toContain(
+    expect(String(helpers[2]?.definition).toLowerCase()).toContain(
       "array_length(path_parts, 1) is distinct from 3",
     );
-    expect(helpers[2]).toMatchObject({
+    expect(helpers[3]).toMatchObject({
       schema_name: "private",
       proname: "owns_styling_object",
       prosecdef: true,
@@ -455,7 +465,16 @@ describeIfLiveDb("styling references (live RLS and Storage integration)", () => 
       authenticated_execute: true,
       anon_execute: false,
     });
-    expect(String(helpers[2]?.definition)).toContain("is_canonical_styling_path");
+    expect(String(helpers[3]?.definition)).toContain("is_canonical_styling_path");
+    expect(helpers[4]).toMatchObject({
+      schema_name: "private",
+      proname: "styling_object_is_absent",
+      prosecdef: true,
+      owner_bypasses_rls: true,
+      authenticated_execute: true,
+      anon_execute: false,
+    });
+    expect(String(helpers[4]?.definition)).toContain("storage.objects");
     for (const helper of helpers) {
       expect(String(helper.proconfig)).toContain("search_path=");
     }
@@ -723,7 +742,7 @@ describeIfLiveDb("styling references (live RLS and Storage integration)", () => 
       .eq("storage_path", firstPath)
       .select("storage_path");
     expect(ownRowDelete.error).toBeNull();
-    expect(ownRowDelete.data).toEqual([{ storage_path: firstPath }]);
+    expect(ownRowDelete.data).toEqual([]);
 
     const staffRowDelete = await staffSupabase
       .from("styling_references")
@@ -745,6 +764,13 @@ describeIfLiveDb("styling references (live RLS and Storage integration)", () => 
 
     const ownObjectDelete = await firstSupabase.storage.from(STYLING_BUCKET).remove([firstPath]);
     expect(ownObjectDelete.error).toBeNull();
+    const ownRowDeleteAfterObject = await firstSupabase
+      .from("styling_references")
+      .delete()
+      .eq("storage_path", firstPath)
+      .select("storage_path");
+    expect(ownRowDeleteAfterObject.error).toBeNull();
+    expect(ownRowDeleteAfterObject.data).toEqual([{ storage_path: firstPath }]);
     const staffObjectDelete = await staffSupabase.storage
       .from(STYLING_BUCKET)
       .remove([secondPath, studioPath]);

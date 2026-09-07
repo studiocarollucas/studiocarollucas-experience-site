@@ -16,6 +16,8 @@ type FakeOptions = {
   insertError?: unknown;
   insertReject?: unknown;
   insertedData?: Record<string, unknown> | null;
+  selectError?: unknown;
+  selectedData?: { shoot_id: string; storage_path: string } | null;
   deleteError?: unknown;
   deletedData?: { storage_path: string } | null;
   removeError?: unknown;
@@ -80,6 +82,15 @@ function createMutationFixture(options: FakeOptions = {}) {
   const insert = vi
     .fn<(values: Record<string, unknown>) => { select: typeof insertSelect }>()
     .mockImplementation(() => ({ select: insertSelect }));
+  const selectSingle = vi.fn(async () => ({
+    data:
+      options.selectedData === undefined
+        ? { shoot_id: SHOOT_ID, storage_path: `${USER_ID}/${SHOOT_ID}/generated.webp` }
+        : options.selectedData,
+    error: options.selectError ?? null,
+  }));
+  const selectEq = vi.fn(() => ({ single: selectSingle }));
+  const select = vi.fn(() => ({ eq: selectEq }));
   const deleteSingle = vi.fn(async () => ({
     data:
       options.deletedData === undefined
@@ -99,7 +110,7 @@ function createMutationFixture(options: FakeOptions = {}) {
     >()
     .mockImplementation(() => ({ select: deleteSelect }));
   const deleteRow = vi.fn(() => ({ eq }));
-  const fromTable = vi.fn(() => ({ insert, delete: deleteRow }));
+  const fromTable = vi.fn(() => ({ insert, select, delete: deleteRow }));
   const fromBucket = vi.fn(() => ({ upload, remove, exists }));
   const client = {
     from: fromTable,
@@ -113,6 +124,8 @@ function createMutationFixture(options: FakeOptions = {}) {
     exists,
     insert,
     insertSelect,
+    select,
+    selectEq,
     deleteRow,
     eq,
     deleteSelect,
@@ -312,10 +325,10 @@ describe("styling browser mutations", () => {
     expect(fixture.deleteRow).toHaveBeenCalledOnce();
   });
 
-  it("does not touch Storage when row deletion is denied", async () => {
+  it("does not touch Storage when the reference cannot be read", async () => {
     const fixture = createMutationFixture({
-      deleteError: new Error("permission denied"),
-      deletedData: null,
+      selectError: new Error("permission denied"),
+      selectedData: null,
     });
 
     await expect(deleteStylingReference(fixture.client, REFERENCE_ID)).rejects.toThrow(
@@ -323,31 +336,57 @@ describe("styling browser mutations", () => {
     );
 
     expect(fixture.remove).not.toHaveBeenCalled();
+    expect(fixture.deleteRow).not.toHaveBeenCalled();
   });
 
-  it("removes the returned private object only after deleting its row", async () => {
+  it("removes and confirms the private object before deleting its row", async () => {
     const fixture = createMutationFixture();
 
     await deleteStylingReference(fixture.client, REFERENCE_ID);
 
+    expect(fixture.select).toHaveBeenCalledWith("shoot_id,storage_path");
+    expect(fixture.selectEq).toHaveBeenCalledWith("id", REFERENCE_ID);
     expect(fixture.deleteRow).toHaveBeenCalledOnce();
     expect(fixture.eq).toHaveBeenCalledWith("id", REFERENCE_ID);
     expect(fixture.deleteSelect).toHaveBeenCalledWith("storage_path");
     expect(fixture.remove).toHaveBeenCalledWith([`${USER_ID}/${SHOOT_ID}/generated.webp`]);
     expect(fixture.exists).toHaveBeenCalledWith(`${USER_ID}/${SHOOT_ID}/generated.webp`);
-    expect(fixture.deleteRow.mock.invocationCallOrder[0]).toBeLessThan(
-      fixture.remove.mock.invocationCallOrder[0]
+    expect(fixture.remove.mock.invocationCallOrder[0]).toBeLessThan(
+      fixture.deleteRow.mock.invocationCallOrder[0]
     );
   });
 
-  it("reports a neutral error when object cleanup fails after row deletion", async () => {
+  it("keeps the quota row when object cleanup cannot confirm absence", async () => {
     const raw = new Error("raw storage failure");
     const fixture = createMutationFixture({ removeError: raw, existsData: true });
 
     await expect(deleteStylingReference(fixture.client, REFERENCE_ID)).rejects.toMatchObject({
       message: "Não foi possível concluir a remoção desta referência.",
       cause: expect.any(AggregateError),
+      context: {
+        shootId: SHOOT_ID,
+        storagePath: `${USER_ID}/${SHOOT_ID}/generated.webp`,
+        referenceId: REFERENCE_ID,
+      },
     });
+    expect(fixture.deleteRow).not.toHaveBeenCalled();
+  });
+
+  it("reports the object-first partial state when row deletion is denied", async () => {
+    const raw = new Error("permission denied");
+    const fixture = createMutationFixture({ deleteError: raw, deletedData: null });
+
+    await expect(deleteStylingReference(fixture.client, REFERENCE_ID)).rejects.toMatchObject({
+      message: "Não foi possível concluir a remoção desta referência.",
+      cause: raw,
+      context: {
+        shootId: SHOOT_ID,
+        storagePath: `${USER_ID}/${SHOOT_ID}/generated.webp`,
+        referenceId: REFERENCE_ID,
+      },
+    });
+    expect(fixture.remove).toHaveBeenCalledOnce();
+    expect(fixture.deleteRow).toHaveBeenCalledOnce();
   });
 
   it("fails delete when remove returns no object and exists confirms it remains", async () => {

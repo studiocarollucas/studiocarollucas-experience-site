@@ -11,12 +11,16 @@ export type CurrentUser = {
   role: Role;
 };
 
+type ServerSupabaseClient = Awaited<ReturnType<typeof createSupabaseServerClient>>;
+
 export function resolveRole(profile: { role: Role } | null): Role {
   return profile?.role ?? "client";
 }
 
-export async function getCurrentUser(): Promise<CurrentUser | null> {
-  const supabase = await createSupabaseServerClient();
+export async function getCurrentUser(
+  suppliedClient?: ServerSupabaseClient
+): Promise<CurrentUser | null> {
+  const supabase = suppliedClient ?? (await createSupabaseServerClient());
   const {
     data: { user },
   } = await supabase.auth.getUser();

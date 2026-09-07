@@ -1,3 +1,4 @@
+import "server-only";
 import { cache } from "react";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { studioDate } from "./countdown";

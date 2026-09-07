@@ -211,6 +211,13 @@
       "when": 1788781870920,
       "tag": "0029_styling_upload_reservations",
       "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "7",
+      "when": 1788785700000,
+      "tag": "0030_guard_styling_row_deletion",
+      "breakpoints": true
     }
   ]
 }

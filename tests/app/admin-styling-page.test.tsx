@@ -26,6 +26,9 @@ vi.mock("@sentry/nextjs", () => ({ captureException: vi.fn() }));
 vi.mock("@/lib/supabase/server", () => ({
   createSupabaseServerClient: mocks.createSupabaseServerClient,
 }));
+vi.mock("@/lib/supabase/client", () => ({
+  createSupabaseBrowserClient: vi.fn(() => ({ source: "browser" })),
+}));
 vi.mock("@/domain/shoots/queries", () => ({ getShootDetail: mocks.getShootDetail }));
 vi.mock("@/lib/auth/session", () => ({ getCurrentUser: mocks.getCurrentUser }));
 vi.mock("@/lib/auth/rbac", () => ({ hasMinimumRole: mocks.hasMinimumRole }));
@@ -79,13 +82,14 @@ describe("ShootDetailPage styling management", () => {
     mocks.readStylingReferences.mockResolvedValue([]);
   });
 
-  it("reuses one cookie-bound Supabase client for auth and staff signed reads", async () => {
+  it("passes one cookie-bound Supabase client through auth and staff signed reads", async () => {
     render(await ShootDetailPage({ params: Promise.resolve({ id: "shoot-1" }) }));
 
     expect(screen.getByRole("heading", { name: "Styling e referências" })).toBeInTheDocument();
     expect(screen.getByText(/seu olhar começa aqui/i)).toBeInTheDocument();
     expect(mocks.createSupabaseServerClient).toHaveBeenCalledOnce();
-    expect(mocks.authGetUser).toHaveBeenCalledOnce();
+    expect(mocks.getCurrentUser).toHaveBeenCalledWith(serverClient);
+    expect(mocks.authGetUser).not.toHaveBeenCalled();
     expect(mocks.readStylingReferences).toHaveBeenCalledWith(serverClient, "shoot-1");
   });
 
@@ -98,7 +102,7 @@ describe("ShootDetailPage styling management", () => {
 
     expect(mocks.getShootDetail).not.toHaveBeenCalled();
     expect(mocks.readStylingReferences).not.toHaveBeenCalled();
-    expect(mocks.createSupabaseServerClient).not.toHaveBeenCalled();
+    expect(mocks.createSupabaseServerClient).toHaveBeenCalledOnce();
   });
 
   it("checks the local staff role before every privileged detail read", async () => {
@@ -111,6 +115,6 @@ describe("ShootDetailPage styling management", () => {
     expect(mocks.hasMinimumRole).toHaveBeenCalledWith("staff", "staff");
     expect(mocks.getShootDetail).not.toHaveBeenCalled();
     expect(mocks.readStylingReferences).not.toHaveBeenCalled();
-    expect(mocks.createSupabaseServerClient).not.toHaveBeenCalled();
+    expect(mocks.createSupabaseServerClient).toHaveBeenCalledOnce();
   });
 });

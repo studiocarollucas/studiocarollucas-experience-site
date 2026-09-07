@@ -14,6 +14,10 @@ const reservationSqlPath = path.resolve("db/migrations/0029_styling_upload_reser
 const reservationSql = fs.existsSync(reservationSqlPath)
   ? fs.readFileSync(reservationSqlPath, "utf8")
   : "";
+const deletionGuardSqlPath = path.resolve("db/migrations/0030_guard_styling_row_deletion.sql");
+const deletionGuardSql = fs.existsSync(deletionGuardSqlPath)
+  ? fs.readFileSync(deletionGuardSqlPath, "utf8")
+  : "";
 
 describe("styling migrations", () => {
   it("creates a private, restricted 8 MB bucket", () => {
@@ -107,5 +111,29 @@ describe("styling upload reservation migration", () => {
     );
     expect(reservationSql).toContain("drop policy styling_objects_client_insert");
     expect(reservationSql).toContain("drop policy styling_objects_staff_access");
+  });
+});
+
+describe("styling row deletion guard migration", () => {
+  it("allows a client row deletion only after its Storage object is absent", () => {
+    expect(deletionGuardSql).toContain("function private.styling_object_is_absent(");
+    expect(deletionGuardSql).toContain("from storage.objects");
+    expect(deletionGuardSql).toContain("bucket_id = 'styling-references'");
+    expect(deletionGuardSql).toContain("private.styling_object_is_absent(storage_path)");
+    expect(deletionGuardSql).toContain("drop policy styling_references_client_delete");
+    expect(deletionGuardSql).toContain("union");
+    expect(deletionGuardSql).toContain("select objects.name");
+    expect(deletionGuardSql).toContain("pg_catalog.split_part(objects.name, '/', 2)");
+  });
+
+  it("keeps the object lookup helper private and locked down", () => {
+    expect(deletionGuardSql).toContain("security definer");
+    expect(deletionGuardSql).toContain("set search_path = ''");
+    expect(deletionGuardSql).toContain(
+      "revoke all on function private.styling_object_is_absent(text)",
+    );
+    expect(deletionGuardSql).toContain(
+      "grant execute on function private.styling_object_is_absent(text) to authenticated",
+    );
   });
 });
