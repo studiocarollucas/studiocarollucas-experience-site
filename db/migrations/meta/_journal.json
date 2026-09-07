@@ -218,6 +218,13 @@
       "when": 1788785700000,
       "tag": "0030_guard_styling_row_deletion",
       "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "7",
+      "when": 1788786500000,
+      "tag": "0031_serialize_styling_lifecycle",
+      "breakpoints": true
     }
   ]
 }

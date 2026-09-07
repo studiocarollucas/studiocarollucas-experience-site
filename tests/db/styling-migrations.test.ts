@@ -18,6 +18,10 @@ const deletionGuardSqlPath = path.resolve("db/migrations/0030_guard_styling_row_
 const deletionGuardSql = fs.existsSync(deletionGuardSqlPath)
   ? fs.readFileSync(deletionGuardSqlPath, "utf8")
   : "";
+const serializationSqlPath = path.resolve("db/migrations/0031_serialize_styling_lifecycle.sql");
+const serializationSql = fs.existsSync(serializationSqlPath)
+  ? fs.readFileSync(serializationSqlPath, "utf8")
+  : "";
 
 describe("styling migrations", () => {
   it("creates a private, restricted 8 MB bucket", () => {
@@ -135,5 +139,15 @@ describe("styling row deletion guard migration", () => {
     expect(deletionGuardSql).toContain(
       "grant execute on function private.styling_object_is_absent(text) to authenticated",
     );
+  });
+});
+
+describe("styling lifecycle serialization migration", () => {
+  it("takes the shoot advisory lock in upload and row-deletion policy helpers", () => {
+    expect(serializationSql).toContain("function private.has_styling_reference(");
+    expect(serializationSql).toContain("function private.styling_object_is_absent(");
+    expect(serializationSql.match(/pg_advisory_xact_lock/g)).toHaveLength(2);
+    expect(serializationSql.match(/language plpgsql/g)).toHaveLength(2);
+    expect(serializationSql.match(/volatile/g)).toHaveLength(2);
   });
 });

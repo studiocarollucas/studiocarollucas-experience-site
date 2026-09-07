@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { Blob as NodeBlob } from "node:buffer";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
-import { inArray } from "drizzle-orm";
+import { inArray, sql } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { db } from "@/db/client";
 import { clients, experiencePackages, profiles, shoots, stylingReferences } from "@/db/schema";
@@ -321,5 +321,81 @@ describeIfLiveDb("styling client operations (live Storage/RLS integration)", () 
       uploaded_by_auth_user_id: firstAuthUserId,
     });
     expect(orphanBypass.error?.code).toBe("23514");
+
+    const orphanPaths = rows.map((row) => row.storagePath);
+    const cleared = await admin.storage.from(STYLING_BUCKET).remove(orphanPaths);
+    expect(cleared.error).toBeNull();
+    orphanPaths.forEach((path) => objectPaths.delete(path));
+
+    const raceRows = Array.from({ length: 19 }, (_, index) => ({
+      id: randomUUID(),
+      shootId: limitShootId,
+      storagePath: `${firstAuthUserId}/${limitShootId}/${runId}-race-${index}.webp`,
+      caption: `Concorrência ${index + 1}`,
+      origin: "client" as const,
+      uploadedByAuthUserId: firstAuthUserId,
+    }));
+    await db.insert(stylingReferences).values(raceRows);
+    for (const row of raceRows) {
+      objectPaths.add(row.storagePath);
+      const uploaded = await admin.storage
+        .from(STYLING_BUCKET)
+        .upload(row.storagePath, new Uint8Array([0x52, 0x49, 0x46, 0x46]), {
+          contentType: "image/webp",
+          upsert: false,
+        });
+      expect(uploaded.error).toBeNull();
+    }
+
+    const reservedPath = `${firstAuthUserId}/${limitShootId}/${runId}-race-reserved.webp`;
+    const reservation = await firstSupabase
+      .from("styling_references")
+      .insert({
+        shoot_id: limitShootId,
+        storage_path: reservedPath,
+        caption: "Reserva concorrente",
+        origin: "client",
+        uploaded_by_auth_user_id: firstAuthUserId,
+      })
+      .select("id")
+      .single();
+    expect(reservation.error).toBeNull();
+    if (!reservation.data) throw new Error("Race reservation was not returned");
+    const reservedId = reservation.data.id;
+    objectPaths.add(reservedPath);
+
+    const newcomerPath = `${firstAuthUserId}/${limitShootId}/${runId}-race-new.webp`;
+    const [racingUpload, racingDelete, racingInsert] = await Promise.all([
+      firstSupabase.storage
+        .from(STYLING_BUCKET)
+        .upload(reservedPath, new Uint8Array([0x52, 0x49, 0x46, 0x46]), {
+          contentType: "image/webp",
+          upsert: false,
+        }),
+      firstSupabase.from("styling_references").delete().eq("id", reservedId),
+      firstSupabase.from("styling_references").insert({
+        shoot_id: limitShootId,
+        storage_path: newcomerPath,
+        caption: "Nova reserva concorrente",
+        origin: "client",
+        uploaded_by_auth_user_id: firstAuthUserId,
+      }),
+    ]);
+    expect([racingUpload.error, racingDelete.error, racingInsert.error].filter(Boolean).length).toBeGreaterThanOrEqual(1);
+
+    const occupancy = await db.execute(sql`
+      select count(*)::int as count
+      from (
+        select storage_path as path
+        from public.styling_references
+        where shoot_id = ${limitShootId}::uuid
+        union
+        select name as path
+        from storage.objects
+        where bucket_id = ${STYLING_BUCKET}
+          and split_part(name, '/', 2) = ${limitShootId}
+      ) occupied
+    `);
+    expect(Number(occupancy[0]?.count)).toBeLessThanOrEqual(20);
   }, 60_000);
 });

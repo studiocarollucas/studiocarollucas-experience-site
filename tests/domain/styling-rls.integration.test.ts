@@ -408,7 +408,7 @@ describeIfLiveDb("styling references (live RLS and Storage integration)", () => 
     });
 
     const helpers = await db.execute(sql`
-      select n.nspname as schema_name, p.proname, p.prosecdef, p.proconfig,
+      select n.nspname as schema_name, p.proname, p.prosecdef, p.proconfig, p.provolatile,
         pg_catalog.pg_get_function_identity_arguments(p.oid) as identity_arguments,
         pg_catalog.pg_get_functiondef(p.oid) as definition,
         owner.rolbypassrls as owner_bypasses_rls,
@@ -442,7 +442,9 @@ describeIfLiveDb("styling references (live RLS and Storage integration)", () => 
       owner_bypasses_rls: true,
       authenticated_execute: true,
       anon_execute: false,
+      provolatile: "v",
     });
+    expect(String(helpers[1]?.definition)).toContain("pg_advisory_xact_lock");
     expect(helpers[2]).toMatchObject({
       schema_name: "private",
       proname: "is_canonical_styling_path",
@@ -473,8 +475,10 @@ describeIfLiveDb("styling references (live RLS and Storage integration)", () => 
       owner_bypasses_rls: true,
       authenticated_execute: true,
       anon_execute: false,
+      provolatile: "v",
     });
     expect(String(helpers[4]?.definition)).toContain("storage.objects");
+    expect(String(helpers[4]?.definition)).toContain("pg_advisory_xact_lock");
     for (const helper of helpers) {
       expect(String(helper.proconfig)).toContain("search_path=");
     }
