@@ -48,3 +48,9 @@ next-env.d.ts
 # so shared settings/hooks/skills under .claude/ stay committable.
 .claude/*.lock
 .claude/settings.local.json
+
+# Acervo original local; publicar somente a curadoria otimizada em images/site.
+/public/images/15-anos/
+/public/images/aniversario-adulto/
+/public/images/gestante/
+/public/images/newborn/
