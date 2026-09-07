@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
+import { experiences } from "@/lib/site/experiences";
+import { contactUrl } from "@/lib/site/contact";
 import s from "./home.module.css";
 
 export const metadata: Metadata = {
@@ -8,60 +10,6 @@ export const metadata: Metadata = {
   description:
     "Uma experiência com a sua identidade. Fotografias com a nossa assinatura. Ensaios de 15 anos, aniversário feminino, gestante e newborn no Stúdio Carol Lucas.",
 };
-
-const experiences = [
-  {
-    name: "15 anos",
-    image: "quinze-azul",
-    alt: "Retrato de debutante sobre o volume de um vestido azul",
-    copy: "Um mundo de possibilidades. Com a sua personalidade.",
-    position: "50% 50%",
-  },
-  {
-    name: "Aniversário feminino",
-    image: "aniversario-rosa",
-    alt: "Ensaio feminino com vestido prateado em cenário rosa",
-    copy: "Uma nova idade. Um momento inteiro para você.",
-    position: "65% 50%",
-  },
-  {
-    name: "Gestante",
-    image: "gestante-vermelho",
-    alt: "Gestante de vestido vermelho cercada por flores",
-    copy: "A espera, a presença. E tudo o que está mudando.",
-    position: "50% 40%",
-  },
-  {
-    name: "Newborn",
-    image: "newborn-neutro",
-    alt: "Bebê dormindo sobre uma manta de tricô clara",
-    copy: "Os primeiros dias. Os detalhes que ficam.",
-    position: "50% 48%",
-  },
-];
-
-function contactUrl(experience?: string) {
-  const fallback = "https://wa.me/5592984140492";
-  let url: URL;
-  try {
-    url = new URL(process.env.NEXT_PUBLIC_STUDIO_WHATSAPP_URL || fallback);
-    if (
-      url.protocol !== "https:" ||
-      url.hostname !== "wa.me" ||
-      !/^\/\d{10,15}$/.test(url.pathname)
-    )
-      url = new URL(fallback);
-  } catch {
-    url = new URL(fallback);
-  }
-  url.searchParams.set(
-    "text",
-    experience
-      ? `Olá! Quero conhecer a experiência ${experience} do Stúdio Carol Lucas.`
-      : "Olá! Quero conversar sobre uma experiência fotográfica no Stúdio Carol Lucas."
-  );
-  return url.toString();
-}
 
 function Arrow() {
   return <span aria-hidden="true">↗</span>;
@@ -102,7 +50,7 @@ export default function Home() {
           Carol Lucas<small>STÚDIO FOTOGRÁFICO</small>
         </Link>
         <nav aria-label="Navegação principal" className={s.nav}>
-          <a href="#experiencias">Experiências</a>
+          <Link href="/experiencias">Experiências</Link>
           <a href="#preparacao">Como acontece</a>
           <Link className={s.access} href="/minha-experiencia">
             Minha experiência <Arrow />
@@ -168,11 +116,9 @@ export default function Home() {
           <div className={s.gallery}>
             {experiences.map((e) => (
               <article key={e.name}>
-                <a
-                  href={contactUrl(e.name)}
-                  target="_blank"
-                  rel="noreferrer"
-                  aria-label={`Conversar sobre ${e.name} pelo WhatsApp (abre em nova aba)`}
+                <Link
+                  href={`/experiencias/${e.slug}`}
+                  aria-label={`Conhecer a experiência ${e.name}`}
                 >
                   <div className={s.galleryPhoto}>
                     <Photo
@@ -185,7 +131,7 @@ export default function Home() {
                   <h3>
                     {e.name} <Arrow />
                   </h3>
-                </a>
+                </Link>
                 <p>{e.copy}</p>
               </article>
             ))}

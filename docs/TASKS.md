@@ -64,6 +64,8 @@
 | SCL-304 | Meu ensaio | P1 | client/admin | DONE | agent:codex | SCL-220,SCL-302 |
 | SCL-305 | Styling e referências colaborativas | P1 | client/admin | DONE | agent:codex | SCL-103,SCL-105,SCL-302 |
 | SCL-400 | Home pública editorial | P1 | site | DONE | codex | SCL-009 |
+| SCL-401 | Catálogo de experiências | P1 | site | DONE | codex | SCL-400 |
+| SCL-402 | Páginas verticais — quatro entregues; família pendente | P1 | site | IN_PROGRESS | codex | SCL-401 |
 | SCL-403 | Quiz | P1 | site | BACKLOG | unassigned | SCL-009 |
 | SCL-500 | Schema Gallery | P2 | gallery | BACKLOG | unassigned | SCL-103 |
 | SCL-503 | Reveal | P2 | gallery | BACKLOG | unassigned | SCL-500,SCL-301 |
