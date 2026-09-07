@@ -59,7 +59,7 @@
 | SCL-240 | Checklist de preparação interno | P1 | admin | DONE | agent:claude-code | SCL-105,SCL-212 |
 | SCL-300 | Passwordless cliente | P1 | client | DONE | agent:codex | SCL-006,SCL-007 |
 | SCL-301 | Shell Minha Experiência | P1 | client | DONE | agent:codex | SCL-300,SCL-009 |
-| SCL-302 | Home cliente + progresso | P1 | client | BACKLOG | unassigned | SCL-103,SCL-105,SCL-301 |
+| SCL-302 | Home cliente + progresso | P1 | client | DONE | agent:codex | SCL-103,SCL-105,SCL-301 |
 | SCL-400 | Home pública editorial | P1 | site | BACKLOG | unassigned | SCL-009 |
 | SCL-403 | Quiz | P1 | site | BACKLOG | unassigned | SCL-009 |
 | SCL-500 | Schema Gallery | P2 | gallery | BACKLOG | unassigned | SCL-103 |
@@ -1396,17 +1396,17 @@ Proteger toda a Minha Experiência por sessão Supabase e vínculo CRM, oferecen
 
 ### SCL-302 — Home Minha Experiência conectada
 
-- Status: IN_PROGRESS
+- Status: DONE
 - Priority: P1
 - Area: client
-- Owner: unassigned
-- Branch: —
+- Owner: agent:codex
+- Branch: main
 - PR: —
 - Depends on: SCL-103, SCL-105, SCL-301
 - Blocks: primeiro marco E2E
-- Files/Scope: app/(client)/**, domain/shoots/read*, domain/preparation/read*, db/schema/{shoots,preparation-tasks}.ts, db/migrations/0024_*, db/migrations/0025_*
+- Files/Scope: `domain/portal/read.ts`, `components/client/journey-home.tsx`, `app/(client)/minha-experiencia/{page,error}.tsx`, `tests/{app/client-home-page,components/journey-home,domain/portal-read,domain/portal-rls.integration}.test.ts(x)`
 - Migration: yes — 0024_epic3_client_fields + 0025_epic3_client_access
-- Updated at: 2026-09-06
+- Updated at: 2026-09-07
 
 **Goal**
 
@@ -1414,13 +1414,13 @@ Exibir para a cliente autenticada a visão do mesmo Shoot usado pelo Studio OS.
 
 **Acceptance criteria**
 
-- [ ] cliente não consegue acessar Shoot de outra cliente;
-- [ ] nome/experiência/data corretos;
-- [ ] countdown correto;
-- [ ] checklist correto;
-- [ ] próximo passo derivado do estado;
-- [ ] layout mobile aprovado;
-- [ ] alterações de preparação no backend aparecem sem duplicação de dados.
+- [x] cliente não consegue acessar Shoot de outra cliente;
+- [x] nome/experiência/data corretos;
+- [x] countdown correto;
+- [x] checklist correto;
+- [x] próximo passo derivado do estado;
+- [x] layout mobile aprovado;
+- [x] alterações de preparação no backend aparecem sem duplicação de dados.
 
 **Task 2 — fundação do portal concluída (2026-09-06)**
 
@@ -1440,6 +1440,16 @@ Exibir para a cliente autenticada a visão do mesmo Shoot usado pelo Studio OS.
 - Adicionados tipos client-safe e funções puras para seleção canônica do ensaio, calendário `America/Manaus`, countdown, jornada, próximo passo de preparação e resumo financeiro.
 - A seleção não altera a entrada, ignora ensaios cancelados/desabilitados, prefere o próximo ensaio ativo e usa ID como desempate determinístico. Os resumos não criam estado persistido: contam apenas tarefas visíveis e pagamentos confirmados.
 - TDD RED/GREEN registrado em `.superpowers/sdd/task-4-report.md`; testes focados, typecheck, lint, guard de auth admin e suíte completa executados antes do commit.
+
+**Task 5 — read model compartilhado e home C+ concluídos (2026-09-07)**
+
+- `readPortalSnapshot()` valida o JWT com `auth.getUser()`, descobre o Client exclusivamente por RLS e projeta somente as colunas liberadas pelas grants de `clients`, `shoots`, `experience_packages`, `preparation_tasks` e `payments`; não seleciona `auth_user_id`, notes, proof ou campos internos.
+- A seleção continua canônica e pura: próximo ensaio habilitado/não cancelado em ordem crescente; sem futuro, o mais recente elegível em ordem decrescente. Somente depois da seleção, pacote, tarefas e pagamentos independentes são lidos em paralelo para o Shoot escolhido.
+- O PostgREST live serializou `numeric` como número, diferente da string decimal do Drizzle. O boundary normaliza `agreed_price` e `amount` textualmente para duas casas dentro de `numeric(12,2)`, rejeitando `null`/malformado com `PortalReadError` neutro e causa preservada apenas para observabilidade.
+- A home C+ usa a jornada de seis etapas como estrutura narrativa, texto para concluída/atual/próxima, countdown Manaus, progresso com texto e ARIA e um único CTA primário. Empty/error states têm orientação e retry nativo; somente o error boundary é Client Component.
+- Revisão visual local em 320 px e 1280 px confirmou ausência de overflow horizontal, headings H1→H2, targets de 44–45 px e foco visível. Não há emoji, gradiente, biblioteca ou asset novo.
+- Teste live opt-in criou dois Auth users e dois Clients/Shoots com pagamentos e tarefas. Cada JWT compôs somente seu Client/Shoot; pagamento pendente e tarefa oculta ficaram ausentes; guessed IDs de Shoot e Client retornaram `[]`. O `afterAll` removeu tasks, payments, jobs, shoots, clients e ambos Auth users nessa ordem e consultou zero resíduos em cada relação/identidade.
+- RED/GREEN, gates e revisão detalhados em `.superpowers/sdd/task-5-report.md`.
 
 ---
 
