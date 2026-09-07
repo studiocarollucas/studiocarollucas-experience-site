@@ -1,7 +1,8 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { readStylingReferences } from "@/domain/styling/read";
 import { studioDate } from "./countdown";
 import { selectPortalShoot } from "./selection";
-import type { PortalPayment, PortalShoot, PortalTask } from "./types";
+import type { PortalPayment, PortalReference, PortalShoot, PortalTask } from "./types";
 
 export type PortalExperience = {
   id: string;
@@ -16,16 +17,18 @@ export type PortalExperience = {
 
 export type PortalSnapshot = {
   client: { id: string; name: string };
+  viewerAuthUserId: string;
   shoot: PortalShoot | null;
   experience: PortalExperience | null;
   tasks: PortalTask[];
   payments: PortalPayment[];
+  references: PortalReference[];
 };
 
 export class PortalReadError extends Error {
   constructor(
     public readonly code: "unauthenticated" | "unlinked" | "query_failed",
-    cause?: unknown,
+    cause?: unknown
   ) {
     super("portal data unavailable", { cause });
     this.name = "PortalReadError";
@@ -60,7 +63,7 @@ function portalDecimal(value: unknown, field: string): string {
 
 export async function readPortalSnapshot(
   supabase: SupabaseClient,
-  now = new Date(),
+  now = new Date()
 ): Promise<PortalSnapshot> {
   const { data: authData, error: authError } = await supabase.auth.getUser();
   if (authError || !authData.user) throw new PortalReadError("unauthenticated");
@@ -77,7 +80,7 @@ export async function readPortalSnapshot(
   const { data: shootData, error: shootError } = await supabase
     .from("shoots")
     .select(
-      "id,client_id,experience_package_id,shoot_date,start_time,status,agreed_price,payment_status,portal_enabled,location_name,location_address,client_guidance",
+      "id,client_id,experience_package_id,shoot_date,start_time,status,agreed_price,payment_status,portal_enabled,location_name,location_address,client_guidance"
     )
     .eq("client_id", clientData.id);
   if (shootError) queryFailed(shootError);
@@ -98,32 +101,49 @@ export async function readPortalSnapshot(
   })) as PortalShoot[];
   const shoot = selectPortalShoot(shoots, studioDate(now));
   if (!shoot) {
-    return { client: clientData, shoot: null, experience: null, tasks: [], payments: [] };
+    return {
+      client: clientData,
+      viewerAuthUserId: authData.user.id,
+      shoot: null,
+      experience: null,
+      tasks: [],
+      payments: [],
+      references: [],
+    };
   }
 
-  const [experienceResult, tasksResult, paymentsResult] = await Promise.all([
-    supabase
-      .from("experience_packages")
-      .select(
-        "id,name,included_photos,duration_minutes,scenes,make_included,outfits_limit,clutch_included",
-      )
-      .eq("id", shoot.experiencePackageId)
-      .maybeSingle(),
-    supabase
-      .from("preparation_tasks")
-      .select(
-        "id,shoot_id,type,title,status,due_at,visible_to_client,client_actionable,completed_at,created_at",
-      )
-      .eq("shoot_id", shoot.id)
-      .order("due_at", { ascending: true, nullsFirst: false })
-      .order("created_at", { ascending: true }),
-    supabase
-      .from("payments")
-      .select("id,shoot_id,amount,paid_at,status")
-      .eq("shoot_id", shoot.id)
-      .eq("status", "confirmado")
-      .order("paid_at", { ascending: true }),
-  ]);
+  let experienceResult;
+  let tasksResult;
+  let paymentsResult;
+  let references: PortalReference[];
+  try {
+    [experienceResult, tasksResult, paymentsResult, references] = await Promise.all([
+      supabase
+        .from("experience_packages")
+        .select(
+          "id,name,included_photos,duration_minutes,scenes,make_included,outfits_limit,clutch_included"
+        )
+        .eq("id", shoot.experiencePackageId)
+        .maybeSingle(),
+      supabase
+        .from("preparation_tasks")
+        .select(
+          "id,shoot_id,type,title,status,due_at,visible_to_client,client_actionable,completed_at,created_at"
+        )
+        .eq("shoot_id", shoot.id)
+        .order("due_at", { ascending: true, nullsFirst: false })
+        .order("created_at", { ascending: true }),
+      supabase
+        .from("payments")
+        .select("id,shoot_id,amount,paid_at,status")
+        .eq("shoot_id", shoot.id)
+        .eq("status", "confirmado")
+        .order("paid_at", { ascending: true }),
+      readStylingReferences(supabase, shoot.id),
+    ]);
+  } catch (error) {
+    queryFailed(error);
+  }
   if (experienceResult.error || tasksResult.error || paymentsResult.error) {
     queryFailed(experienceResult.error ?? tasksResult.error ?? paymentsResult.error);
   }
@@ -160,5 +180,13 @@ export async function readPortalSnapshot(
     status: "confirmado" as const,
   }));
 
-  return { client: clientData, shoot, experience, tasks, payments };
+  return {
+    client: clientData,
+    viewerAuthUserId: authData.user.id,
+    shoot,
+    experience,
+    tasks,
+    payments,
+    references,
+  };
 }

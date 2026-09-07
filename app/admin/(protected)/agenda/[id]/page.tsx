@@ -1,16 +1,19 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { getShootDetail } from "@/domain/shoots/queries";
+import { readStylingReferences } from "@/domain/styling/read";
 import { PageHeader } from "@/components/ui/page-header";
 import { Badge } from "@/components/ui/badge";
 import { DataTable, type Column } from "@/components/ui/data-table";
 import { EmptyState } from "@/components/ui/empty-state";
 import { DetailSection, DetailRow } from "@/components/admin/detail-section";
+import { StylingManager } from "@/components/admin/styling-manager";
 import { EditShootPanel } from "./edit-shoot-panel";
 import { ShootStatusControl } from "./shoot-status-control";
 import { ProductionFieldsForm } from "./production-fields-form";
 import { formatBRL, formatShootDate, formatDateTime } from "@/lib/format";
 import type { Payment } from "@/db/schema";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 type Params = Promise<{ id: string }>;
 
@@ -20,7 +23,11 @@ const paymentColumns: Column<Payment>[] = [
     key: "status",
     header: "Status",
     render: (p) => (
-      <Badge tone={p.status === "confirmado" ? "success" : p.status === "estornado" ? "danger" : "neutral"}>
+      <Badge
+        tone={
+          p.status === "confirmado" ? "success" : p.status === "estornado" ? "danger" : "neutral"
+        }
+      >
         {p.status}
       </Badge>
     ),
@@ -31,10 +38,26 @@ const paymentColumns: Column<Payment>[] = [
 
 export default async function ShootDetailPage({ params }: { params: Params }) {
   const { id } = await params;
-  const detail = await getShootDetail(id);
+  const supabase = await createSupabaseServerClient();
+  const { data: authData, error: authError } = await supabase.auth.getUser();
+  if (authError || !authData.user) redirect("/admin/login");
+
+  const [detail, stylingReferences] = await Promise.all([
+    getShootDetail(id),
+    readStylingReferences(supabase, id),
+  ]);
   if (!detail) notFound();
 
-  const { shoot, clientName, clientId, packageName, payments, balance, productionJob, preparationTasks } = detail;
+  const {
+    shoot,
+    clientName,
+    clientId,
+    packageName,
+    payments,
+    balance,
+    productionJob,
+    preparationTasks,
+  } = detail;
 
   return (
     <div className="flex flex-col gap-6">
@@ -44,7 +67,15 @@ export default async function ShootDetailPage({ params }: { params: Params }) {
         action={
           <div className="flex items-start gap-2">
             <ShootStatusControl id={id} status={shoot.status} />
-            <Badge tone={shoot.paymentStatus === "pago" ? "success" : shoot.paymentStatus === "parcial" ? "warning" : "neutral"}>
+            <Badge
+              tone={
+                shoot.paymentStatus === "pago"
+                  ? "success"
+                  : shoot.paymentStatus === "parcial"
+                    ? "warning"
+                    : "neutral"
+              }
+            >
               {shoot.paymentStatus}
             </Badge>
           </div>
@@ -53,7 +84,17 @@ export default async function ShootDetailPage({ params }: { params: Params }) {
 
       <div className="grid gap-6 lg:grid-cols-2">
         <DetailSection title="Registro central">
-          <DetailRow label="Cliente" value={<Link href={`/admin/clientes/${clientId}`} className="underline-offset-2 hover:underline">{clientName}</Link>} />
+          <DetailRow
+            label="Cliente"
+            value={
+              <Link
+                href={`/admin/clientes/${clientId}`}
+                className="underline-offset-2 hover:underline"
+              >
+                {clientName}
+              </Link>
+            }
+          />
           <DetailRow label="Experiência" value={packageName} />
           <DetailRow label="Ocasião" value={shoot.occasion ?? "—"} />
           <DetailRow label="Participantes" value={shoot.participantCount ?? "—"} />
@@ -64,7 +105,18 @@ export default async function ShootDetailPage({ params }: { params: Params }) {
 
         <DetailSection title="Financeiro">
           <DetailRow label="Valor acordado" value={formatBRL(shoot.agreedPrice)} />
-          <DetailRow label="Saldo" value={<span className={balance.startsWith("-") || balance === "0.00" ? "text-muted" : "text-danger"}>{formatBRL(balance)}</span>} />
+          <DetailRow
+            label="Saldo"
+            value={
+              <span
+                className={
+                  balance.startsWith("-") || balance === "0.00" ? "text-muted" : "text-danger"
+                }
+              >
+                {formatBRL(balance)}
+              </span>
+            }
+          />
           <DetailRow label="Status financeiro" value={shoot.paymentStatus} />
           <div className="mt-4">
             <Link
@@ -88,15 +140,29 @@ export default async function ShootDetailPage({ params }: { params: Params }) {
           columns={paymentColumns}
           rows={payments}
           rowKey={(p) => p.id}
-          empty={<EmptyState title="Sem pagamentos" description="Nenhum pagamento registrado para este ensaio." />}
+          empty={
+            <EmptyState
+              title="Sem pagamentos"
+              description="Nenhum pagamento registrado para este ensaio."
+            />
+          }
         />
       </DetailSection>
 
       <DetailSection title="Produção & experiência">
-        <DetailRow label="Job de produção" value={productionJob ? <Badge>{productionJob.status}</Badge> : "—"} />
-        <DetailRow label="Tarefas de preparação" value={`${preparationTasks.filter((t) => t.status === "concluida").length}/${preparationTasks.length} concluídas`} />
+        <DetailRow
+          label="Job de produção"
+          value={productionJob ? <Badge>{productionJob.status}</Badge> : "—"}
+        />
+        <DetailRow
+          label="Tarefas de preparação"
+          value={`${preparationTasks.filter((t) => t.status === "concluida").length}/${preparationTasks.length} concluídas`}
+        />
         <div className="mt-3">
-          <Link href={`/admin/agenda/${id}/preparacao`} className="font-sans text-sm text-ink underline-offset-2 hover:underline">
+          <Link
+            href={`/admin/agenda/${id}/preparacao`}
+            className="font-sans text-sm text-ink underline-offset-2 hover:underline"
+          >
             Abrir checklist de preparação
           </Link>
         </div>
@@ -111,6 +177,14 @@ export default async function ShootDetailPage({ params }: { params: Params }) {
             }}
           />
         ) : null}
+      </DetailSection>
+
+      <DetailSection title="Styling e referências">
+        <StylingManager
+          shootId={id}
+          viewerAuthUserId={authData.user.id}
+          references={stylingReferences}
+        />
       </DetailSection>
 
       <DetailSection title="Editar ensaio">

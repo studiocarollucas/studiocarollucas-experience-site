@@ -62,6 +62,7 @@
 | SCL-302 | Home cliente + progresso | P1 | client | DONE | agent:codex | SCL-103,SCL-105,SCL-301 |
 | SCL-303 | Checklist acionável pela cliente | P1 | client/admin | DONE | agent:codex | SCL-240,SCL-302 |
 | SCL-304 | Meu ensaio | P1 | client/admin | DONE | agent:codex | SCL-220,SCL-302 |
+| SCL-305 | Styling e referências colaborativas | P1 | client/admin | DONE | agent:codex | SCL-103,SCL-105,SCL-302 |
 | SCL-400 | Home pública editorial | P1 | site | BACKLOG | unassigned | SCL-009 |
 | SCL-403 | Quiz | P1 | site | BACKLOG | unassigned | SCL-009 |
 | SCL-500 | Schema Gallery | P2 | gallery | BACKLOG | unassigned | SCL-103 |
@@ -1548,6 +1549,56 @@ Refletir no portal os detalhes client-safe do ensaio ativo e a mesma composiçã
 - concern: lint mantém cinco warnings `no-unused-vars` preexistentes em testes não tocados; zero erros.
 - infraestrutura: o primeiro comando live dentro do sandbox foi bloqueado com `EACCES` antes de criar a identidade; a repetição autorizada com rede passou e validou o teardown completo.
 - próximo passo: SCL-305 adiciona o styling/moodboard colaborativo com Storage privado, sem alterar o contrato desta página.
+
+---
+
+### SCL-305 — Styling e referências colaborativas
+
+- Status: DONE
+- Priority: P1
+- Area: client/admin
+- Owner: agent:codex
+- Branch: main
+- PR: —
+- Depends on: SCL-103, SCL-105, SCL-302
+- Blocks: primeiro marco E2E
+- Files/Scope: `db/schema/styling-references.ts`, migrations `0026`–`0028`, `domain/styling/*`, `components/{client/styling-board,admin/styling-manager}.tsx`, páginas de Styling/agenda e testes de schema, migration, RLS, Storage, read model e UI
+- Migration: yes — `0026_styling_references.sql`, `0027_styling_storage_access.sql`, `0028_harden_styling_paths.sql` aplicadas no Supabase real
+- Updated at: 2026-09-07
+
+**Goal**
+
+Oferecer um moodboard privado e colaborativo do ensaio ativo, no qual cliente e estúdio compartilham referências sem transformar o bucket de Storage em galeria pública.
+
+**Acceptance criteria**
+
+- [x] tabela `styling_references` guarda somente metadata e caminho privado; nenhuma URL pública é persistida;
+- [x] bucket `styling-references` é privado, limitado a JPEG/PNG/WebP, 8 MB por arquivo e 20 referências por ensaio;
+- [x] path canônico usa `<auth-user-uuid>/<shoot-uuid>/<object-key>`; o browser gera UUID e extensão pelo MIME, nunca pelo nome original;
+- [x] RLS de tabela e Storage isola clientes por ensaio, permite leitura das referências do estúdio para o próprio ensaio e restringe exclusão da cliente às referências `origin = client` enviadas por ela;
+- [x] staff/admin pode ler, adicionar e remover todas as referências por policies autenticadas; `anon` não recebe grants;
+- [x] upload compensa o objeto quando o insert de metadata falha; delete negado não alcança Storage; falha de remoção do objeto após row delete produz mensagem neutra e log Sentry;
+- [x] `readStylingReferences` assina URLs privadas em lote por uma hora e falha fechado em erro ou cardinalidade divergente;
+- [x] `PortalSnapshot` inclui o Auth viewer e as referências do ensaio selecionado sem cachear signed URLs além do render;
+- [x] cliente e Admin usam o mesmo board responsivo, com autoria, legenda opcional, empty/loading/error states, ownership de remoção, targets de 44 px, foco visível e reduced motion;
+- [x] a página Admin cria um único cliente Supabase cookie-bound, valida `auth.getUser()` fail-closed e reutiliza o mesmo JWT na leitura staff, sem passar por `readPortalSnapshot`;
+- [x] testes live comprovam upload e delete pelas funções reais, URL assinada, isolamento A/B, persistência após tentativa alheia, rejeição `23514` da 21ª linha e teardown sem resíduos;
+- [x] testes focados, suíte completa, typecheck, lint, guard Admin e build passaram.
+
+**Implementation notes**
+
+- O limite client-side oferece feedback antecipado; o trigger transacional com advisory lock continua como autoridade em corridas.
+- O board usa `<img>` nativo com exceção eslint local e documentada: as URLs Supabase são privadas, efêmeras e o host não integra a configuração de `next/image` neste marco.
+- O grid cronológico mantém a direção editorial C+: numeração funcional, autoria “Você/Estúdio” e um único formulário de contribuição, usando somente os tokens visuais existentes.
+- O SDK Storage responde sucesso vazio quando uma policy de delete filtra todos os objetos. Por isso o fluxo do produto exclui a row com `.single()` primeiro: uma cliente alheia recebe erro neutro antes de qualquer chamada de Storage, e o teste live confirma que o objeto permanece.
+- No harness jsdom, `File` pertence a outra realm e o fetch Node o serializa como `text/plain`; o teste live usa `Blob` nativo de `node:buffer` somente na borda do fixture. Os testes unitários continuam usando `File` browser real.
+
+**Blocker/Hand-off notes**
+
+- concluído: schema/bucket/policies, operações browser-safe, signed reads, board cliente/Admin, integração no snapshot e cobertura unitária/live.
+- concern: lint mantém cinco warnings `no-unused-vars` preexistentes em testes não tocados; zero erros e zero warnings novos.
+- infraestrutura: a primeira execução live no sandbox falhou com `EACCES`; a execução autorizada passou 5/5 e o teardown verificou rows, shoots, clients, profiles, prefixes Storage e Auth users vazios.
+- QA visual em browser autenticado fica para a aceitação integrada do Epic 3 na Task 10, junto das demais rotas do portal.
 
 ---
 

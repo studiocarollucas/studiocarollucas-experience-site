@@ -4,6 +4,7 @@ import { MyShoot } from "@/components/client/my-shoot";
 
 const snapshot = {
   client: { id: "client-1", name: "Mariana" },
+  viewerAuthUserId: "auth-1",
   shoot: {
     id: "shoot-1",
     clientId: "client-1",
@@ -38,6 +39,7 @@ const snapshot = {
       status: "confirmado" as const,
     },
   ],
+  references: [],
 };
 
 describe("MyShoot", () => {
@@ -54,7 +56,7 @@ describe("MyShoot", () => {
     expect(screen.getByText("Chegue 15 minutos antes.")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Falar com o estúdio" })).toHaveAttribute(
       "href",
-      "https://wa.me/5592999999999",
+      "https://wa.me/5592999999999"
     );
     expect(screen.queryByText(/comprovante|observações internas/i)).not.toBeInTheDocument();
   });
@@ -71,7 +73,7 @@ describe("MyShoot", () => {
             clientGuidance: null,
           },
         }}
-      />,
+      />
     );
 
     expect(screen.getByText("Confirme com o estúdio")).toBeInTheDocument();
@@ -84,7 +86,7 @@ describe("MyShoot", () => {
       <MyShoot
         snapshot={{ ...snapshot, shoot: null, experience: null, tasks: [], payments: [] }}
         contactUrl="https://wa.me/5592999999999"
-      />,
+      />
     );
 
     expect(screen.getByRole("heading", { name: "Meu ensaio" })).toBeInTheDocument();

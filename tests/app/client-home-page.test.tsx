@@ -8,10 +8,12 @@ const mocks = vi.hoisted(() => ({
     void now;
     return {
       client: { id: "client-1", name: "Mariana" },
+      viewerAuthUserId: "auth-1",
       shoot: null,
       experience: null,
       tasks: [],
       payments: [],
+      references: [],
     };
   }),
   studioDate: vi.fn((now?: Date) => {
@@ -37,7 +39,7 @@ describe("ClientHome", () => {
     expect(mocks.createSupabaseServerClient).toHaveBeenCalledOnce();
     expect(mocks.readPortalSnapshot).toHaveBeenCalledWith(
       { source: "cookie-jwt" },
-      expect.any(Date),
+      expect.any(Date)
     );
     expect(mocks.studioDate).toHaveBeenCalledOnce();
   });

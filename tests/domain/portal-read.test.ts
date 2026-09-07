@@ -15,7 +15,7 @@ function thenableQuery(result: QueryResult, onSelect: (columns: string) => void)
     maybeSingle: async () => result,
     then: <TResult1 = QueryResult, TResult2 = never>(
       onfulfilled?: ((value: QueryResult) => TResult1 | PromiseLike<TResult1>) | null,
-      onrejected?: ((reason: unknown) => TResult2 | PromiseLike<TResult2>) | null,
+      onrejected?: ((reason: unknown) => TResult2 | PromiseLike<TResult2>) | null
     ) => Promise.resolve(result).then(onfulfilled, onrejected),
   };
   return query;
@@ -26,6 +26,7 @@ type FixtureOptions = {
   authUser?: { id: string } | null;
   authError?: unknown;
   results?: Partial<Record<string, QueryResult>>;
+  signedError?: unknown;
 };
 
 function portalFixture(options: FixtureOptions = {}) {
@@ -93,10 +94,30 @@ function portalFixture(options: FixtureOptions = {}) {
       ],
       error: null,
     },
+    styling_references: {
+      data: [
+        {
+          id: "reference-1",
+          shoot_id: "shoot-1",
+          storage_path: "auth-1/shoot-1/reference.webp",
+          caption: "Luz lateral",
+          origin: "client",
+          uploaded_by_auth_user_id: "auth-1",
+          created_at: "2030-01-02T12:00:00Z",
+        },
+      ],
+      error: null,
+    },
     ...options.results,
   };
   const selectedColumns: Record<string, string> = {};
   const fromCalls: string[] = [];
+  const createSignedUrls = async () => ({
+    data: options.signedError
+      ? null
+      : [{ signedUrl: "https://private.example.test/reference?signed=1" }],
+    error: options.signedError ?? null,
+  });
 
   const supabase = {
     auth: {
@@ -111,6 +132,7 @@ function portalFixture(options: FixtureOptions = {}) {
         selectedColumns[table] = columns;
       });
     },
+    storage: { from: () => ({ createSignedUrls }) },
   } as unknown as SupabaseClient;
 
   return { supabase, selectedColumns, fromCalls };
@@ -119,10 +141,7 @@ function portalFixture(options: FixtureOptions = {}) {
 describe("readPortalSnapshot", () => {
   it("normalizes PostgREST numeric values into canonical decimal strings", async () => {
     const { supabase } = portalFixture({ amount: 250 });
-    const snapshot = await readPortalSnapshot(
-      supabase,
-      new Date("2030-01-01T12:00:00-04:00"),
-    );
+    const snapshot = await readPortalSnapshot(supabase, new Date("2030-01-01T12:00:00-04:00"));
 
     expect(snapshot.shoot?.agreedPrice).toBe("9999999999.99");
     expect(snapshot.payments[0].amount).toBe("250.00");
@@ -141,6 +160,19 @@ describe("readPortalSnapshot", () => {
         createdAt: "2030-01-01T12:00:00Z",
       },
     ]);
+    expect(snapshot.viewerAuthUserId).toBe("auth-1");
+    expect(snapshot.references).toEqual([
+      {
+        id: "reference-1",
+        shootId: "shoot-1",
+        storagePath: "auth-1/shoot-1/reference.webp",
+        signedUrl: "https://private.example.test/reference?signed=1",
+        caption: "Luz lateral",
+        origin: "client",
+        uploadedByAuthUserId: "auth-1",
+        createdAt: "2030-01-02T12:00:00Z",
+      },
+    ]);
   });
 
   it.each([null, "invalid"])(
@@ -148,14 +180,14 @@ describe("readPortalSnapshot", () => {
     async (amount) => {
       const { supabase } = portalFixture({ amount });
       await expect(
-        readPortalSnapshot(supabase, new Date("2030-01-01T12:00:00-04:00")),
+        readPortalSnapshot(supabase, new Date("2030-01-01T12:00:00-04:00"))
       ).rejects.toMatchObject({
         name: "PortalReadError",
         code: "query_failed",
         message: "portal data unavailable",
         cause: expect.any(TypeError),
       });
-    },
+    }
   );
 
   it("rejects missing authentication and an authenticated user without a linked client", async () => {
@@ -174,24 +206,55 @@ describe("readPortalSnapshot", () => {
     expect(unlinked.fromCalls).toEqual(["clients"]);
   });
 
-  it.each([
-    "clients",
-    "shoots",
-    "experience_packages",
-    "preparation_tasks",
-    "payments",
-  ])("wraps a %s query failure without exposing its message", async (table) => {
-    const databaseError = new Error(`raw ${table} failure`);
+  it.each(["clients", "shoots", "experience_packages", "preparation_tasks", "payments"])(
+    "wraps a %s query failure without exposing its message",
+    async (table) => {
+      const databaseError = new Error(`raw ${table} failure`);
+      const { supabase } = portalFixture({
+        results: { [table]: { data: null, error: databaseError } },
+      });
+
+      await expect(
+        readPortalSnapshot(supabase, new Date("2030-01-01T12:00:00-04:00"))
+      ).rejects.toMatchObject({
+        code: "query_failed",
+        message: "portal data unavailable",
+        cause: databaseError,
+      });
+    }
+  );
+
+  it("wraps reference row failures without exposing their message", async () => {
+    const rowError = new Error("raw styling_references failure");
     const { supabase } = portalFixture({
-      results: { [table]: { data: null, error: databaseError } },
+      results: { styling_references: { data: null, error: rowError } },
     });
 
     await expect(
-      readPortalSnapshot(supabase, new Date("2030-01-01T12:00:00-04:00")),
+      readPortalSnapshot(supabase, new Date("2030-01-01T12:00:00-04:00"))
     ).rejects.toMatchObject({
       code: "query_failed",
       message: "portal data unavailable",
-      cause: databaseError,
+      cause: expect.objectContaining({
+        message: "styling references unavailable",
+        cause: rowError,
+      }),
+    });
+  });
+
+  it("wraps signed reference failures in the public portal read error", async () => {
+    const signingError = new Error("raw signed URL failure");
+    const { supabase } = portalFixture({ signedError: signingError });
+
+    await expect(
+      readPortalSnapshot(supabase, new Date("2030-01-01T12:00:00-04:00"))
+    ).rejects.toMatchObject({
+      code: "query_failed",
+      message: "portal data unavailable",
+      cause: expect.objectContaining({
+        message: "styling references unavailable",
+        cause: signingError,
+      }),
     });
   });
 
@@ -202,10 +265,12 @@ describe("readPortalSnapshot", () => {
 
     await expect(readPortalSnapshot(supabase)).resolves.toEqual({
       client: { id: "client-1", name: "Mariana" },
+      viewerAuthUserId: "auth-1",
       shoot: null,
       experience: null,
       tasks: [],
       payments: [],
+      references: [],
     });
     expect(fromCalls).toEqual(["clients", "shoots"]);
   });
@@ -224,8 +289,10 @@ describe("readPortalSnapshot", () => {
       preparation_tasks:
         "id,shoot_id,type,title,status,due_at,visible_to_client,client_actionable,completed_at,created_at",
       payments: "id,shoot_id,amount,paid_at,status",
+      styling_references:
+        "id,shoot_id,storage_path,caption,origin,uploaded_by_auth_user_id,created_at",
     });
-    expect(Object.values(selectedColumns).join(",")).not.toContain("auth_user_id");
+    expect(selectedColumns.clients).not.toContain("auth_user_id");
     expect(Object.values(selectedColumns).join(",")).not.toMatch(/notes|proof/);
   });
 });

@@ -44,3 +44,14 @@ export type PortalPayment = {
   paidAt: string | null;
   status: "confirmado";
 };
+
+export type PortalReference = {
+  id: string;
+  shootId: string;
+  storagePath: string;
+  signedUrl: string;
+  caption: string | null;
+  origin: "client" | "studio";
+  uploadedByAuthUserId: string | null;
+  createdAt: string;
+};

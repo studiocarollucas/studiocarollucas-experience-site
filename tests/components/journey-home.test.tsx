@@ -4,6 +4,7 @@ import { JourneyHome } from "@/components/client/journey-home";
 
 const snapshot = {
   client: { id: "client-1", name: "Mariana" },
+  viewerAuthUserId: "auth-1",
   shoot: {
     id: "shoot-1",
     clientId: "client-1",
@@ -63,6 +64,7 @@ const snapshot = {
       status: "confirmado" as const,
     },
   ],
+  references: [],
 };
 
 describe("JourneyHome", () => {
@@ -75,7 +77,7 @@ describe("JourneyHome", () => {
     expect(screen.getByRole("heading", { name: "Escolher figurinos" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /continuar preparação/i })).toHaveAttribute(
       "href",
-      "/minha-experiencia/styling",
+      "/minha-experiencia/styling"
     );
     expect(screen.getAllByRole("listitem")).toHaveLength(6);
     expect(screen.getByText("Etapa atual")).toBeInTheDocument();
@@ -86,7 +88,7 @@ describe("JourneyHome", () => {
       <JourneyHome
         snapshot={{ ...snapshot, shoot: { ...snapshot.shoot, shootDate: "2026-09-06" } }}
         today="2026-09-06"
-      />,
+      />
     );
     expect(screen.getByText("É hoje")).toBeInTheDocument();
 
@@ -94,7 +96,7 @@ describe("JourneyHome", () => {
       <JourneyHome
         snapshot={{ ...snapshot, shoot: { ...snapshot.shoot, shootDate: "2026-09-05" } }}
         today="2026-09-06"
-      />,
+      />
     );
     expect(screen.queryByText(/Faltam \d+ dias|É hoje/)).not.toBeInTheDocument();
   });
@@ -113,12 +115,12 @@ describe("JourneyHome", () => {
           ],
         }}
         today="2026-09-06"
-      />,
+      />
     );
 
     expect(screen.getByRole("link", { name: /continuar preparação/i })).toHaveAttribute(
       "href",
-      "/minha-experiencia/checklist",
+      "/minha-experiencia/checklist"
     );
   });
 
@@ -137,12 +139,12 @@ describe("JourneyHome", () => {
           ],
         }}
         today="2026-09-06"
-      />,
+      />
     );
 
     expect(screen.getByRole("link", { name: "Ver styling" })).toHaveAttribute(
       "href",
-      "/minha-experiencia/styling",
+      "/minha-experiencia/styling"
     );
   });
 
@@ -151,16 +153,14 @@ describe("JourneyHome", () => {
       <JourneyHome
         snapshot={{ ...snapshot, shoot: null, experience: null, tasks: [], payments: [] }}
         today="2026-09-06"
-      />,
+      />
     );
 
     expect(
-      screen.getByRole("heading", { name: /estamos preparando seu espaço/i }),
+      screen.getByRole("heading", { name: /estamos preparando seu espaço/i })
     ).toBeInTheDocument();
     expect(
-      screen.getByText(
-        "Quando seu próximo ensaio for liberado, toda a jornada aparecerá aqui.",
-      ),
+      screen.getByText("Quando seu próximo ensaio for liberado, toda a jornada aparecerá aqui.")
     ).toBeInTheDocument();
   });
 });
