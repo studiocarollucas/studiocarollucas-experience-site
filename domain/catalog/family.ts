@@ -19,6 +19,19 @@ export const updateExperienceFamilySchema = createExperienceFamilySchema.partial
 export type CreateExperienceFamilyInput = z.input<typeof createExperienceFamilySchema>;
 export type UpdateExperienceFamilyInput = z.input<typeof updateExperienceFamilySchema>;
 
+export function packageFamilyCompatibilityError(
+  family: { active: boolean; published: boolean },
+  packageItem: { active: boolean; published: boolean; quizEligible: boolean },
+) {
+  if (packageItem.active && !family.active) {
+    return "não é possível manter um pacote ativo em uma família inativa";
+  }
+  if ((packageItem.published || packageItem.quizEligible) && !family.published) {
+    return "publique a família antes de publicar ou incluir um pacote no quiz";
+  }
+  return null;
+}
+
 export async function createExperienceFamily(
   input: CreateExperienceFamilyInput,
 ): Promise<ExperienceFamily> {

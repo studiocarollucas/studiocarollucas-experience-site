@@ -232,6 +232,13 @@
       "when": 1788810470548,
       "tag": "0032_stale_gwen_stacy",
       "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1788814800000,
+      "tag": "0033_family_scoped_package_names",
+      "breakpoints": true
     }
   ]
 }

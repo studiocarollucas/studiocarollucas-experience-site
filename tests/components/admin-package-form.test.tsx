@@ -14,7 +14,7 @@ import { FamilyForm } from "@/components/admin/catalog/family-form";
 
 describe("PackageForm", () => {
   it("collects the fields that control quiz recommendation", () => {
-    render(<PackageForm families={[{ id: "f1", name: "Gestante" }]} />);
+    render(<PackageForm families={[{ id: "f1", name: "Gestante", active: true }]} />);
 
     expect(screen.getByLabelText("Família")).toBeInTheDocument();
     expect(screen.getByLabelText("Limite de looks / trocas")).toHaveAttribute(

@@ -30,4 +30,9 @@ describe("catalog seed", () => {
     expect(source).toContain('makeIncluded: item.makeIncluded ?? true');
     expect(source).toContain('hairIncluded: item.hairIncluded ?? true');
   });
+
+  it("routes the legacy seed command to the family-aware catalog seed", () => {
+    const packageJson = fs.readFileSync(path.resolve("package.json"), "utf8");
+    expect(packageJson).toContain('"db:seed:experiences": "npm run db:seed:catalog"');
+  });
 });

@@ -8,6 +8,7 @@ import {
   createExperienceFamily,
   createExperienceFamilySchema,
   getExperienceFamilyById,
+  packageFamilyCompatibilityError,
   updateExperienceFamily,
   updateExperienceFamilySchema,
 } from "./family";
@@ -24,6 +25,18 @@ function revalidateCatalog() {
   revalidatePath("/admin/pacotes");
   revalidatePath("/admin/pacotes/familias");
   revalidatePath("/admin/agenda/novo");
+}
+
+async function assertCompatiblePackageFamily(input: {
+  familyId: string;
+  active: boolean;
+  published: boolean;
+  quizEligible: boolean;
+}) {
+  const family = await getExperienceFamilyById(input.familyId);
+  if (!family) throw new Error("família inexistente");
+  const error = packageFamilyCompatibilityError(family, input);
+  if (error) throw new Error(error);
 }
 
 export const createExperienceFamilyAction = defineAdminAction(
@@ -71,6 +84,7 @@ export const updateExperienceFamilyAction = defineAdminAction(
 export const createExperiencePackageAction = defineAdminAction(
   { role: "staff", input: createExperiencePackageSchema },
   async (input, ctx) => {
+    await assertCompatiblePackageFamily(input);
     const created = await createExperiencePackage(input);
     await recordAuditEvent({
       actorUserId: ctx.user.id,
@@ -90,6 +104,8 @@ export const updateExperiencePackageAction = defineAdminAction(
   async ({ id, ...patch }, ctx) => {
     const before = await getExperiencePackageById(id);
     if (!before) throw new Error("pacote inexistente");
+    const candidate = createExperiencePackageSchema.parse({ ...before, ...patch });
+    await assertCompatiblePackageFamily(candidate);
     const after = await updateExperiencePackage(id, patch);
     await recordAuditEvent({
       actorUserId: ctx.user.id,

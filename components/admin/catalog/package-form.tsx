@@ -11,7 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { FormStatus } from "@/components/admin/form-status";
 import { SubmitButton } from "@/components/admin/submit-button";
 
-type FamilyOption = { id: string; name: string };
+type FamilyOption = { id: string; name: string; active: boolean };
 
 type PackageInitialValues = {
   id: string;
@@ -29,6 +29,7 @@ type PackageInitialValues = {
   hairIncluded: boolean;
   clutchIncluded: boolean;
   paletteEligible: boolean;
+  sortOrder: number;
   active: boolean;
   published: boolean;
   quizEligible: boolean;
@@ -79,7 +80,9 @@ export function PackageForm({
       <Field label="Família" htmlFor="familyId" error={error("familyId")}>
         <Select id="familyId" name="familyId" required defaultValue={initialValues?.familyId ?? ""}>
           <option value="" disabled>Selecione…</option>
-          {families.map((family) => <option key={family.id} value={family.id}>{family.name}</option>)}
+          {families
+            .filter((family) => family.active || family.id === initialValues?.familyId)
+            .map((family) => <option key={family.id} value={family.id}>{family.name}{family.active ? "" : " (inativa)"}</option>)}
         </Select>
       </Field>
       <Field label="Nome do pacote" htmlFor="name" error={error("name")}>
@@ -115,6 +118,9 @@ export function PackageForm({
           <Input id="videoCount" name="videoCount" type="number" min={0} defaultValue={initialValues?.videoCount ?? 0} />
         </Field>
       </div>
+      <Field label="Ordem de exibição" htmlFor="sortOrder" error={error("sortOrder")}>
+        <Input id="sortOrder" name="sortOrder" type="number" min={0} defaultValue={initialValues?.sortOrder ?? 0} />
+      </Field>
       <fieldset className="grid grid-cols-2 gap-3 border border-line p-4">
         <legend className="px-1 font-sans text-xs uppercase tracking-[0.12em] text-muted">Inclusões e visibilidade</legend>
         <label className="flex min-h-11 items-center gap-2 font-sans text-sm"><input name="makeIncluded" type="checkbox" defaultChecked={initialValues?.makeIncluded} /> Make incluída</label>

@@ -136,6 +136,14 @@ export default function Home() {
               </article>
             ))}
           </div>
+          <div className={s.quizCta}>
+            <div>
+              <p className={s.eyebrow}>Ainda escolhendo?</p>
+              <h3>Comece pela sua história.</h3>
+              <p>Em poucos passos, encontre uma experiência que acompanhe seu momento, suas ideias e o que faz sentido para você.</p>
+            </div>
+            <Link href="/quiz" className={s.cta}>Descubra a sua curadoria <Arrow /></Link>
+          </div>
         </section>
         <section className={s.process} id="preparacao" aria-labelledby="preparacao-titulo">
           <div>

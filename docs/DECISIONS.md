@@ -173,3 +173,11 @@ Comparação com a string literal `"true"` (não `!!process.env.RUN_LIVE_DB_TEST
 | Styling reserva row + grava objeto | `domain/styling/client.ts` → `styling_references` + bucket protegido por `0029`–`0031` | `tests/domain/styling-client.test.ts`, `tests/domain/styling-storage.integration.test.ts`, `tests/domain/styling-rls.integration.test.ts` |
 
 Cada aresta acima alcança código executável e ao menos uma asserção automatizada; as integrações marcadas `.integration` rodam contra o Supabase real somente com opt-in. A aceitação visual/autenticada e as capturas permanecem como evidência da etapa manual de fechamento, não como substituto desses testes.
+
+## 2026-09-07 — Catálogo administrável e quiz de curadoria
+
+**Decisão:** famílias e pacotes passam a ser geridos no Studio OS. A recomendação pública começa pela família de ensaio, usa apenas pacotes/famílias ativos, publicados e elegíveis ao quiz e compara a faixa de investimento no servidor. O browser recebe somente famílias públicas e o resultado seguro da curadoria; preço-base individual não é serializado, renderizado nem enviado ao WhatsApp.
+
+**Motivo:** a visitante precisa de uma orientação prática sem transformar o site em tabela de preços, enquanto o estúdio precisa ajustar catálogo, disponibilidade e elegibilidade sem alterar código. A família é uma restrição rígida: uma escolha de gestante, por exemplo, nunca pode receber um pacote de 15 anos.
+
+**Consequências:** o resultado apresenta persona, direção criativa, pacote recomendado e explicação. Paleta é opcional e aparece apenas quando o pacote permite cenário/fundo/balões; ela segue no WhatsApp como referência inicial. SCL-404 permanece deliberadamente fora deste marco: uma visitante anônima não cria Lead, Cliente ou registro de CRM sem identificação e consentimento explícitos.

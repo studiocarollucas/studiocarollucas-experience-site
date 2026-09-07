@@ -66,7 +66,8 @@
 | SCL-400 | Home pública editorial | P1 | site | DONE | codex | SCL-009 |
 | SCL-401 | Catálogo de experiências | P1 | site | DONE | codex | SCL-400 |
 | SCL-402 | Páginas verticais — quatro entregues; família pendente | P1 | site | IN_PROGRESS | codex | SCL-401 |
-| SCL-403 | Quiz | P1 | site | BACKLOG | unassigned | SCL-009 |
+| SCL-403 | Quiz de curadoria | P1 | site/admin | DONE | codex | SCL-009,SCL-102 |
+| SCL-404 | Persistência consentida da curadoria | P2 | site/client | BACKLOG | unassigned | SCL-403,SCL-101 |
 | SCL-500 | Schema Gallery | P2 | gallery | BACKLOG | unassigned | SCL-103 |
 | SCL-503 | Reveal | P2 | gallery | BACKLOG | unassigned | SCL-500,SCL-301 |
 
