@@ -658,6 +658,7 @@ describeIfLiveDb("styling references (live RLS and Storage integration)", () => 
       staffSupabase
         .from("styling_references")
         .select("storage_path,origin")
+        .in("storage_path", [delegatedStudioPath, firstPath, secondPath, studioPath])
         .order("storage_path"),
     ]);
     expect(firstRows.error).toBeNull();

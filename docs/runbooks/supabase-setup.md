@@ -4,7 +4,7 @@
 2. Copiar credenciais de **Project Settings → API** e **Database → Connection string** para `.env.local` (nunca commitar `.env.local`).
 3. Variáveis necessárias: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `DATABASE_URL`, `NEXT_PUBLIC_SITE_URL`, `NEXT_PUBLIC_STUDIO_WHATSAPP_URL`.
 4. `SUPABASE_SERVICE_ROLE_KEY` só pode ser usada em código server-side (Route Handlers, Server Actions). Nunca importar em um Client Component nem prefixar com `NEXT_PUBLIC_`.
-5. Ambiente de produção deve usar um projeto Supabase separado do ambiente de desenvolvimento; configurar as mesmas variáveis nas env vars do Vercel (ver `docs/runbooks/deploy.md`, Task 9).
+5. O estado desejado é separar produção de desenvolvimento/teste e configurar as mesmas variáveis nas env vars do Vercel (ver `docs/runbooks/deploy.md`). Hoje o projeto ainda tem apenas um Supabase real; por isso testes live são opt-in e devem ser executados conscientemente, nunca como parte do CI comum.
 
 ## `DATABASE_URL` — usar o pooler em modo Transaction
 
@@ -31,3 +31,37 @@ update profiles set role = 'admin' where email = '<e-mail do primeiro admin>';
 ```
 
 Só a partir daí `/admin` fica acessível (o layout `app/admin/(protected)/layout.tsx` exige `role >= staff`).
+
+## Minha Experiência — migrations, RLS e grants
+
+O portal usa um caminho híbrido. O Admin continua no servidor via Drizzle e RBAC; a cliente lê e altera somente dados autorizados com o JWT Supabase cookie-bound e a Data API. A ordem append-only do Epic 3 é:
+
+1. `0024_epic3_client_fields.sql` — colunas client-safe de logística e `client_actionable`;
+2. `0025_epic3_client_access.sql` — grants por coluna, policies RLS, `owns_portal_shoot`, trigger de `completed_at` e checks;
+3. `0026_styling_references.sql` — enum e tabela de metadata do moodboard;
+4. `0027_styling_storage_access.sql` — FKs/index/check, limite concorrente, bucket privado e policies de tabela/Storage;
+5. `0028_harden_styling_paths.sql` — hardening append-only do path canônico e exclusão da cliente limitada a `origin = 'client'`.
+
+Aplique com `npm run db:migrate`; o script valida primeiro o journal. Não recrie nem edite migrations já aplicadas e não crie o bucket manualmente no Dashboard: `0027` é a fonte de verdade da configuração. Depois, confira que `authenticated` tem `SELECT` somente nas colunas client-safe, `UPDATE` somente em `preparation_tasks.status`, e que `anon` não tem acesso. `owns_portal_shoot(uuid)` deve continuar `SECURITY DEFINER`, com `search_path` vazio e `EXECUTE` apenas para `authenticated`.
+
+O vínculo de linha nasce em `clients.auth_user_id = auth.uid()`. O helper exige também `shoots.portal_enabled = true` e status diferente de `cancelado`; as policies derivadas limitam pacote, pagamentos confirmados, tarefas visíveis e referências ao Shoot pertencente à cliente. O trigger `preparation_tasks_sync_completed_at` é o único dono do timestamp: status `concluida` implica timestamp não nulo; qualquer outro status implica `null`.
+
+## Storage privado de Styling
+
+O bucket `styling-references` permanece privado. Não existe variável de ambiente adicional: o browser usa URL + anon key e o servidor usa as credenciais Supabase já listadas. O contrato é JPEG/PNG/WebP, no máximo 8 MiB por objeto e 20 referências por Shoot. Paths têm exatamente três segmentos, `<auth-user-uuid>/<shoot-uuid>/<object-key>`; URLs públicas não são persistidas, e a leitura gera URLs assinadas efêmeras.
+
+Ao investigar falhas, consulte metadata e objetos, mas remova objetos pelo SDK de Storage, não com `DELETE` direto em `storage.objects`. O upload compensa o objeto se o insert da row falhar. A exclusão remove primeiro a row autorizada; uma falha parcial é registrada no Sentry e precisa de reconciliação operacional.
+
+## Testes live e limpeza
+
+`npm run test` comum não toca o banco. Para armar integrações reais em PowerShell:
+
+```powershell
+$env:RUN_LIVE_DB_TESTS='true'
+npm run test
+$exitCode = $LASTEXITCODE
+Remove-Item Env:RUN_LIVE_DB_TESTS
+exit $exitCode
+```
+
+Os fixtures usam nomes `Teste Epic3 ...` e e-mails descartáveis `scl302-*`, `scl304-*` e `scl305-*`. Todo teste deve apagar objetos de Storage antes das rows, depois Shoot/Client e por fim o Auth user, acumulando erros de teardown e verificando ausência. Como ainda não há banco dedicado, uma falha de rede durante o teardown exige auditoria e limpeza explícitas antes da próxima execução live.

@@ -145,3 +145,31 @@ Comparação com a string literal `"true"` (não `!!process.env.RUN_LIVE_DB_TEST
 **Decisões de execução registradas:** `lib/money.ts` extraído (`toCents`/`fromCents`/`addDecimal`/`sumCents`) e `domain/payments/balance.ts` refatorado para consumi-lo (API pública e testes intactos); `toFormAction` + `type ActionResult` movidos para `lib/auth/action-result.ts` (client-safe, zero imports) com `lib/auth/admin-action.ts` re-exportando — arquivos `"use client"` importam do primeiro para não arrastar `next/headers`/`postgres` para o bundle do browser; `export const dynamic = "force-dynamic"` em `app/admin/(protected)/producao/page.tsx` (o build tentava prerender contra o banco remoto).
 
 **Follow-ups adiados (não bloqueantes, recomendados para o Epic 3 ou uma task de qualidade):** `prettier --write` no repo inteiro + gate no CI; mapas de rótulo pt-BR acentuado para tokens de enum crus em badges/selects da agenda e na coluna de tipo de despesa; token de design `--success` (hoje há um hex `#1e7d4f` à mão nos textos de sucesso); reescrever `getFinancialLedger` como agregação SQL quando `payments` crescer (hoje varre tudo a cada render); tornar o `check-admin-auth` escopo-de-export em vez de escopo-de-arquivo; opção `nulls:` em `toFormAction` para permitir limpar um campo opcional para `null` nos formulários de edição; cobertura de teste para `getFinancialLedger`/`listExpenses`; revisitar os intervalos de mês em UTC (ver decisão de timezone acima).
+
+## 2026-09-07 — Epic 3 (Minha Experiência) encerrado
+
+**Decisão / arquitetura:** o portal usa o JWT Supabase cookie-bound para ler pela Data API sob grants mínimos e RLS; o Studio OS mantém o caminho privilegiado server-only com Drizzle, RBAC e auditoria. Não há segundo estado de cliente, preparação, pagamento, produção ou Storage: as telas derivam a experiência das mesmas rows que o Admin altera.
+
+**Ensaio ativo:** `selectPortalShoot` primeiro elimina `portal_enabled = false` e `cancelado`. Entre datas de hoje em diante, também elimina `entregue` e escolhe a menor `(shoot_date, id)`. Se não houver futuro ativo, escolhe o mais recente elegível com `shoot_date <= hoje`, usando o ID como desempate determinístico na mesma ordem descendente. A data civil é calculada em `America/Manaus`.
+
+**Checklist:** `client_actionable` só pode ser verdadeiro quando `visible_to_client` também é verdadeiro. A cliente recebe grant de update apenas para `status`; a policy ainda exige propriedade do Shoot e acionabilidade. `completed_at` é propriedade do banco: `preparation_tasks_sync_completed_at` preenche ao concluir, preserva um timestamp de conclusão já presente e limpa ao reabrir; o check mantém status e timestamp consistentes.
+
+**Dados client-safe:** logística fica em `shoots.location_name`, `location_address` e `client_guidance`. O portal não recebe `shoots.notes`, notas/comprovantes de Payment nem campos internos de produção. O resumo soma somente Payments `confirmado` e mantém dinheiro decimal na fronteira.
+
+**Styling:** Supabase Storage foi escolhido para este marco, no bucket privado `styling-references`, com URLs assinadas temporárias. O limite é 8 MiB por JPEG/PNG/WebP e 20 rows por Shoot, imposto por trigger com advisory lock. Paths são canônicos em três segmentos. As migrations do epic são `0024`/`0026` geradas, `0025`/`0027` custom e `0028_harden_styling_paths.sql` como hardening append-only posterior; migrations aplicadas nunca foram reescritas.
+
+**Riscos e adiamentos:** ainda não há Supabase dedicado para CI/teste; `RUN_LIVE_DB_TESTS=true` alcança o único projeto real e exige teardown auditável. Reveal/galeria (SCL-500/SCL-503) e armazenamento dos assets fotográficos em resolução final continuam fora deste epic. O moodboard guarda apenas referências de Styling e não substitui a galeria de entrega.
+
+**Rastreabilidade executável do marco PRD §23:**
+
+| Aresta | Código | Prova executável |
+|---|---|---|
+| Admin cria ensaio | `domain/shoots/actions.ts:createShootAction` → `create-confirmed-shoot.ts:createConfirmedShoot` | `tests/domain/create-confirmed-shoot.test.ts`, `tests/components/admin-shoot-logistics.test.tsx` |
+| Magic Link vincula CRM | `app/auth/callback/route.ts` → `lib/auth/client-link.ts:linkAuthUserToClient` | `tests/app/auth-callback.test.ts`, `tests/lib/client-link.test.ts` |
+| Portal lê por JWT/RLS | `domain/portal/read.ts:readPortalSnapshot` → grants/policies de `0025` | `tests/domain/portal-read.test.ts`, `tests/domain/portal-rls.integration.test.ts` |
+| Cliente atualiza checklist | `domain/portal/checklist.ts:setClientTaskStatus` → policy/trigger de `0025` | `tests/domain/client-checklist.test.ts`, `tests/domain/portal-rls.integration.test.ts` |
+| Portal compõe pagamentos | Payments confirmados → `domain/portal/summary.ts:summarizePortalMoney` | `tests/domain/portal-shoot-payment.integration.test.ts`, `tests/domain/portal-summary.test.ts` |
+| Admin avança produção/Shoot | `changeProductionJobStatus` / `changeShootStatusAction` → leitura do mesmo Shoot | `tests/domain/change-production-status.test.ts`, `tests/domain/portal-rls.integration.test.ts` |
+| Styling grava objeto + row | `domain/styling/client.ts:uploadStylingReference` → bucket + `styling_references` | `tests/domain/styling-storage.integration.test.ts`, `tests/domain/styling-rls.integration.test.ts` |
+
+Cada aresta acima alcança código executável e ao menos uma asserção automatizada; as integrações marcadas `.integration` rodam contra o Supabase real somente com opt-in. A aceitação visual/autenticada e as capturas permanecem como evidência da etapa manual de fechamento, não como substituto desses testes.

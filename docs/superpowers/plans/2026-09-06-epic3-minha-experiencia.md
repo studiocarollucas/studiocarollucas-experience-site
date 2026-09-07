@@ -2403,7 +2403,7 @@ Do not push until the user-facing close-out summary includes tests, live cleanup
 ## Plan Completion Checklist
 
 - [ ] Every SCL-300–SCL-305 acceptance criterion maps to an implementation task and a verification step.
-- [ ] Generated migrations are exactly `0024_epic3_client_fields.sql` and `0026_styling_references.sql`; custom migrations are exactly `0025_epic3_client_access.sql` and `0027_styling_storage_access.sql`.
+- [ ] Generated migrations are exactly `0024_epic3_client_fields.sql` and `0026_styling_references.sql`; the original custom migrations are `0025_epic3_client_access.sql` and `0027_styling_storage_access.sql`, followed by the reviewed append-only hardening migration `0028_harden_styling_paths.sql` (canonical three-segment paths and client-delete origin restriction).
 - [ ] No task introduces a second source of truth for status, progress, balance, identity, or Storage URL.
 - [ ] Client RLS is proven using two authenticated non-privileged Supabase sessions.
 - [ ] Live fixtures include guaranteed cleanup and remain opt-in.

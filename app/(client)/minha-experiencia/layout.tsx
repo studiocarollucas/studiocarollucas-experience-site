@@ -26,6 +26,12 @@ export default async function MinhaExperienciaLayout({ children }: { children: R
 
   return (
     <div className="min-h-screen bg-cream pb-20 text-ink md:pb-0">
+      <a
+        href="#portal-main"
+        className="absolute left-5 top-0 z-50 -translate-y-full rounded-b bg-ink px-4 py-3 font-sans text-sm text-cream transition-transform focus:translate-y-0 focus:outline-none focus:ring-2 focus:ring-rose motion-reduce:transition-none"
+      >
+        Ir para o conteúdo principal
+      </a>
       <header className="border-b border-line px-5 py-4 md:px-10">
         <div className="mx-auto flex max-w-5xl items-center justify-between gap-6">
           <div>
@@ -40,7 +46,13 @@ export default async function MinhaExperienciaLayout({ children }: { children: R
           </div>
         </div>
       </header>
-      <main className="mx-auto max-w-5xl px-5 py-8 md:px-10 md:py-12">{children}</main>
+      <main
+        id="portal-main"
+        tabIndex={-1}
+        className="mx-auto max-w-5xl px-5 py-8 md:px-10 md:py-12"
+      >
+        {children}
+      </main>
       <div className="md:hidden">
         <ClientNav />
       </div>

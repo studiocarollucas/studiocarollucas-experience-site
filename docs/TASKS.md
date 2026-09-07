@@ -1327,7 +1327,7 @@ Rota `/admin/agenda/[id]/preparacao` (link já existente na ficha do ensaio, SCL
 - Blocks: SCL-301
 - Files/Scope: `lib/auth/client-link.ts`, `app/auth/callback/route.ts`, `app/(client)/login/page.tsx`, `tests/lib/client-link.test.ts`, `tests/app/auth-callback.test.ts`
 - Migration: no
-- Updated at: 2026-09-06
+- Updated at: 2026-09-07
 
 **Goal**
 
@@ -1353,7 +1353,8 @@ Vincular com segurança cada usuário verificado por Magic Link a exatamente um 
 - falta: nada para esta task.
 - arquivos alterados: `lib/auth/client-link.ts`, `app/auth/callback/route.ts`, `app/(client)/login/page.tsx`, `tests/lib/client-link.test.ts`, `tests/app/auth-callback.test.ts`, `docs/TASKS.md`.
 - testes: TDD RED (`npm run test -- tests/lib/client-link.test.ts`, import inexistente) e GREEN (6 testes); cobertura cumulativa de vínculo/callback/redirect: `npm run test -- tests/lib/client-link.test.ts tests/app/auth-callback.test.ts tests/lib/safe-redirect.test.ts` — 25/25.
-- próximo passo: SCL-301 pode usar `getLinkedClientByAuthUserId` para montar o shell protegido.
+- fechamento: gate não-live de 2026-09-07 passou com 366 testes/20 skips; gate live completo passou com 386/386 e zero skips. O callback/vínculo continua provado pelos testes unitários acima; as identidades Auth descartáveis usadas pelas integrações do portal foram removidas e a auditoria final encontrou zero e-mails `scl302-*`, `scl304-*` ou `scl305-*`.
+- próximo passo: aceitação browser descartável do fluxo Magic Link na Task 10; não há implementação pendente em SCL-300.
 
 ---
 
@@ -1367,9 +1368,9 @@ Vincular com segurança cada usuário verificado por Magic Link a exatamente um 
 - PR: —
 - Depends on: SCL-300, SCL-009
 - Blocks: SCL-302, SCL-503
-- Files/Scope: `app/(client)/minha-experiencia/{layout,sign-out}.ts(x)`, `components/client/{client-nav,client-sign-out-button}.tsx`, `tests/components/client-nav.test.tsx`
+- Files/Scope: `app/(client)/minha-experiencia/{layout,sign-out}.ts(x)`, `components/client/{client-nav,client-sign-out-button}.tsx`, `tests/components/client-nav.test.tsx`, `tests/app/client-layout.test.tsx`
 - Migration: no
-- Updated at: 2026-09-06
+- Updated at: 2026-09-07
 
 **Goal**
 
@@ -1382,6 +1383,7 @@ Proteger toda a Minha Experiência por sessão Supabase e vínculo CRM, oferecen
 - [x] ClientNav contém apenas Início, Checklist, Meu ensaio e Styling, marca o destino atual com `aria-current="page"` e não expõe Gallery;
 - [x] mobile recebe barra inferior com targets de no mínimo 44 px; desktop reutiliza a navegação no cabeçalho;
 - [x] `clientSignOutAction` lê apenas a sessão cookie-bound, encerra-a e redireciona para `/login`;
+- [x] o primeiro foco do shell autenticado é um skip link visível ao foco para `#portal-main`; o alvo é o único `<main>` e aceita foco programático sem reintroduzir landmark aninhado;
 - [x] TDD: RED por módulo ausente; GREEN com `tests/components/client-nav.test.tsx` — 2 passed. Typecheck, lint, guard de admin, build e uma suíte completa executados com exit 0.
 
 **Implementation notes**
@@ -1392,8 +1394,9 @@ Proteger toda a Minha Experiência por sessão Supabase e vínculo CRM, oferecen
 
 **Blocker/Hand-off notes**
 
-- concluído: shell protegido, logout e navegação responsiva; os quatro destinos são contratados pelo Epic 3, com a raiz implementada nesta task e Checklist, Meu ensaio e Styling entregues nas tasks seguintes.
-- concern: skip link permanece pendente para a revisão final do epic.
+- concluído: shell protegido, logout, navegação responsiva e skip link. O fix final seguiu TDD: `tests/app/client-layout.test.tsx` falhou por link ausente e passou 1/1 após o link/target, comprovando primeiro elemento focável e exatamente um `<main>`.
+- fechamento: gate não-live de 2026-09-07 passou com 366 testes/20 skips; gate live completo passou com 386/386 e zero skips; build Next 16.3.4 manteve as quatro rotas da Minha Experiência dinâmicas.
+- próximo passo: aceitação visual/teclado em 320 px e desktop na Task 10; nenhuma correção de shell conhecida permanece aberta.
 
 ---
 
@@ -1408,7 +1411,7 @@ Proteger toda a Minha Experiência por sessão Supabase e vínculo CRM, oferecen
 - Depends on: SCL-103, SCL-105, SCL-301
 - Blocks: primeiro marco E2E
 - Files/Scope: `domain/portal/read.ts`, `components/client/journey-home.tsx`, `app/(client)/minha-experiencia/{page,error}.tsx`, `tests/{app/client-home-page,components/journey-home,domain/portal-read,domain/portal-rls.integration}.test.ts(x)`, `tests/support/live-auth-cleanup*`
-- Migration: yes — 0024_epic3_client_fields + 0025_epic3_client_access
+- Migration: yes — `0024_epic3_client_fields.sql`, `0025_epic3_client_access.sql`
 - Updated at: 2026-09-07
 
 **Goal**
@@ -1436,7 +1439,7 @@ Exibir para a cliente autenticada a visão do mesmo Shoot usado pelo Studio OS.
 - Fixtures UUID únicas provaram isolamento A/B, portal desativado/cancelado, pagamentos confirmados, visibilidade/actionable, negação de notes/proof e escrita fora de status, conclusão/reabertura e rejeição de invariantes. Rollback e query final: zero resíduos em auth.users, profiles, clients, experience_packages, shoots, preparation_tasks e payments.
 - TDD RED/GREEN; focados originais: 15 passed/2 skipped. Na revisão, `tests/domain/shoot-client-fields.test.ts` adicionou cobertura parametrizada aos dois schemas para trim/preservação, omissão, limites 120/300/2000 e excesso; `npm run test -- tests/domain/shoot-client-fields.test.ts` — 24/24. O teste falhou controladamente com os campos removidos (18 failed/6 passed) e voltou a GREEN após restauração; conjunto focado final `npm run test -- tests/domain/shoot-client-fields.test.ts tests/domain/create-confirmed-shoot.test.ts tests/domain/preparation-tasks.test.ts tests/db/client-portal-migrations.test.ts` — 39 passed/2 skipped. Suíte completa: 232 passed/9 skipped. Typecheck e guard admin passaram; lint sem erros (cinco warnings preexistentes). Ajuste de tipos Zod: `z.coerce.boolean<boolean>()` para compatibilidade de input com `safeExtend`, preservando coerção/refinement.
 - Verificação live repetida com `node --env-file-if-exists=.env.local .superpowers/sdd/task-2-verify-live.mjs` (usuário autorizou explicitamente com “sim”): `PRESERVED_HISTORICAL_COMPLETED_AT 2020-02-03T04:05:06.789Z`, `SUCCESS {"passed":9,...}`, e cleanup final `auth.users=0, profiles=0, clients=0, experience_packages=0, shoots=0, preparation_tasks=0, payments=0`. A repetição de `status='concluida'` preservou exatamente o timestamp histórico.
-- A home e seus critérios de UI continuam pendentes; apenas a fundação da Task 2 foi concluída. Privilégios legados REFERENCES/TRIGGER/TRUNCATE já documentados em DECISIONS permanecem fora desta mudança.
+- Neste checkpoint histórico, a home ainda estava pendente; ela foi entregue na Task 5 abaixo. Privilégios legados REFERENCES/TRIGGER/TRUNCATE já documentados em DECISIONS permanecem fora desta mudança.
 
 **Task 4 — núcleo puro do portal concluído (2026-09-06)**
 
@@ -1455,6 +1458,7 @@ Exibir para a cliente autenticada a visão do mesmo Shoot usado pelo Studio OS.
 - RED/GREEN, gates e revisão detalhados em `.superpowers/sdd/task-5-report.md`.
 - Fix round 1: os dois UUIDs de Auth agora são pré-alocados e registrados antes de qualquer `createUser`, passados explicitamente ao SDK e sempre percorridos no teardown. A ausência é aceita somente no shape real `AuthApiError` + HTTP 404 + `user_not_found`; rede, permissão, resposta ambígua ou usuário ainda existente entram no `AggregateError`. O live A/B foi repetido com 2/2 e zero resíduos.
 - A página captura um único `Date` para seleção e calendário Manaus, evitando divergência ao cruzar meia-noite; tarefas de styling visíveis mas não acionáveis agora preservam o destino e usam o rótulo coerente `Ver styling`.
+- Fechamento de 2026-09-07: gate não-live 366 testes/20 skips e gate live 386/386, zero skips. Auditoria externa após a suíte: zero Client/Shoot/Payment/PreparationTask/Profile/Auth dos prefixos Epic 3 e zero objeto Storage correspondente.
 
 ---
 
@@ -1502,6 +1506,8 @@ Permitir que a cliente autenticada altere somente o status das tarefas explicita
 - concluído: mutação client-side RLS-bound, checklist cliente, rota, controles Admin, cobertura live e gates.
 - concern: lint mantém cinco warnings `no-unused-vars` preexistentes em testes não tocados; zero erros.
 - decisão consciente: não há detecção de conflito concorrente neste MVP; vale last-write-wins conforme o contrato aprovado.
+- fechamento: `tests/domain/portal-rls.integration.test.ts` participou do gate live completo de 2026-09-07; suíte total 386/386, zero skips, seguida de auditoria com zero resíduos. Gate não-live: 366 testes/20 skips.
+- próximo passo: apenas a caminhada browser da Task 10 para observar a mesma row no Admin; nenhuma aresta de persistência ficou sem prova automatizada.
 
 ---
 
@@ -1548,7 +1554,8 @@ Refletir no portal os detalhes client-safe do ensaio ativo e a mesma composiçã
 - concluído: leitura client-safe do ensaio, logística Admin, resumo Shoot+Payment compartilhado, contrato WhatsApp, cobertura unitária/live e todos os gates.
 - concern: lint mantém cinco warnings `no-unused-vars` preexistentes em testes não tocados; zero erros.
 - infraestrutura: o primeiro comando live dentro do sandbox foi bloqueado com `EACCES` antes de criar a identidade; a repetição autorizada com rede passou e validou o teardown completo.
-- próximo passo: SCL-305 adiciona o styling/moodboard colaborativo com Storage privado, sem alterar o contrato desta página.
+- fechamento: `tests/domain/portal-shoot-payment.integration.test.ts` participou do gate live completo de 2026-09-07; suíte total 386/386, zero skips, e auditoria final sem resíduos. Gate não-live: 366 testes/20 skips.
+- próximo passo: conferir a apresentação e o CTA na caminhada browser descartável da Task 10; composição financeira não tem pendência conhecida.
 
 ---
 
@@ -1599,6 +1606,9 @@ Oferecer um moodboard privado e colaborativo do ensaio ativo, no qual cliente e 
 - concern: lint mantém cinco warnings `no-unused-vars` preexistentes em testes não tocados; zero erros e zero warnings novos.
 - infraestrutura: a primeira execução live no sandbox falhou com `EACCES`; a execução autorizada passou 5/5 e o teardown verificou rows, shoots, clients, profiles, prefixes Storage e Auth users vazios.
 - QA visual em browser autenticado fica para a aceitação integrada do Epic 3 na Task 10, junto das demais rotas do portal.
+- fechamento: a primeira full live com rede revelou que a consulta staff do próprio teste não filtrava os paths do fixture e enxergava 20 rows criadas em paralelo por outro arquivo. RED: 385 passed/1 failed; correção restrita ao harness com `.in("storage_path", fixturePaths)`; GREEN focado 5/5 e full live 386/386, zero skips. A auditoria final encontrou zero referências, objetos, Client/Shoot/Profile/Auth ou dependências dos prefixos Epic 3.
+- gates finais desta preparação: `npm run test` — 366 passed/20 skipped; `typecheck` — 0 erro; `lint` — 0 erro/5 warnings históricos; `check:admin-auth` — OK; `build` — 18 entradas de geração processadas e as quatro rotas do portal dinâmicas; `git diff --check` — 0 erro.
+- próximo passo: caminhada visual/autenticada e screenshots descartáveis pela Task 10, seguida da revisão dupla do diff inteiro; nenhuma aresta PRD §23 precisou ser reaberta.
 
 ---
 
