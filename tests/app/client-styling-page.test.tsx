@@ -7,6 +7,9 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock("@sentry/nextjs", () => ({ captureException: vi.fn() }));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: vi.fn() }) }));
+vi.mock("@/lib/supabase/client", () => ({
+  createSupabaseBrowserClient: vi.fn(() => ({ source: "browser" })),
+}));
 vi.mock("@/domain/portal/server", () => ({
   getPortalStylingSnapshot: mocks.getPortalStylingSnapshot,
 }));
