@@ -6,6 +6,10 @@ const sql = fs.readFileSync(
   path.resolve("db/migrations/0027_styling_storage_access.sql"),
   "utf8",
 );
+const hardeningSql = fs.readFileSync(
+  path.resolve("db/migrations/0028_harden_styling_paths.sql"),
+  "utf8",
+);
 
 describe("styling migrations", () => {
   it("creates a private, restricted 8 MB bucket", () => {
@@ -45,5 +49,46 @@ describe("styling migrations", () => {
     expect(sql).toContain("styling_references_limit");
     expect(sql).toContain("pg_advisory_xact_lock");
     expect(sql).toContain(">= 20");
+  });
+});
+
+describe("styling path hardening migration", () => {
+  it("defines one reusable canonical three-segment path predicate", () => {
+    expect(hardeningSql).toContain("function private.is_canonical_styling_path(");
+    expect(hardeningSql).toContain("pg_catalog.string_to_array(object_name, '/')");
+    expect(hardeningSql).toContain(
+      "pg_catalog.array_length(path_parts, 1) is distinct from 3",
+    );
+    expect(hardeningSql).toContain("path_parts[3] in ('.', '..')");
+    expect(hardeningSql).toContain(
+      "private.is_canonical_styling_path(storage_path, auth.uid(), shoot_id)",
+    );
+    expect(hardeningSql).toContain(
+      "private.is_canonical_styling_path(name, auth.uid(), null::uuid)",
+    );
+  });
+
+  it("makes object ownership fail closed on non-canonical paths", () => {
+    expect(hardeningSql).toContain(
+      "not private.is_canonical_styling_path(object_name, null::uuid, null::uuid)",
+    );
+    expect(hardeningSql).toContain("create or replace function private.owns_styling_object");
+  });
+
+  it("lets clients delete only client-origin rows they uploaded", () => {
+    expect(hardeningSql).toContain("drop policy styling_references_client_delete");
+    expect(hardeningSql).toContain("and origin = 'client'");
+    expect(hardeningSql).toContain("and uploaded_by_auth_user_id = auth.uid()");
+  });
+
+  it("preserves private helper ACLs", () => {
+    expect(hardeningSql).toContain("security invoker");
+    expect(hardeningSql).toContain("set search_path = ''");
+    expect(hardeningSql).toContain(
+      "revoke all on function private.is_canonical_styling_path(text, uuid, uuid)",
+    );
+    expect(hardeningSql).toContain(
+      "grant execute on function private.is_canonical_styling_path(text, uuid, uuid) to authenticated",
+    );
   });
 });

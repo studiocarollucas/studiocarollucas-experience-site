@@ -32,6 +32,24 @@ describe("styling reference schema", () => {
     ).toThrow();
   });
 
+  it.each([
+    ["sem nome do objeto", `${USER_ID}/${SHOOT_ID}`],
+    ["com segmento vazio", `${USER_ID}//ref.webp`],
+    ["com segmento extra", `${USER_ID}/${SHOOT_ID}/pasta/ref.webp`],
+    ["com object-key ponto", `${USER_ID}/${SHOOT_ID}/.`],
+    ["com object-key de diretório pai", `${USER_ID}/${SHOOT_ID}/..`],
+  ])("rejects a non-canonical storage path %s", (_label, storagePath) => {
+    expect(
+      createStylingReferenceSchema.safeParse({
+        shootId: SHOOT_ID,
+        storagePath,
+        caption: "Referência",
+        origin: "client",
+        uploadedByAuthUserId: USER_ID,
+      }).success,
+    ).toBe(false);
+  });
+
   it("accepts only JPEG, PNG, or WebP up to 8 MB", () => {
     expect(validateStylingFile({ type: "image/webp", size: 8 * 1024 * 1024 })).toBeNull();
     expect(validateStylingFile({ type: "image/gif", size: 100 })).toMatch(/JPG, PNG ou WebP/);

@@ -26,27 +26,40 @@ describeIfLiveDb("styling references (live RLS and Storage integration)", () => 
   const firstShootId = randomUUID();
   const secondShootId = randomUUID();
   const limitShootId = randomUUID();
+  const pathShootId = randomUUID();
   const authUserIds = [firstAuthUserId, secondAuthUserId, staffAuthUserId];
   const clientIds = [firstClientId, secondClientId];
-  const shootIds = [firstShootId, secondShootId, limitShootId];
+  const shootIds = [firstShootId, secondShootId, limitShootId, pathShootId];
   const firstEmail = `scl305-a-${runId}@example.com`;
   const secondEmail = `scl305-b-${runId}@example.com`;
   const staffEmail = `scl305-staff-${runId}@example.com`;
   const firstPath = `${firstAuthUserId}/${firstShootId}/${runId}-a.png`;
   const secondPath = `${secondAuthUserId}/${secondShootId}/${runId}-b.webp`;
   const studioPath = `${staffAuthUserId}/${firstShootId}/${runId}-studio.jpg`;
+  const delegatedStudioPath = `${firstAuthUserId}/${firstShootId}/${runId}-studio-assigned.png`;
   const invalidMimePath = `${firstAuthUserId}/${firstShootId}/${runId}-invalid.gif`;
   const wrongPrefixPath = `${secondAuthUserId}/${firstShootId}/${runId}-wrong-prefix.png`;
   const wrongShootPath = `${firstAuthUserId}/${secondShootId}/${runId}-wrong-shoot.png`;
   const malformedPath = `${firstAuthUserId}/not-a-uuid/${runId}.png`;
+  const noFilenamePath = `${firstAuthUserId}/${pathShootId}`;
+  const emptySegmentPath = `${firstAuthUserId}//${runId}-empty.png`;
+  const extraSegmentPath = `${firstAuthUserId}/${pathShootId}/folder/${runId}-extra.png`;
+  const dotObjectPath = `${firstAuthUserId}/${pathShootId}/.`;
+  const parentObjectPath = `${firstAuthUserId}/${pathShootId}/..`;
   const objectPaths = [
     firstPath,
     secondPath,
     studioPath,
+    delegatedStudioPath,
     invalidMimePath,
     wrongPrefixPath,
     wrongShootPath,
     malformedPath,
+    noFilenamePath,
+    emptySegmentPath,
+    extraSegmentPath,
+    dotObjectPath,
+    parentObjectPath,
   ];
   let admin: SupabaseClient | undefined;
   let firstSupabase!: SupabaseClient;
@@ -138,6 +151,15 @@ describeIfLiveDb("styling references (live RLS and Storage integration)", () => 
         agreedPrice: "1400.00",
         portalEnabled: true,
       },
+      {
+        id: pathShootId,
+        clientId: firstClientId,
+        experiencePackageId: experience.id,
+        shootDate: "2031-01-13",
+        status: "preparacao",
+        agreedPrice: "1600.00",
+        portalEnabled: true,
+      },
     ]);
 
     for (const [supabase, email] of [
@@ -161,7 +183,18 @@ describeIfLiveDb("styling references (live RLS and Storage integration)", () => 
     };
 
     const cleanupAdmin = admin;
-    if (cleanupAdmin && bucketReady) {
+    let cleanupBucketReady = bucketReady;
+    if (cleanupAdmin && !cleanupBucketReady) {
+      await attempt("rediscover storage bucket", async () => {
+        const bucket = await cleanupAdmin.storage.getBucket(STYLING_BUCKET);
+        if (bucket.error) {
+          if (bucket.error.message === "Bucket not found") return;
+          throw bucket.error;
+        }
+        cleanupBucketReady = true;
+      });
+    }
+    if (cleanupAdmin && cleanupBucketReady) {
       await attempt("storage.objects", async () => {
         const result = await cleanupAdmin.storage.from(STYLING_BUCKET).remove(objectPaths);
         if (result.error) throw result.error;
@@ -213,7 +246,7 @@ describeIfLiveDb("styling references (live RLS and Storage integration)", () => 
       ).toEqual([]);
     });
 
-    if (cleanupAdmin && bucketReady) {
+    if (cleanupAdmin && cleanupBucketReady) {
       for (const authUserId of authUserIds) {
         await attempt(`verify storage prefix:${authUserId}`, async () => {
           const result = await cleanupAdmin.storage.from(STYLING_BUCKET).list(authUserId, {
@@ -315,6 +348,31 @@ describeIfLiveDb("styling references (live RLS and Storage integration)", () => 
       },
     ]);
 
+    const hardenedPolicyExpressions = await db.execute(sql`
+      select policyname, coalesce(qual, '') as qual, coalesce(with_check, '') as with_check
+      from pg_catalog.pg_policies
+      where policyname in (
+        'styling_references_client_insert',
+        'styling_references_client_delete',
+        'styling_objects_client_read',
+        'styling_objects_client_insert',
+        'styling_objects_client_delete'
+      )
+      order by policyname
+    `);
+    const policyExpressionByName = new Map(
+      hardenedPolicyExpressions.map((policy) => [policy.policyname, policy]),
+    );
+    expect(
+      String(policyExpressionByName.get("styling_references_client_insert")?.with_check),
+    ).toContain("is_canonical_styling_path(storage_path, auth.uid(), shoot_id)");
+    expect(
+      String(policyExpressionByName.get("styling_references_client_delete")?.qual),
+    ).toContain("origin = 'client'::styling_reference_origin");
+    expect(
+      String(policyExpressionByName.get("styling_objects_client_insert")?.with_check),
+    ).toContain("is_canonical_styling_path(name, auth.uid(), NULL::uuid)");
+
     const grants = await db.execute(sql`
       select
         has_any_column_privilege(
@@ -351,16 +409,22 @@ describeIfLiveDb("styling references (live RLS and Storage integration)", () => 
 
     const helpers = await db.execute(sql`
       select n.nspname as schema_name, p.proname, p.prosecdef, p.proconfig,
+        pg_catalog.pg_get_function_identity_arguments(p.oid) as identity_arguments,
+        pg_catalog.pg_get_functiondef(p.oid) as definition,
         owner.rolbypassrls as owner_bypasses_rls,
         has_function_privilege('authenticated', p.oid, 'execute') as authenticated_execute,
         has_function_privilege('anon', p.oid, 'execute') as anon_execute
       from pg_catalog.pg_proc p
       join pg_catalog.pg_namespace n on n.oid = p.pronamespace
       join pg_catalog.pg_roles owner on owner.oid = p.proowner
-      where p.proname in ('owns_styling_object', 'enforce_styling_reference_limit')
+      where p.proname in (
+        'owns_styling_object',
+        'enforce_styling_reference_limit',
+        'is_canonical_styling_path'
+      )
       order by p.proname
     `);
-    expect(helpers).toHaveLength(2);
+    expect(helpers).toHaveLength(3);
     expect(helpers[0]).toMatchObject({
       schema_name: "private",
       proname: "enforce_styling_reference_limit",
@@ -371,12 +435,27 @@ describeIfLiveDb("styling references (live RLS and Storage integration)", () => 
     });
     expect(helpers[1]).toMatchObject({
       schema_name: "private",
+      proname: "is_canonical_styling_path",
+      prosecdef: false,
+      owner_bypasses_rls: true,
+      authenticated_execute: true,
+      anon_execute: false,
+    });
+    expect(helpers[1]?.identity_arguments).toBe(
+      "object_name text, expected_uploader_id uuid, expected_shoot_id uuid",
+    );
+    expect(String(helpers[1]?.definition).toLowerCase()).toContain(
+      "array_length(path_parts, 1) is distinct from 3",
+    );
+    expect(helpers[2]).toMatchObject({
+      schema_name: "private",
       proname: "owns_styling_object",
       prosecdef: true,
       owner_bypasses_rls: true,
       authenticated_execute: true,
       anon_execute: false,
     });
+    expect(String(helpers[2]?.definition)).toContain("is_canonical_styling_path");
     for (const helper of helpers) {
       expect(String(helper.proconfig)).toContain("search_path=");
     }
@@ -392,6 +471,7 @@ describeIfLiveDb("styling references (live RLS and Storage integration)", () => 
   it("keeps the bucket private and rejects MIME types outside the allowlist", async () => {
     if (!admin) throw new Error("Admin client is unavailable");
     const bucket = await admin.storage.getBucket(STYLING_BUCKET);
+    bucketReady = bucket.error === null;
     expect(bucket.error).toBeNull();
     expect(bucket.data).toMatchObject({
       id: STYLING_BUCKET,
@@ -400,8 +480,6 @@ describeIfLiveDb("styling references (live RLS and Storage integration)", () => 
       file_size_limit: 8 * 1024 * 1024,
       allowed_mime_types: ["image/jpeg", "image/png", "image/webp"],
     });
-    bucketReady = true;
-
     const rejected = await firstSupabase.storage
       .from(STYLING_BUCKET)
       .upload(invalidMimePath, new Uint8Array([1, 2, 3]), {
@@ -410,6 +488,48 @@ describeIfLiveDb("styling references (live RLS and Storage integration)", () => 
       });
     expect(rejected.error).not.toBeNull();
     expect(rejected.data).toBeNull();
+  }, 30_000);
+
+  it("rejects non-canonical row and object paths", async () => {
+    const invalidPaths = [
+      noFilenamePath,
+      emptySegmentPath,
+      extraSegmentPath,
+      dotObjectPath,
+      parentObjectPath,
+    ];
+    const storageAttempts = await Promise.all(
+      invalidPaths.map((storagePath) =>
+        firstSupabase.storage
+          .from(STYLING_BUCKET)
+          .upload(storagePath, new Uint8Array([1]), { contentType: "image/png" }),
+      ),
+    );
+    expect(storageAttempts.map((result) => result.error !== null)).toEqual([
+      true,
+      true,
+      true,
+      true,
+      true,
+    ]);
+
+    const rowAttempts = await Promise.all(
+      invalidPaths.map((storagePath) =>
+        firstSupabase.from("styling_references").insert({
+          shoot_id: pathShootId,
+          storage_path: storagePath,
+          origin: "client",
+          uploaded_by_auth_user_id: firstAuthUserId,
+        }),
+      ),
+    );
+    expect(rowAttempts.map((result) => result.error !== null)).toEqual([
+      true,
+      true,
+      true,
+      true,
+      true,
+    ]);
   }, 30_000);
 
   it("isolates client rows and objects while letting staff manage the board", async () => {
@@ -492,6 +612,19 @@ describeIfLiveDb("styling references (live RLS and Storage integration)", () => 
       .single();
     expect(studioInsert.error).toBeNull();
 
+    const delegatedStudioInsert = await staffSupabase
+      .from("styling_references")
+      .insert({
+        shoot_id: firstShootId,
+        storage_path: delegatedStudioPath,
+        caption: "Referência studio atribuída à cliente",
+        origin: "studio",
+        uploaded_by_auth_user_id: firstAuthUserId,
+      })
+      .select("storage_path")
+      .single();
+    expect(delegatedStudioInsert.error).toBeNull();
+
     for (const deniedInsert of [
       await firstSupabase.from("styling_references").insert({
         shoot_id: firstShootId,
@@ -538,13 +671,13 @@ describeIfLiveDb("styling references (live RLS and Storage integration)", () => 
     ]);
     expect(firstRows.error).toBeNull();
     expect(firstRows.data?.map((row) => row.storage_path).sort()).toEqual(
-      [firstPath, studioPath].sort(),
+      [delegatedStudioPath, firstPath, studioPath].sort(),
     );
     expect(secondRows.error).toBeNull();
     expect(secondRows.data?.map((row) => row.storage_path)).toEqual([secondPath]);
     expect(staffRows.error).toBeNull();
     expect(staffRows.data?.map((row) => row.storage_path).sort()).toEqual(
-      [firstPath, secondPath, studioPath].sort(),
+      [delegatedStudioPath, firstPath, secondPath, studioPath].sort(),
     );
 
     const [firstDownload, secondDownload, studioDownload, crossDownload] = await Promise.all([
@@ -567,6 +700,25 @@ describeIfLiveDb("styling references (live RLS and Storage integration)", () => 
     expect(deniedRowDelete.error).toBeNull();
     expect(deniedRowDelete.data).toEqual([]);
 
+    const delegatedStudioDelete = await firstSupabase
+      .from("styling_references")
+      .delete()
+      .eq("storage_path", delegatedStudioPath)
+      .select("storage_path");
+    expect(delegatedStudioDelete.error).toBeNull();
+    expect(delegatedStudioDelete.data).toEqual([]);
+    const delegatedStudioPersisted = await staffSupabase
+      .from("styling_references")
+      .select("storage_path,origin,uploaded_by_auth_user_id")
+      .eq("storage_path", delegatedStudioPath)
+      .single();
+    expect(delegatedStudioPersisted.error).toBeNull();
+    expect(delegatedStudioPersisted.data).toMatchObject({
+      storage_path: delegatedStudioPath,
+      origin: "studio",
+      uploaded_by_auth_user_id: firstAuthUserId,
+    });
+
     const ownRowDelete = await firstSupabase
       .from("styling_references")
       .delete()
@@ -578,11 +730,11 @@ describeIfLiveDb("styling references (live RLS and Storage integration)", () => 
     const staffRowDelete = await staffSupabase
       .from("styling_references")
       .delete()
-      .in("storage_path", [secondPath, studioPath])
+      .in("storage_path", [delegatedStudioPath, secondPath, studioPath])
       .select("storage_path");
     expect(staffRowDelete.error).toBeNull();
     expect(staffRowDelete.data?.map((row) => row.storage_path).sort()).toEqual(
-      [secondPath, studioPath].sort(),
+      [delegatedStudioPath, secondPath, studioPath].sort(),
     );
 
     await firstSupabase.storage.from(STYLING_BUCKET).remove([secondPath, studioPath]);
