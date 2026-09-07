@@ -4,6 +4,8 @@ import { hasMinimumRole } from "@/lib/auth/rbac";
 import { AdminNav } from "@/components/admin/admin-nav";
 import { SignOutButton } from "@/components/admin/sign-out-button";
 
+export const dynamic = "force-dynamic";
+
 export default async function ProtectedAdminLayout({ children }: { children: React.ReactNode }) {
   const user = await getCurrentUser();
 
