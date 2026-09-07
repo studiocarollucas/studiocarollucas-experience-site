@@ -3,14 +3,21 @@ import { describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   createSupabaseServerClient: vi.fn(async () => ({ source: "cookie-jwt" })),
-  readPortalSnapshot: vi.fn(async () => ({
-    client: { id: "client-1", name: "Mariana" },
-    shoot: null,
-    experience: null,
-    tasks: [],
-    payments: [],
-  })),
-  studioDate: vi.fn(() => "2026-09-06"),
+  readPortalSnapshot: vi.fn(async (supabase: unknown, now?: Date) => {
+    void supabase;
+    void now;
+    return {
+      client: { id: "client-1", name: "Mariana" },
+      shoot: null,
+      experience: null,
+      tasks: [],
+      payments: [],
+    };
+  }),
+  studioDate: vi.fn((now?: Date) => {
+    void now;
+    return "2026-09-06";
+  }),
 }));
 
 vi.mock("@/lib/supabase/server", () => ({
@@ -28,7 +35,20 @@ describe("ClientHome", () => {
     expect(screen.queryByRole("main")).not.toBeInTheDocument();
     expect(screen.getByRole("region", { name: "Minha Experiência" })).toBeInTheDocument();
     expect(mocks.createSupabaseServerClient).toHaveBeenCalledOnce();
-    expect(mocks.readPortalSnapshot).toHaveBeenCalledWith({ source: "cookie-jwt" });
+    expect(mocks.readPortalSnapshot).toHaveBeenCalledWith(
+      { source: "cookie-jwt" },
+      expect.any(Date),
+    );
     expect(mocks.studioDate).toHaveBeenCalledOnce();
+  });
+
+  it("uses one captured instant for shoot selection and the studio calendar", async () => {
+    await ClientHome();
+
+    const selectionNow = mocks.readPortalSnapshot.mock.calls.at(-1)?.[1];
+    const calendarNow = mocks.studioDate.mock.calls.at(-1)?.[0];
+
+    expect(selectionNow).toBeInstanceOf(Date);
+    expect(selectionNow).toBe(calendarNow);
   });
 });

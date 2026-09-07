@@ -122,6 +122,30 @@ describe("JourneyHome", () => {
     );
   });
 
+  it("labels a visible non-actionable styling task as a styling link", () => {
+    render(
+      <JourneyHome
+        snapshot={{
+          ...snapshot,
+          tasks: [
+            {
+              ...snapshot.tasks[1],
+              type: "figurino",
+              title: "Referências de figurino",
+              clientActionable: false,
+            },
+          ],
+        }}
+        today="2026-09-06"
+      />,
+    );
+
+    expect(screen.getByRole("link", { name: "Ver styling" })).toHaveAttribute(
+      "href",
+      "/minha-experiencia/styling",
+    );
+  });
+
   it("renders a welcoming empty state without an eligible shoot", () => {
     render(
       <JourneyHome

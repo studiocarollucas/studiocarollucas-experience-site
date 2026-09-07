@@ -4,8 +4,9 @@ import { readPortalSnapshot } from "@/domain/portal/read";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 export default async function ClientHome() {
+  const now = new Date();
   const supabase = await createSupabaseServerClient();
-  const snapshot = await readPortalSnapshot(supabase);
+  const snapshot = await readPortalSnapshot(supabase, now);
 
-  return <JourneyHome snapshot={snapshot} today={studioDate()} />;
+  return <JourneyHome snapshot={snapshot} today={studioDate(now)} />;
 }

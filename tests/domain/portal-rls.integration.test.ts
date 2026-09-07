@@ -12,6 +12,7 @@ import {
   shoots,
 } from "@/db/schema";
 import { readPortalSnapshot } from "@/domain/portal/read";
+import { assertAuthUserAbsent } from "../support/live-auth-cleanup";
 
 const describeIfLiveDb = process.env.RUN_LIVE_DB_TESTS === "true" ? describe : describe.skip;
 
@@ -22,9 +23,11 @@ describeIfLiveDb("readPortalSnapshot (live RLS integration)", () => {
   const secondClientId = randomUUID();
   const firstShootId = randomUUID();
   const secondShootId = randomUUID();
+  const firstAuthUserId = randomUUID();
+  const secondAuthUserId = randomUUID();
   const shootIds = [firstShootId, secondShootId];
   const clientIds = [firstClientId, secondClientId];
-  const authUserIds: string[] = [];
+  const authUserIds = [firstAuthUserId, secondAuthUserId];
   let admin: SupabaseClient | undefined;
   let firstSupabase: SupabaseClient;
   let secondSupabase: SupabaseClient;
@@ -51,14 +54,18 @@ describeIfLiveDb("readPortalSnapshot (live RLS integration)", () => {
 
     const firstEmail = `scl302-a-${runId}@example.com`;
     const secondEmail = `scl302-b-${runId}@example.com`;
-    for (const email of [firstEmail, secondEmail]) {
+    for (const [id, email] of [
+      [firstAuthUserId, firstEmail],
+      [secondAuthUserId, secondEmail],
+    ] as const) {
       const { data, error } = await admin.auth.admin.createUser({
+        id,
         email,
         password,
         email_confirm: true,
       });
       if (error || !data.user) throw error ?? new Error("Auth fixture was not created");
-      authUserIds.push(data.user.id);
+      if (data.user.id !== id) throw new Error("Auth fixture did not preserve its preallocated ID");
     }
 
     const [experience] = await db
@@ -192,8 +199,8 @@ describeIfLiveDb("readPortalSnapshot (live RLS integration)", () => {
       for (const authUserId of authUserIds) {
         if (!authUserId) continue;
         await attempt(`auth.users:${authUserId}`, async () => {
-          const { error } = await cleanupAdmin.auth.admin.deleteUser(authUserId);
-          if (error) throw error;
+          const result = await cleanupAdmin.auth.admin.deleteUser(authUserId);
+          if (result.error) assertAuthUserAbsent(authUserId, result);
         });
       }
     }
@@ -240,9 +247,8 @@ describeIfLiveDb("readPortalSnapshot (live RLS integration)", () => {
       for (const authUserId of authUserIds) {
         if (!authUserId) continue;
         await attempt(`verify auth.users:${authUserId}`, async () => {
-          const { data, error } = await cleanupAdmin.auth.admin.getUserById(authUserId);
-          expect(data.user).toBeNull();
-          expect(error).not.toBeNull();
+          const result = await cleanupAdmin.auth.admin.getUserById(authUserId);
+          assertAuthUserAbsent(authUserId, result);
         });
       }
     }

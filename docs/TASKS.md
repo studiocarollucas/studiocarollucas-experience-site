@@ -1404,7 +1404,7 @@ Proteger toda a Minha Experiência por sessão Supabase e vínculo CRM, oferecen
 - PR: —
 - Depends on: SCL-103, SCL-105, SCL-301
 - Blocks: primeiro marco E2E
-- Files/Scope: `domain/portal/read.ts`, `components/client/journey-home.tsx`, `app/(client)/minha-experiencia/{page,error}.tsx`, `tests/{app/client-home-page,components/journey-home,domain/portal-read,domain/portal-rls.integration}.test.ts(x)`
+- Files/Scope: `domain/portal/read.ts`, `components/client/journey-home.tsx`, `app/(client)/minha-experiencia/{page,error}.tsx`, `tests/{app/client-home-page,components/journey-home,domain/portal-read,domain/portal-rls.integration}.test.ts(x)`, `tests/support/live-auth-cleanup*`
 - Migration: yes — 0024_epic3_client_fields + 0025_epic3_client_access
 - Updated at: 2026-09-07
 
@@ -1450,6 +1450,8 @@ Exibir para a cliente autenticada a visão do mesmo Shoot usado pelo Studio OS.
 - Revisão visual local em 320 px e 1280 px confirmou ausência de overflow horizontal, headings H1→H2, targets de 44–45 px e foco visível. Não há emoji, gradiente, biblioteca ou asset novo.
 - Teste live opt-in criou dois Auth users e dois Clients/Shoots com pagamentos e tarefas. Cada JWT compôs somente seu Client/Shoot; pagamento pendente e tarefa oculta ficaram ausentes; guessed IDs de Shoot e Client retornaram `[]`. O `afterAll` removeu tasks, payments, jobs, shoots, clients e ambos Auth users nessa ordem e consultou zero resíduos em cada relação/identidade.
 - RED/GREEN, gates e revisão detalhados em `.superpowers/sdd/task-5-report.md`.
+- Fix round 1: os dois UUIDs de Auth agora são pré-alocados e registrados antes de qualquer `createUser`, passados explicitamente ao SDK e sempre percorridos no teardown. A ausência é aceita somente no shape real `AuthApiError` + HTTP 404 + `user_not_found`; rede, permissão, resposta ambígua ou usuário ainda existente entram no `AggregateError`. O live A/B foi repetido com 2/2 e zero resíduos.
+- A página captura um único `Date` para seleção e calendário Manaus, evitando divergência ao cruzar meia-noite; tarefas de styling visíveis mas não acionáveis agora preservam o destino e usam o rótulo coerente `Ver styling`.
 
 ---
 

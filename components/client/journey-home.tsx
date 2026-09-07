@@ -45,6 +45,12 @@ export function JourneyHome({ snapshot, today }: { snapshot: PortalSnapshot; tod
   const countdown = countdownCopy(daysUntilShoot(snapshot.shoot.shootDate, today));
   const experienceName = snapshot.experience?.name;
   const nextTitle = preparation.nextTask?.title ?? journey.label;
+  const nextDestination = nextHref(nextTask?.type);
+  const nextLabel = preparation.nextTask?.actionable
+    ? "Continuar preparação"
+    : nextDestination === "/minha-experiencia/styling"
+      ? "Ver styling"
+      : "Ver checklist";
 
   return (
     <section aria-label="Minha Experiência" className="space-y-12 md:space-y-16">
@@ -145,10 +151,10 @@ export function JourneyHome({ snapshot, today }: { snapshot: PortalSnapshot; tod
           </div>
         </div>
         <Link
-          href={nextHref(nextTask?.type)}
+          href={nextDestination}
           className="inline-flex min-h-11 items-center justify-center border border-ink bg-ink px-6 py-3 text-center font-sans text-[10px] uppercase tracking-[0.18em] text-white transition-colors duration-200 hover:bg-transparent hover:text-ink motion-reduce:transition-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
         >
-          {preparation.nextTask?.actionable ? "Continuar preparação" : "Ver checklist"}
+          {nextLabel}
         </Link>
       </section>
 
