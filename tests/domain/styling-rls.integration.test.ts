@@ -492,6 +492,7 @@ describeIfLiveDb("styling references (live RLS and Storage integration)", () => 
 
   it("rejects non-canonical row and object paths", async () => {
     const invalidPaths = [
+      malformedPath,
       noFilenamePath,
       emptySegmentPath,
       extraSegmentPath,
@@ -505,13 +506,8 @@ describeIfLiveDb("styling references (live RLS and Storage integration)", () => 
           .upload(storagePath, new Uint8Array([1]), { contentType: "image/png" }),
       ),
     );
-    expect(storageAttempts.map((result) => result.error !== null)).toEqual([
-      true,
-      true,
-      true,
-      true,
-      true,
-    ]);
+    expect(storageAttempts).toHaveLength(invalidPaths.length);
+    expect(storageAttempts.every((result) => result.error !== null)).toBe(true);
 
     const rowAttempts = await Promise.all(
       invalidPaths.map((storagePath) =>
@@ -523,13 +519,8 @@ describeIfLiveDb("styling references (live RLS and Storage integration)", () => 
         }),
       ),
     );
-    expect(rowAttempts.map((result) => result.error !== null)).toEqual([
-      true,
-      true,
-      true,
-      true,
-      true,
-    ]);
+    expect(rowAttempts).toHaveLength(invalidPaths.length);
+    expect(rowAttempts.every((result) => result.error !== null)).toBe(true);
   }, 30_000);
 
   it("isolates client rows and objects while letting staff manage the board", async () => {
