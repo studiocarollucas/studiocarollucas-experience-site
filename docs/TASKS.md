@@ -1389,8 +1389,8 @@ Proteger toda a Minha Experiência por sessão Supabase e vínculo CRM, oferecen
 
 **Blocker/Hand-off notes**
 
-- concluído: shell protegido, logout e navegação responsiva sem destinos mortos.
-- concern: o placeholder atual de `page.tsx` tem `<main>` próprio; SCL-302 deve substituí-lo por conteúdo de seção para evitar `<main>` aninhado sob o shell.
+- concluído: shell protegido, logout e navegação responsiva; os quatro destinos são contratados pelo Epic 3, com a raiz implementada nesta task e Checklist, Meu ensaio e Styling entregues nas tasks seguintes.
+- concern: skip link permanece pendente para a revisão final do epic.
 
 ---
 
