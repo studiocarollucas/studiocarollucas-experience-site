@@ -43,6 +43,12 @@ const snapshot = {
 };
 
 describe("MyShoot", () => {
+  it("allows long client-safe details to wrap on narrow screens", () => {
+    render(<MyShoot snapshot={snapshot} />);
+
+    expect(screen.getByText("Rua das Flores, 120").closest("dd")).toHaveClass("break-words");
+  });
+
   it("shows the client-safe experience, logistics, and confirmed financial summary", () => {
     render(<MyShoot snapshot={snapshot} contactUrl="https://wa.me/5592999999999" />);
 

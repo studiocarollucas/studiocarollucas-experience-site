@@ -156,7 +156,7 @@ Comparação com a string literal `"true"` (não `!!process.env.RUN_LIVE_DB_TEST
 
 **Dados client-safe:** logística fica em `shoots.location_name`, `location_address` e `client_guidance`. O portal não recebe `shoots.notes`, notas/comprovantes de Payment nem campos internos de produção. O resumo soma somente Payments `confirmado` e mantém dinheiro decimal na fronteira.
 
-**Styling:** Supabase Storage foi escolhido para este marco, no bucket privado `styling-references`, com URLs assinadas temporárias. O limite é 8 MiB por JPEG/PNG/WebP e 20 rows por Shoot, imposto por trigger com advisory lock. Paths são canônicos em três segmentos. As migrations do epic são `0024`/`0026` geradas, `0025`/`0027` custom e `0028_harden_styling_paths.sql` como hardening append-only posterior; migrations aplicadas nunca foram reescritas.
+**Styling:** Supabase Storage foi escolhido para este marco, no bucket privado `styling-references`, com URLs assinadas temporárias. O limite é 8 MiB por JPEG/PNG/WebP e 20 rows por Shoot, imposto por trigger com advisory lock. Paths são canônicos em três segmentos. A fix wave adiciona `0029_styling_upload_reservations.sql`: metadata reserva a cota antes do upload e as policies de `INSERT` no Storage exigem a row correspondente; falha de upload remove um possível objeto parcial antes de liberar a reserva. As migrations anteriores `0024`–`0028` não foram reescritas.
 
 **Riscos e adiamentos:** ainda não há Supabase dedicado para CI/teste; `RUN_LIVE_DB_TESTS=true` alcança o único projeto real e exige teardown auditável. Reveal/galeria (SCL-500/SCL-503) e armazenamento dos assets fotográficos em resolução final continuam fora deste epic. O moodboard guarda apenas referências de Styling e não substitui a galeria de entrega.
 
@@ -166,10 +166,10 @@ Comparação com a string literal `"true"` (não `!!process.env.RUN_LIVE_DB_TEST
 |---|---|---|
 | Admin cria ensaio | `domain/shoots/actions.ts:createShootAction` → `create-confirmed-shoot.ts:createConfirmedShoot` | `tests/domain/create-confirmed-shoot.test.ts`, `tests/components/admin-shoot-logistics.test.tsx` |
 | Magic Link vincula CRM | `app/auth/callback/route.ts` → `lib/auth/client-link.ts:linkAuthUserToClient` | `tests/app/auth-callback.test.ts`, `tests/lib/client-link.test.ts` |
-| Portal lê por JWT/RLS | `domain/portal/read.ts:readPortalSnapshot` → grants/policies de `0025` | `tests/domain/portal-read.test.ts`, `tests/domain/portal-rls.integration.test.ts` |
+| Portal lê por JWT/RLS | `domain/portal/server.ts` → `readPortalContext` + leitores mínimos por rota → grants/policies de `0025` | `tests/domain/portal-{read,server}.test.ts`, `tests/domain/portal-rls.integration.test.ts` |
 | Cliente atualiza checklist | `domain/portal/checklist.ts:setClientTaskStatus` → policy/trigger de `0025` | `tests/domain/client-checklist.test.ts`, `tests/domain/portal-rls.integration.test.ts` |
 | Portal compõe pagamentos | Payments confirmados → `domain/portal/summary.ts:summarizePortalMoney` | `tests/domain/portal-shoot-payment.integration.test.ts`, `tests/domain/portal-summary.test.ts` |
 | Admin avança produção/Shoot | `changeProductionJobStatus` / `changeShootStatusAction` → leitura do mesmo Shoot | `tests/domain/change-production-status.test.ts`, `tests/domain/portal-rls.integration.test.ts` |
-| Styling grava objeto + row | `domain/styling/client.ts:uploadStylingReference` → bucket + `styling_references` | `tests/domain/styling-storage.integration.test.ts`, `tests/domain/styling-rls.integration.test.ts` |
+| Styling reserva row + grava objeto | `domain/styling/client.ts:uploadStylingReference` → `styling_references` + bucket protegido por `0029` | `tests/domain/styling-client.test.ts`, `tests/domain/styling-storage.integration.test.ts`, `tests/domain/styling-rls.integration.test.ts` |
 
 Cada aresta acima alcança código executável e ao menos uma asserção automatizada; as integrações marcadas `.integration` rodam contra o Supabase real somente com opt-in. A aceitação visual/autenticada e as capturas permanecem como evidência da etapa manual de fechamento, não como substituto desses testes.

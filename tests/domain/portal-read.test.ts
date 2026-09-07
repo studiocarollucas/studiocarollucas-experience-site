@@ -215,6 +215,15 @@ describe("readPortalSnapshot", () => {
     }
   );
 
+  it("rejects values outside the numeric(10,2) database range", async () => {
+    const { supabase } = portalFixture({ amount: "999999999.99" });
+
+    await expect(readPortalSnapshot(supabase)).rejects.toMatchObject({
+      code: "query_failed",
+      cause: expect.any(TypeError),
+    });
+  });
+
   it("rejects missing authentication and an authenticated user without a linked client", async () => {
     const unauthenticated = portalFixture({ authUser: null });
     await expect(readPortalSnapshot(unauthenticated.supabase)).rejects.toMatchObject({

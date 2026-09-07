@@ -50,6 +50,9 @@ export default async function MinhaExperienciaLayout({ children }: { children: R
               Minha Experiência
             </p>
           </div>
+          <div className="md:hidden">
+            <ClientSignOutButton />
+          </div>
           <div className="hidden items-center gap-6 md:flex">
             <ClientNav />
             <ClientSignOutButton />

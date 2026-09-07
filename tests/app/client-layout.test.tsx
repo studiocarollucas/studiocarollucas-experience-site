@@ -38,4 +38,12 @@ describe("Minha Experiência layout", () => {
     expect(mains[0]).toHaveAttribute("id", "portal-main");
     expect(mains[0]).toHaveAttribute("tabindex", "-1");
   });
+
+  it("keeps a sign-out action visible in the mobile header", async () => {
+    const view = render(await MinhaExperienciaLayout({ children: <p>Conteúdo</p> }));
+    const signOutButtons = screen.getAllByRole("button", { name: "Sair" });
+
+    expect(signOutButtons).toHaveLength(2);
+    expect(view.container.querySelector("header .md\\:hidden button")).toBe(signOutButtons[0]);
+  });
 });

@@ -37,10 +37,7 @@ export async function setPreparationTaskStatus(
 
   const [row] = await db
     .update(preparationTasks)
-    .set({
-      status,
-      completedAt: status === "concluida" ? new Date().toISOString() : null,
-    })
+    .set({ status })
     .where(eq(preparationTasks.id, taskId))
     .returning();
   return { task: row, previousStatus: current.status };

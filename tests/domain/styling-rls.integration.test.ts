@@ -524,44 +524,11 @@ describeIfLiveDb("styling references (live RLS and Storage integration)", () => 
   }, 30_000);
 
   it("isolates client rows and objects while letting staff manage the board", async () => {
-    const firstUpload = await firstSupabase.storage
+    const uploadWithoutReservation = await firstSupabase.storage
       .from(STYLING_BUCKET)
-      .upload(firstPath, new Uint8Array([1, 2, 3]), {
-        contentType: "image/png",
-        upsert: false,
-      });
-    expect(firstUpload.error).toBeNull();
-
-    const secondUpload = await secondSupabase.storage
-      .from(STYLING_BUCKET)
-      .upload(secondPath, new Uint8Array([4, 5, 6]), {
-        contentType: "image/webp",
-        upsert: false,
-      });
-    expect(secondUpload.error).toBeNull();
-
-    const studioUpload = await staffSupabase.storage
-      .from(STYLING_BUCKET)
-      .upload(studioPath, new Uint8Array([7, 8, 9]), {
-        contentType: "image/jpeg",
-        upsert: false,
-      });
-    expect(studioUpload.error).toBeNull();
-
-    for (const deniedUpload of [
-      await firstSupabase.storage
-        .from(STYLING_BUCKET)
-        .upload(wrongPrefixPath, new Uint8Array([1]), { contentType: "image/png" }),
-      await firstSupabase.storage
-        .from(STYLING_BUCKET)
-        .upload(wrongShootPath, new Uint8Array([1]), { contentType: "image/png" }),
-      await firstSupabase.storage
-        .from(STYLING_BUCKET)
-        .upload(malformedPath, new Uint8Array([1]), { contentType: "image/png" }),
-    ]) {
-      expect(deniedUpload.error).not.toBeNull();
-      expect(deniedUpload.data).toBeNull();
-    }
+      .upload(firstPath, new Uint8Array([1]), { contentType: "image/png", upsert: false });
+    expect(uploadWithoutReservation.error).not.toBeNull();
+    expect(uploadWithoutReservation.data).toBeNull();
 
     const firstInsert = await firstSupabase
       .from("styling_references")
@@ -615,6 +582,45 @@ describeIfLiveDb("styling references (live RLS and Storage integration)", () => 
       .select("storage_path")
       .single();
     expect(delegatedStudioInsert.error).toBeNull();
+
+    const firstUpload = await firstSupabase.storage
+      .from(STYLING_BUCKET)
+      .upload(firstPath, new Uint8Array([1, 2, 3]), {
+        contentType: "image/png",
+        upsert: false,
+      });
+    expect(firstUpload.error).toBeNull();
+
+    const secondUpload = await secondSupabase.storage
+      .from(STYLING_BUCKET)
+      .upload(secondPath, new Uint8Array([4, 5, 6]), {
+        contentType: "image/webp",
+        upsert: false,
+      });
+    expect(secondUpload.error).toBeNull();
+
+    const studioUpload = await staffSupabase.storage
+      .from(STYLING_BUCKET)
+      .upload(studioPath, new Uint8Array([7, 8, 9]), {
+        contentType: "image/jpeg",
+        upsert: false,
+      });
+    expect(studioUpload.error).toBeNull();
+
+    for (const deniedUpload of [
+      await firstSupabase.storage
+        .from(STYLING_BUCKET)
+        .upload(wrongPrefixPath, new Uint8Array([1]), { contentType: "image/png" }),
+      await firstSupabase.storage
+        .from(STYLING_BUCKET)
+        .upload(wrongShootPath, new Uint8Array([1]), { contentType: "image/png" }),
+      await firstSupabase.storage
+        .from(STYLING_BUCKET)
+        .upload(malformedPath, new Uint8Array([1]), { contentType: "image/png" }),
+    ]) {
+      expect(deniedUpload.error).not.toBeNull();
+      expect(deniedUpload.data).toBeNull();
+    }
 
     for (const deniedInsert of [
       await firstSupabase.from("styling_references").insert({

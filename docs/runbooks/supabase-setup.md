@@ -40,7 +40,8 @@ O portal usa um caminho híbrido. O Admin continua no servidor via Drizzle e RBA
 2. `0025_epic3_client_access.sql` — grants por coluna, policies RLS, `owns_portal_shoot`, trigger de `completed_at` e checks;
 3. `0026_styling_references.sql` — enum e tabela de metadata do moodboard;
 4. `0027_styling_storage_access.sql` — FKs/index/check, limite concorrente, bucket privado e policies de tabela/Storage;
-5. `0028_harden_styling_paths.sql` — hardening append-only do path canônico e exclusão da cliente limitada a `origin = 'client'`.
+5. `0028_harden_styling_paths.sql` — hardening append-only do path canônico e exclusão da cliente limitada a `origin = 'client'`;
+6. `0029_styling_upload_reservations.sql` — Storage só aceita upload quando a row de metadata correspondente já reservou a cota.
 
 Aplique com `npm run db:migrate`; o script valida primeiro o journal. Não recrie nem edite migrations já aplicadas e não crie o bucket manualmente no Dashboard: `0027` é a fonte de verdade da configuração. Depois, confira que `authenticated` tem `SELECT` somente nas colunas client-safe, `UPDATE` somente em `preparation_tasks.status`, e que `anon` não tem acesso. `owns_portal_shoot(uuid)` deve continuar `SECURITY DEFINER`, com `search_path` vazio e `EXECUTE` apenas para `authenticated`.
 
@@ -50,7 +51,7 @@ O vínculo de linha nasce em `clients.auth_user_id = auth.uid()`. O helper exige
 
 O bucket `styling-references` permanece privado. Não existe variável de ambiente adicional: o browser usa URL + anon key e o servidor usa as credenciais Supabase já listadas. O contrato é JPEG/PNG/WebP, no máximo 8 MiB por objeto e 20 referências por Shoot. Paths têm exatamente três segmentos, `<auth-user-uuid>/<shoot-uuid>/<object-key>`; URLs públicas não são persistidas, e a leitura gera URLs assinadas efêmeras.
 
-Ao investigar falhas, consulte metadata e objetos, mas remova objetos pelo SDK de Storage, não com `DELETE` direto em `storage.objects`. O upload compensa o objeto se o insert da row falhar. A exclusão remove primeiro a row autorizada; uma falha parcial é registrada no Sentry e precisa de reconciliação operacional.
+Ao investigar falhas, consulte metadata e objetos, mas remova objetos pelo SDK de Storage, não com `DELETE` direto em `storage.objects`. O upload reserva primeiro a row de metadata; se o envio falhar, remove um possível objeto parcial antes de liberar a reserva. A exclusão remove primeiro a row autorizada; uma falha parcial é registrada no Sentry com `shootId`, `storagePath` e `referenceId` e precisa de reconciliação operacional.
 
 ## Testes live e limpeza
 

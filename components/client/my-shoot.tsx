@@ -14,7 +14,9 @@ function DetailRow({ label, children }: { label: string; children: ReactNode }) 
   return (
     <div className="grid gap-1 border-b border-line py-4 last:border-b-0 sm:grid-cols-[11rem_minmax(0,1fr)] sm:gap-5">
       <dt className="font-sans text-[10px] uppercase tracking-[0.16em] text-muted">{label}</dt>
-      <dd className="min-w-0 font-sans text-sm leading-6 text-ink sm:text-right">{children}</dd>
+      <dd className="min-w-0 break-words font-sans text-sm leading-6 text-ink sm:text-right">
+        {children}
+      </dd>
     </div>
   );
 }

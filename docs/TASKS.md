@@ -1290,7 +1290,7 @@ Rota `/admin/agenda/[id]/preparacao` (link já existente na ficha do ensaio, SCL
 
 - [x] `summarizePreparationProgress(tasks)` puro/testado — TDD RED→GREEN, 4 casos em `tests/domain/preparation-progress.test.ts` (0% e `nextTaskTitle` null sem tarefas; `concluida` conta como done e `pct` é `Math.round` inteiro; `nextTaskTitle` = primeira não-`concluida` na ordem; 100% e null quando todas `concluida`);
 - [x] `pct` é inteiro `0..100` (`Math.round((done/total)*100)`, 0 quando `total === 0`); `nextTaskTitle` = título da primeira tarefa não-`concluida` na ordem, ou `null`;
-- [x] `setPreparationTaskStatus(taskId, status)` grava `completedAt = new Date().toISOString()` ao mover para `concluida`, e limpa (`null`) em qualquer outro status — `completed_at` é `timestamp(..., { mode: "string" })`;
+- [x] `setPreparationTaskStatus(taskId, status)` atualiza somente `status`; o trigger `preparation_tasks_sync_completed_at` é o único dono de `completed_at`;
 - [x] `addPreparationTaskFormSchema` = `createPreparationTaskSchema.extend({ visibleToClient: z.coerce.boolean().default(true) })` — única extensão; `domain/preparation/schema.ts` só recebeu esse append;
 - [x] `addPreparationTaskAction` e `setPreparationTaskStatusAction` são `"use server"`, embrulhadas por `defineAdminAction({ role: "staff" })`, auditadas (`preparation_task.created` / `preparation_task.status_changed`) e revalidam `/admin/agenda/${shootId}` + `/admin/agenda/${shootId}/preparacao`;
 - [x] `checklist.tsx` é `"use client"`, importa `toFormAction`/`ActionResult` de `@/lib/auth/action-result` (não de `admin-action`), cicla o status por clique via `setPreparationTaskStatusAction` num `useTransition` + `router.refresh()`, e adiciona tarefa via `useActionState` + `toFormAction(..., { booleans: ["visibleToClient"] })`.
@@ -1307,7 +1307,7 @@ Rota `/admin/agenda/[id]/preparacao` (link já existente na ficha do ensaio, SCL
 
 **Blocker/Hand-off notes**
 
-- concluído: `summarizePreparationProgress` (puro/testado, TDD RED→GREEN 4 casos), `setPreparationTaskStatus` (`completedAt` set/clear), `addPreparationTask`, `addPreparationTaskFormSchema`, as duas actions embrulhadas + auditadas, página + `Checklist` client component. `npm run test` (191 + 6 skip), `npm run typecheck`, `npm run lint` (0 erros; 5 warnings pré-existentes em outros testes), `npm run check:admin-auth`, `npm run build` todos verdes.
+- concluído: `summarizePreparationProgress` (puro/testado, TDD RED→GREEN 4 casos), `setPreparationTaskStatus` (somente `status`, deixando `completed_at` ao trigger), `addPreparationTask`, `addPreparationTaskFormSchema`, as duas actions embrulhadas + auditadas, página + `Checklist` client component. `npm run test` (191 + 6 skip), `npm run typecheck`, `npm run lint` (0 erros; 5 warnings pré-existentes em outros testes), `npm run check:admin-auth`, `npm run build` todos verdes.
 - falta: nada pendente nesta task. Última task do Epic 2.
 - arquivos alterados: ver Files/Scope acima.
 - testes: `tests/domain/preparation-progress.test.ts` (4 puros, TDD RED→GREEN) + `tests/domain/preparation-tasks.test.ts` (Epic 1, reusado).
@@ -1449,9 +1449,9 @@ Exibir para a cliente autenticada a visão do mesmo Shoot usado pelo Studio OS.
 
 **Task 5 — read model compartilhado e home C+ concluídos (2026-09-07)**
 
-- `readPortalSnapshot()` valida o JWT com `auth.getUser()`, descobre o Client exclusivamente por RLS e projeta somente as colunas liberadas pelas grants de `clients`, `shoots`, `experience_packages`, `preparation_tasks` e `payments`; não seleciona `auth_user_id`, notes, proof ou campos internos.
+- `readPortalContext()` valida o JWT com `auth.getUser()`, descobre o Client exclusivamente por RLS e seleciona o Shoot canônico. `React.cache` deduplica esse contexto por request entre layout e page; leitores separados carregam só as seções de cada rota (Home: experiência+tarefas; Checklist: tarefas; Ensaio: experiência+tarefas+pagamentos; Styling: referências).
 - A seleção continua canônica e pura: próximo ensaio habilitado/não cancelado em ordem crescente; sem futuro, o mais recente elegível em ordem decrescente. Somente depois da seleção, pacote, tarefas e pagamentos independentes são lidos em paralelo para o Shoot escolhido.
-- O PostgREST live serializou `numeric` como número, diferente da string decimal do Drizzle. O boundary normaliza `agreed_price` e `amount` textualmente para duas casas dentro de `numeric(12,2)`, rejeitando `null`/malformado com `PortalReadError` neutro e causa preservada apenas para observabilidade.
+- O PostgREST live serializou `numeric` como número, diferente da string decimal do Drizzle. O boundary normaliza `agreed_price` e `amount` textualmente para duas casas dentro de `numeric(10,2)`, rejeitando `null`/fora da faixa/malformado com `PortalReadError` neutro e causa preservada apenas para observabilidade.
 - A home C+ usa a jornada de seis etapas como estrutura narrativa, texto para concluída/atual/próxima, countdown Manaus, progresso com texto e ARIA e um único CTA primário. Empty/error states têm orientação e retry nativo; somente o error boundary é Client Component.
 - Revisão visual local em 320 px e 1280 px confirmou ausência de overflow horizontal, headings H1→H2, targets de 44–45 px e foco visível. Não há emoji, gradiente, biblioteca ou asset novo.
 - Teste live opt-in criou dois Auth users e dois Clients/Shoots com pagamentos e tarefas. Cada JWT compôs somente seu Client/Shoot; pagamento pendente e tarefa oculta ficaram ausentes; guessed IDs de Shoot e Client retornaram `[]`. O `afterAll` removeu tasks, payments, jobs, shoots, clients e ambos Auth users nessa ordem e consultou zero resíduos em cada relação/identidade.
@@ -1569,8 +1569,8 @@ Refletir no portal os detalhes client-safe do ensaio ativo e a mesma composiçã
 - PR: —
 - Depends on: SCL-103, SCL-105, SCL-302
 - Blocks: primeiro marco E2E
-- Files/Scope: `db/schema/styling-references.ts`, migrations `0026`–`0028`, `domain/styling/*`, `components/{client/styling-board,admin/styling-manager}.tsx`, páginas de Styling/agenda e testes de schema, migration, RLS, Storage, read model e UI
-- Migration: yes — `0026_styling_references.sql`, `0027_styling_storage_access.sql`, `0028_harden_styling_paths.sql` aplicadas no Supabase real
+- Files/Scope: `db/schema/styling-references.ts`, migrations `0026`–`0029`, `domain/styling/*`, `components/{client/styling-board,admin/styling-manager}.tsx`, páginas de Styling/agenda e testes de schema, migration, RLS, Storage, read model e UI
+- Migration: yes — `0026_styling_references.sql`, `0027_styling_storage_access.sql`, `0028_harden_styling_paths.sql` aplicadas no Supabase real; `0029_styling_upload_reservations.sql` pendente de aplicação controlada pelo controller
 - Updated at: 2026-09-07
 
 **Goal**
@@ -1584,7 +1584,7 @@ Oferecer um moodboard privado e colaborativo do ensaio ativo, no qual cliente e 
 - [x] path canônico usa `<auth-user-uuid>/<shoot-uuid>/<object-key>`; o browser gera UUID e extensão pelo MIME, nunca pelo nome original;
 - [x] RLS de tabela e Storage isola clientes por ensaio, permite leitura das referências do estúdio para o próprio ensaio e restringe exclusão da cliente às referências `origin = client` enviadas por ela;
 - [x] staff/admin pode ler, adicionar e remover todas as referências por policies autenticadas; `anon` não recebe grants;
-- [x] upload compensa o objeto quando o insert de metadata falha; delete negado não alcança Storage; falha de remoção do objeto após row delete produz mensagem neutra e log Sentry;
+- [x] upload reserva metadata antes de tocar Storage; falha do upload remove objeto parcial antes de liberar a row; delete negado não alcança Storage; erros de lifecycle mantêm mensagem neutra e chegam ao Sentry com `shootId`/`storagePath`/`referenceId`;
 - [x] `readStylingReferences` assina URLs privadas em lote por uma hora e falha fechado em erro ou cardinalidade divergente;
 - [x] `PortalSnapshot` inclui o Auth viewer e as referências do ensaio selecionado sem cachear signed URLs além do render;
 - [x] cliente e Admin usam o mesmo board responsivo, com autoria, legenda opcional, empty/loading/error states, ownership de remoção, targets de 44 px, foco visível e reduced motion;
