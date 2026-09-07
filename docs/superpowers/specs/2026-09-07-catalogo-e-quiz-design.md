@@ -1,7 +1,7 @@
 # Catálogo administrável e quiz de curadoria — design
 
-**Data:** 2026-09-07  
-**Status:** aprovado para planejamento  
+**Data:** 2026-09-07
+**Status:** aprovado para planejamento
 **Escopo:** catálogo de pacotes no Studio OS e SCL-403/SCL-404 (quiz e resultado/persistência)
 
 ## Objetivo
