@@ -29,6 +29,19 @@ function isSafeUploadError(error: unknown): boolean {
   return error instanceof Error && SAFE_UPLOAD_MESSAGES.has(error.message);
 }
 
+function stylingContext(
+  error: unknown,
+  fallback: { shootId: string; storagePath: string | null; referenceId: string | null }
+) {
+  if (error instanceof Error && "context" in error) {
+    const context = error.context;
+    if (context && typeof context === "object") {
+      return { ...fallback, ...context };
+    }
+  }
+  return fallback;
+}
+
 export function StylingBoard({
   shootId,
   viewerAuthUserId,
@@ -83,7 +96,16 @@ export function StylingBoard({
       router.refresh();
     } catch (error) {
       if (!isSafeUploadError(error)) {
-        Sentry.captureException(error, { tags: { operation: "styling-reference-upload" } });
+        Sentry.captureException(error, {
+          tags: { operation: "styling-reference-upload" },
+          contexts: {
+            stylingReference: stylingContext(error, {
+              shootId,
+              storagePath: null,
+              referenceId: null,
+            }),
+          },
+        });
       }
       setFeedback({ kind: "alert", message: uploadFeedback(error) });
     } finally {
@@ -94,6 +116,7 @@ export function StylingBoard({
 
   async function removeReference(reference: PortalReference) {
     if (mutationLock.current) return;
+    if (!window.confirm("Remover esta referência de styling?")) return;
     mutationLock.current = true;
     setFeedback(null);
     setPending(reference.id);
@@ -103,7 +126,16 @@ export function StylingBoard({
       setFeedback({ kind: "status", message: "Referência removida." });
       router.refresh();
     } catch (error) {
-      Sentry.captureException(error, { tags: { operation: "styling-reference-delete" } });
+      Sentry.captureException(error, {
+        tags: { operation: "styling-reference-delete" },
+        contexts: {
+          stylingReference: stylingContext(error, {
+            shootId,
+            storagePath: reference.storagePath,
+            referenceId: reference.id,
+          }),
+        },
+      });
       setFeedback({ kind: "alert", message: "Não foi possível remover esta referência." });
       router.refresh();
     } finally {

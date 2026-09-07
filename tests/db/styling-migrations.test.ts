@@ -10,6 +10,10 @@ const hardeningSql = fs.readFileSync(
   path.resolve("db/migrations/0028_harden_styling_paths.sql"),
   "utf8",
 );
+const reservationSqlPath = path.resolve("db/migrations/0029_styling_upload_reservations.sql");
+const reservationSql = fs.existsSync(reservationSqlPath)
+  ? fs.readFileSync(reservationSqlPath, "utf8")
+  : "";
 
 describe("styling migrations", () => {
   it("creates a private, restricted 8 MB bucket", () => {
@@ -90,5 +94,18 @@ describe("styling path hardening migration", () => {
     expect(hardeningSql).toContain(
       "grant execute on function private.is_canonical_styling_path(text, uuid, uuid) to authenticated",
     );
+  });
+});
+
+describe("styling upload reservation migration", () => {
+  it("requires a matching metadata row before client or staff Storage inserts", () => {
+    expect(reservationSql).toContain("function private.has_styling_reference(");
+    expect(reservationSql).toContain("where storage_path = object_name");
+    expect(reservationSql).toContain("uploaded_by_auth_user_id = expected_uploader_id");
+    expect(reservationSql).toContain(
+      "private.has_styling_reference(name, auth.uid())",
+    );
+    expect(reservationSql).toContain("drop policy styling_objects_client_insert");
+    expect(reservationSql).toContain("drop policy styling_objects_staff_access");
   });
 });

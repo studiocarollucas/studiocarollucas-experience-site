@@ -188,6 +188,13 @@ describe("StylingBoard", () => {
     expect(mocks.refresh).not.toHaveBeenCalled();
     expect(mocks.captureException).toHaveBeenCalledWith(expect.any(Error), {
       tags: { operation: "styling-reference-upload" },
+      contexts: {
+        stylingReference: {
+          shootId: SHOOT_ID,
+          storagePath: null,
+          referenceId: null,
+        },
+      },
     });
   });
 
@@ -217,6 +224,7 @@ describe("StylingBoard", () => {
   });
 
   it("announces delete progress and synchronously prevents duplicate deletion", async () => {
+    vi.spyOn(window, "confirm").mockReturnValue(true);
     mocks.deleteStylingReference.mockReturnValue(new Promise(() => undefined));
     render(
       <StylingBoard shootId={SHOOT_ID} viewerAuthUserId={VIEWER_ID} references={[ownReference]} />
@@ -230,7 +238,20 @@ describe("StylingBoard", () => {
     expect(screen.getByRole("status")).toHaveTextContent("Removendo referência…");
   });
 
+  it("requires an accessible native confirmation before deleting", async () => {
+    const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
+    render(
+      <StylingBoard shootId={SHOOT_ID} viewerAuthUserId={VIEWER_ID} references={[ownReference]} />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Remover referência Luz suave" }));
+
+    expect(confirm).toHaveBeenCalledWith("Remover esta referência de styling?");
+    expect(mocks.deleteStylingReference).not.toHaveBeenCalled();
+  });
+
   it("logs a failed post-row object cleanup and keeps the public message neutral", async () => {
+    vi.spyOn(window, "confirm").mockReturnValue(true);
     const internalError = new Error("storage object cleanup failed");
     mocks.deleteStylingReference.mockRejectedValue(internalError);
     render(
@@ -245,6 +266,13 @@ describe("StylingBoard", () => {
     expect(screen.queryByText(/storage object/i)).not.toBeInTheDocument();
     expect(mocks.captureException).toHaveBeenCalledWith(internalError, {
       tags: { operation: "styling-reference-delete" },
+      contexts: {
+        stylingReference: {
+          shootId: SHOOT_ID,
+          storagePath: ownReference.storagePath,
+          referenceId: ownReference.id,
+        },
+      },
     });
     expect(mocks.refresh).toHaveBeenCalledOnce();
   });

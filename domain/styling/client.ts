@@ -62,6 +62,23 @@ type UploadStylingReferenceInput = {
   currentCount: number;
 };
 
+export type StylingLifecycleContext = {
+  shootId: string;
+  storagePath: string;
+  referenceId: string | null;
+};
+
+export class StylingLifecycleError extends Error {
+  constructor(
+    message: string,
+    public readonly context: StylingLifecycleContext,
+    cause?: unknown
+  ) {
+    super(message, { cause });
+    this.name = "StylingLifecycleError";
+  }
+}
+
 const EXTENSION = {
   "image/jpeg": "jpg",
   "image/png": "png",
@@ -109,22 +126,52 @@ async function removeObjectAndConfirmAbsent(
   throw new AggregateError(issues, "styling object cleanup could not confirm absence");
 }
 
-async function compensateInsertFailure(
+async function releaseFailedUploadReservation(
+  supabase: StylingMutationClient,
   bucket: StorageBucketClient,
   path: string,
+  shootId: string,
+  referenceId: string,
   originalCause: unknown
 ): Promise<never> {
+  const issues: unknown[] = [originalCause];
   try {
     await removeObjectAndConfirmAbsent(bucket, path);
   } catch (cleanupCause) {
-    throw new Error("Não foi possível salvar esta referência.", {
-      cause: new AggregateError(
-        [originalCause, cleanupCause],
-        "styling metadata insert and object compensation failed"
-      ),
-    });
+    issues.push(cleanupCause);
+    throw new StylingLifecycleError(
+      "Não foi possível enviar esta referência.",
+      { shootId, storagePath: path, referenceId },
+      new AggregateError(issues, "styling failed upload object cleanup was incomplete")
+    );
   }
-  throw new Error("Não foi possível salvar esta referência.", { cause: originalCause });
+
+  try {
+    const deleted = await supabase
+      .from("styling_references")
+      .delete()
+      .eq("id", referenceId)
+      .select("storage_path")
+      .single();
+    if (deleted.error || !deleted.data) {
+      issues.push(deleted.error ?? new Error("styling reservation delete returned no data"));
+    }
+  } catch (cleanupCause) {
+    issues.push(cleanupCause);
+  }
+
+  if (issues.length > 1) {
+    throw new StylingLifecycleError(
+      "Não foi possível enviar esta referência.",
+      { shootId, storagePath: path, referenceId },
+      new AggregateError(issues, "styling failed upload reservation cleanup was incomplete")
+    );
+  }
+  throw new StylingLifecycleError(
+    "Não foi possível enviar esta referência.",
+    { shootId, storagePath: path, referenceId },
+    originalCause
+  );
 }
 
 export async function uploadStylingReference(
@@ -140,15 +187,6 @@ export async function uploadStylingReference(
 
   const extension = EXTENSION[input.file.type as keyof typeof EXTENSION];
   const path = `${input.authUserId}/${input.shootId}/${crypto.randomUUID()}.${extension}`;
-  const bucket = supabase.storage.from(STYLING_BUCKET);
-  const upload = await bucket.upload(path, input.file, {
-    contentType: input.file.type,
-    upsert: false,
-  });
-  if (upload.error) {
-    throw new Error("Não foi possível enviar esta referência.", { cause: upload.error });
-  }
-
   let inserted: { data: StylingReferenceRow | null; error: unknown };
   try {
     inserted = await supabase
@@ -163,14 +201,46 @@ export async function uploadStylingReference(
       .select(REFERENCE_COLUMNS)
       .single();
   } catch (error) {
-    return compensateInsertFailure(bucket, path, error);
+    throw new StylingLifecycleError(
+      "Não foi possível salvar esta referência.",
+      { shootId: input.shootId, storagePath: path, referenceId: null },
+      error
+    );
   }
 
   if (inserted.error || !inserted.data) {
-    return compensateInsertFailure(
+    throw new StylingLifecycleError(
+      "Não foi possível salvar esta referência.",
+      { shootId: input.shootId, storagePath: path, referenceId: null },
+      inserted.error ?? new Error("styling reference insert returned no data")
+    );
+  }
+
+  const bucket = supabase.storage.from(STYLING_BUCKET);
+  let upload: { data: { path: string } | null; error: unknown };
+  try {
+    upload = await bucket.upload(path, input.file, {
+      contentType: input.file.type,
+      upsert: false,
+    });
+  } catch (error) {
+    return releaseFailedUploadReservation(
+      supabase,
       bucket,
       path,
-      inserted.error ?? new Error("styling reference insert returned no data")
+      input.shootId,
+      inserted.data.id,
+      error
+    );
+  }
+  if (upload.error || !upload.data) {
+    return releaseFailedUploadReservation(
+      supabase,
+      bucket,
+      path,
+      input.shootId,
+      inserted.data.id,
+      upload.error ?? new Error("styling upload returned no data")
     );
   }
 
@@ -188,7 +258,9 @@ export async function deleteStylingReference(
     .select("storage_path")
     .single();
   if (deleted.error || !deleted.data) {
-    throw new Error("Não foi possível remover esta referência.");
+    throw new Error("Não foi possível remover esta referência.", {
+      cause: deleted.error ?? new Error("styling row delete returned no data"),
+    });
   }
 
   try {
