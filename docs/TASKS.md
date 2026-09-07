@@ -1435,6 +1435,12 @@ Exibir para a cliente autenticada a visão do mesmo Shoot usado pelo Studio OS.
 - Verificação live repetida com `node --env-file-if-exists=.env.local .superpowers/sdd/task-2-verify-live.mjs` (usuário autorizou explicitamente com “sim”): `PRESERVED_HISTORICAL_COMPLETED_AT 2020-02-03T04:05:06.789Z`, `SUCCESS {"passed":9,...}`, e cleanup final `auth.users=0, profiles=0, clients=0, experience_packages=0, shoots=0, preparation_tasks=0, payments=0`. A repetição de `status='concluida'` preservou exatamente o timestamp histórico.
 - A home e seus critérios de UI continuam pendentes; apenas a fundação da Task 2 foi concluída. Privilégios legados REFERENCES/TRIGGER/TRUNCATE já documentados em DECISIONS permanecem fora desta mudança.
 
+**Task 4 — núcleo puro do portal concluído (2026-09-06)**
+
+- Adicionados tipos client-safe e funções puras para seleção canônica do ensaio, calendário `America/Manaus`, countdown, jornada, próximo passo de preparação e resumo financeiro.
+- A seleção não altera a entrada, ignora ensaios cancelados/desabilitados, prefere o próximo ensaio ativo e usa ID como desempate determinístico. Os resumos não criam estado persistido: contam apenas tarefas visíveis e pagamentos confirmados.
+- TDD RED/GREEN registrado em `.superpowers/sdd/task-4-report.md`; testes focados, typecheck, lint, guard de auth admin e suíte completa executados antes do commit.
+
 ---
 
 ## Hand-off global atual
