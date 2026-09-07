@@ -58,7 +58,7 @@
 | SCL-231 | Mudar status do ProductionJob | P1 | production | DONE | agent:claude-code | SCL-106,SCL-230 |
 | SCL-240 | Checklist de preparação interno | P1 | admin | DONE | agent:claude-code | SCL-105,SCL-212 |
 | SCL-300 | Passwordless cliente | P1 | client | DONE | agent:codex | SCL-006,SCL-007 |
-| SCL-301 | Shell Minha Experiência | P1 | client | BACKLOG | unassigned | SCL-300,SCL-009 |
+| SCL-301 | Shell Minha Experiência | P1 | client | DONE | agent:codex | SCL-300,SCL-009 |
 | SCL-302 | Home cliente + progresso | P1 | client | BACKLOG | unassigned | SCL-103,SCL-105,SCL-301 |
 | SCL-400 | Home pública editorial | P1 | site | BACKLOG | unassigned | SCL-009 |
 | SCL-403 | Quiz | P1 | site | BACKLOG | unassigned | SCL-009 |
@@ -1351,6 +1351,46 @@ Vincular com segurança cada usuário verificado por Magic Link a exatamente um 
 - arquivos alterados: `lib/auth/client-link.ts`, `app/auth/callback/route.ts`, `app/(client)/login/page.tsx`, `tests/lib/client-link.test.ts`, `tests/app/auth-callback.test.ts`, `docs/TASKS.md`.
 - testes: TDD RED (`npm run test -- tests/lib/client-link.test.ts`, import inexistente) e GREEN (6 testes); cobertura cumulativa de vínculo/callback/redirect: `npm run test -- tests/lib/client-link.test.ts tests/app/auth-callback.test.ts tests/lib/safe-redirect.test.ts` — 25/25.
 - próximo passo: SCL-301 pode usar `getLinkedClientByAuthUserId` para montar o shell protegido.
+
+---
+
+### SCL-301 — Shell Minha Experiência
+
+- Status: DONE
+- Priority: P1
+- Area: client
+- Owner: agent:codex
+- Branch: main
+- PR: —
+- Depends on: SCL-300, SCL-009
+- Blocks: SCL-302, SCL-503
+- Files/Scope: `app/(client)/minha-experiencia/{layout,sign-out}.ts(x)`, `components/client/{client-nav,client-sign-out-button}.tsx`, `tests/components/client-nav.test.tsx`
+- Migration: no
+- Updated at: 2026-09-06
+
+**Goal**
+
+Proteger toda a Minha Experiência por sessão Supabase e vínculo CRM, oferecendo uma navegação responsiva somente para os destinos do portal que serão implementados neste epic.
+
+**Acceptance criteria**
+
+- [x] layout servidor redireciona sessão ausente para o login e não renderiza conteúdo de cliente sem vínculo por `auth_user_id`;
+- [x] sem vínculo, mostra a mensagem neutra de acesso indisponível e permite encerrar a própria sessão;
+- [x] ClientNav contém apenas Início, Checklist, Meu ensaio e Styling, marca o destino atual com `aria-current="page"` e não expõe Gallery;
+- [x] mobile recebe barra inferior com targets de no mínimo 44 px; desktop reutiliza a navegação no cabeçalho;
+- [x] `clientSignOutAction` lê apenas a sessão cookie-bound, encerra-a e redireciona para `/login`;
+- [x] TDD: RED por módulo ausente; GREEN com `tests/components/client-nav.test.tsx` — 2 passed. Typecheck, lint, guard de admin, build e uma suíte completa executados com exit 0.
+
+**Implementation notes**
+
+- Layout/auth permanecem Server Components; somente a leitura reativa de pathname é uma Client Component, sem serializar dados da cliente.
+- A action não é uma mutação administrativa e não aceita ID de usuário; por isso não usa `defineAdminAction`.
+- O shell usa tokens existentes e inclui foco visível e `motion-reduce` na navegação/saída.
+
+**Blocker/Hand-off notes**
+
+- concluído: shell protegido, logout e navegação responsiva sem destinos mortos.
+- concern: o placeholder atual de `page.tsx` tem `<main>` próprio; SCL-302 deve substituí-lo por conteúdo de seção para evitar `<main>` aninhado sob o shell.
 
 ---
 
