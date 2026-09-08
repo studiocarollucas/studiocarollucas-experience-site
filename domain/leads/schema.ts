@@ -15,8 +15,16 @@ export const createLeadSchema = z.object({
   owner: z.string().uuid().optional(),
 });
 
+export const transitionLeadStatusSchema = z.object({
+  leadId: z.string().uuid(),
+  actorUserId: z.string().uuid(),
+  status: z.enum(leadStatusValues),
+  lostReason: z.string().trim().max(500).optional(),
+});
+
 // z.input (not z.infer/z.output): see docs/DECISIONS.md, 2026-09-04 — `status` has
 // `.default("novo")`, so z.infer would make it a required field in the type even
 // though Zod itself treats it as optional pre-parse. z.input matches the pre-parse
 // shape, consistent with domain/clients/schema.ts's CreateClientInput.
 export type CreateLeadInput = z.input<typeof createLeadSchema>;
+export type TransitionLeadStatusInput = z.input<typeof transitionLeadStatusSchema>;
