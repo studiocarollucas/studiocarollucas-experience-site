@@ -22,7 +22,7 @@ type CivilData = {
   birthday: string;
   addressStreet: string;
   addressNumber: string;
-  addressComplement: string | undefined;
+  addressComplement: string | null;
   addressNeighborhood: string;
   addressCity: string;
   addressState: string;

@@ -82,7 +82,7 @@ Esta revisão preserva todas as tasks já concluídas e adiciona cobertura expl�
 | SCL-303 | Checklist acionável pela cliente | P1 | client/admin | DONE | agent:codex | SCL-240,SCL-302 |
 | SCL-304 | Meu ensaio | P1 | client/admin | DONE | agent:codex | SCL-220,SCL-302 |
 | SCL-305 | Styling e referências colaborativas | P1 | client/admin | DONE | agent:codex | SCL-103,SCL-105,SCL-302 |
-| SCL-310 | Contratos PDF privados | P1 | admin/db | IN_PROGRESS | agent:codex | SCL-100,SCL-103,SCL-104,SCL-107 |
+| SCL-310 | Contratos PDF privados | P1 | admin/db | MERGE_READY | agent:codex | SCL-100,SCL-103,SCL-104,SCL-107 |
 | SCL-400 | Home pública editorial | P1 | site | DONE | codex | SCL-009 |
 | SCL-401 | Catálogo de experiências | P1 | site | DONE | codex | SCL-400 |
 | SCL-402 | Páginas verticais — quatro entregues; família pendente | P1 | site | IN_PROGRESS | codex | SCL-401 |

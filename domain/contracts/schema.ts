@@ -33,7 +33,9 @@ export const issueContractSchema = z.object({
   birthday: z.iso.date(),
   addressStreet: z.string().trim().min(1).max(180),
   addressNumber: z.string().trim().min(1).max(30),
-  addressComplement: z.string().trim().max(120).optional(),
+  // Issuance submits the complete civil data. The form adapter drops empty
+  // strings, so missing/blank complements must explicitly clear the saved value.
+  addressComplement: z.string().trim().max(120).nullish().transform((value) => value || null),
   addressNeighborhood: z.string().trim().min(1).max(120),
   addressCity: z.string().trim().min(1).max(120),
   addressState: z.string().trim().length(2).transform((value) => value.toUpperCase()),

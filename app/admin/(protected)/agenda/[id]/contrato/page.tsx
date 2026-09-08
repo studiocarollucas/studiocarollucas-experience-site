@@ -1,4 +1,6 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
+import { getCurrentUser } from "@/lib/auth/session";
+import { hasMinimumRole } from "@/lib/auth/rbac";
 import { Card } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
 import { DetailRow, DetailSection } from "@/components/admin/detail-section";
@@ -11,6 +13,14 @@ import { ContractIssuePanel } from "./contract-issue-panel";
 type Params = Promise<{ id: string }>;
 
 export default async function ContractIssuePage({ params }: { params: Params }) {
+  const currentUser = await getCurrentUser();
+  if (!currentUser) redirect("/admin/login");
+  if (!hasMinimumRole(currentUser.role, "staff")) {
+    redirect(
+      `/admin/login?error=${encodeURIComponent("Sua conta não tem permissão de acesso ao Studio OS.")}`,
+    );
+  }
+
   const { id } = await params;
   const context = await getContractIssueContext(id);
   if (!context) notFound();

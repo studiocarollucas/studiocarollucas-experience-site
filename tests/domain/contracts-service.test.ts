@@ -3,6 +3,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { issueContract, type IssueContractDeps } from "@/domain/contracts/service";
 import { logger } from "@/lib/observability/logger";
+import { toFormAction } from "@/lib/auth/action-result";
 
 const CONTRACT_ID = "00000000-0000-4000-8000-000000000123";
 const SHOOT_ID = "00000000-0000-4000-8000-000000000456";
@@ -68,6 +69,25 @@ function createDeps(overrides: Partial<IssueContractDeps> = {}): IssueContractDe
 }
 
 describe("issueContract", () => {
+  it.each(["", "   "])("clears an existing complement in the snapshot and client after form submission: %j", async (complement) => {
+    const deps = createDeps();
+    const context = await deps.getIssueContext(SHOOT_ID);
+    vi.mocked(deps.getIssueContext).mockResolvedValue({
+      ...context!, client: { ...context!.client, addressComplement: "Old complement" },
+    });
+    const formData = new FormData();
+    for (const [key, value] of Object.entries({ ...validInput, addressComplement: complement })) {
+      formData.set(key, value);
+    }
+    const action = toFormAction(async (input) => ({
+      ok: true as const,
+      data: await issueContract(deps, { input, issuedByAuthUserId: "staff-1" }),
+    }));
+    await action(null, formData);
+    expect(vi.mocked(deps.db.insertContract).mock.calls[0][0].snapshot.client.address).not.toContain("Old complement");
+    expect(deps.db.updateClientCivilData).toHaveBeenCalledWith(CLIENT_ID, expect.objectContaining({ addressComplement: null }));
+  });
+
   it("uploads a private PDF and persists the contract with a redacted audit entry in one transaction", async () => {
     const deps = createDeps();
 
@@ -91,7 +111,7 @@ describe("issueContract", () => {
       birthday: "1994-03-12",
       addressStreet: "Rua de Teste",
       addressNumber: "12",
-      addressComplement: undefined,
+      addressComplement: null,
       addressNeighborhood: "Centro de Teste",
       addressCity: "Manaus",
       addressState: "AM",

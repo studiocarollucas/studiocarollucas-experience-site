@@ -1,10 +1,14 @@
 import { render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const NOT_FOUND = "NOT_FOUND";
 const mockedGetContext = vi.hoisted(() => vi.fn());
+const mockedGetUser = vi.hoisted(() => vi.fn());
+
+vi.mock("@/lib/auth/session", () => ({ getCurrentUser: mockedGetUser }));
 
 vi.mock("next/navigation", () => ({
+  redirect: (path: string) => { throw new Error(`REDIRECT:${path}`); },
   notFound: () => {
     throw new Error(NOT_FOUND);
   },
@@ -19,6 +23,18 @@ import ContractIssuePage from "@/app/admin/(protected)/agenda/[id]/contrato/page
 const shootId = "00000000-0000-4000-8000-000000000123";
 
 describe("ContractIssuePage", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockedGetUser.mockResolvedValue({ id: "staff-1", role: "staff" });
+  });
+
+  it.each([null, { id: "client-1", role: "client" }])("blocks unauthorized users before reading civil data: %j", async (user) => {
+    mockedGetUser.mockResolvedValue(user);
+    mockedGetContext.mockResolvedValue(null);
+    await expect(ContractIssuePage({ params: Promise.resolve({ id: shootId }) })).rejects.toThrow("REDIRECT:/admin/login");
+    expect(mockedGetContext).not.toHaveBeenCalled();
+  });
+
   it("returns notFound when no shoot can be issued", async () => {
     mockedGetContext.mockResolvedValue(null);
 
