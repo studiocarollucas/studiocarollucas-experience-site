@@ -1,8 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const mocks = vi.hoisted(() => ({ createLead: vi.fn() }));
+const mocks = vi.hoisted(() => ({ createLead: vi.fn(), recommendQuizPackage: vi.fn() }));
 
 vi.mock("@/domain/leads/service", () => ({ createLead: mocks.createLead }));
+vi.mock("@/domain/quiz/catalog", () => ({ recommendQuizPackage: mocks.recommendQuizPackage }));
 
 import { captureQuizLead } from "@/domain/quiz/lead-capture";
 
@@ -34,6 +35,8 @@ const validInput = {
 describe("captureQuizLead", () => {
   beforeEach(() => {
     mocks.createLead.mockReset();
+    mocks.recommendQuizPackage.mockReset();
+    mocks.recommendQuizPackage.mockResolvedValue(validInput.result);
   });
 
   it("does not call createLead when consent is false", async () => {
@@ -59,6 +62,54 @@ describe("captureQuizLead", () => {
         answers: validInput.answers,
       }),
     });
+  });
+
+  it("persists only the recommendation recomputed from the answers", async () => {
+    mocks.createLead.mockResolvedValue({ id: "lead-1" });
+    mocks.recommendQuizPackage.mockResolvedValue({
+      ...validInput.result,
+      packageName: "Pacote autorizado",
+      familyName: "Família autorizada",
+      persona: "Persona autorizada",
+    });
+
+    await captureQuizLead({
+      ...validInput,
+      consent: true,
+      result: { ...validInput.result, packageName: "Pacote adulterado", persona: "Persona adulterada" },
+    });
+
+    expect(mocks.recommendQuizPackage).toHaveBeenCalledWith(validInput.answers);
+    expect(mocks.createLead).toHaveBeenCalledWith(
+      expect.objectContaining({
+        quizResult: JSON.stringify({
+          persona: "Persona autorizada",
+          package: "Pacote autorizado",
+          family: "Família autorizada",
+          answers: validInput.answers,
+        }),
+      }),
+    );
+  });
+
+  it("rejects answers that the trusted catalog cannot recommend", async () => {
+    mocks.recommendQuizPackage.mockRejectedValue(new Error("família sem pacote elegível"));
+
+    await expect(
+      captureQuizLead({
+        ...validInput,
+        consent: true,
+        answers: { ...validInput.answers, familySlug: "familia-inexistente" },
+      }),
+    ).rejects.toThrow("família sem pacote elegível");
+
+    expect(mocks.createLead).not.toHaveBeenCalled();
+  });
+
+  it("rejects an invalid phone before persisting", async () => {
+    await expect(captureQuizLead({ ...validInput, consent: true, phone: "abc" })).rejects.toThrow();
+
+    expect(mocks.createLead).not.toHaveBeenCalled();
   });
 
   it("rejects invalid contact data before persisting", async () => {

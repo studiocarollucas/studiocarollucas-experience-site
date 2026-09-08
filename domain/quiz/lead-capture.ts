@@ -2,7 +2,7 @@ import "server-only";
 
 import { z } from "zod";
 import { createLead } from "@/domain/leads/service";
-import type { PublicQuizRecommendation } from "./catalog";
+import { recommendQuizPackage, type PublicQuizRecommendation } from "./catalog";
 import type { QuizAnswers } from "./recommendation";
 
 const quizAnswersSchema = z.object({
@@ -18,17 +18,16 @@ export const quizLeadCaptureSchema = z.object({
   consent: z.literal(true),
   name: z.string().trim().min(2).max(120),
   email: z.string().email(),
-  phone: z.string().trim().max(40).optional(),
-  result: z
-    .object({
-      packageId: z.string().uuid(),
-      packageName: z.string(),
-      familyName: z.string(),
-      persona: z.string(),
-      paletteEligible: z.boolean(),
-      usedClosestBudgetMatch: z.boolean(),
-    })
-    .passthrough(),
+  phone: z
+    .string()
+    .trim()
+    .max(40)
+    .refine((value) => {
+      const digits = value.replace(/\D/g, "");
+      return digits.length >= 10 && digits.length <= 15;
+    }, "telefone inválido")
+    .optional(),
+  result: z.unknown(),
   answers: quizAnswersSchema,
 });
 
@@ -47,10 +46,11 @@ export async function captureQuizLead(input: QuizLeadCaptureInput): Promise<{ cr
   if (!input.consent) return { created: false };
 
   const parsed = quizLeadCaptureSchema.parse(input);
+  const recommendation = await recommendQuizPackage(parsed.answers);
   const quizResult = JSON.stringify({
-    persona: parsed.result.persona,
-    package: parsed.result.packageName,
-    family: parsed.result.familyName,
+    persona: recommendation.persona,
+    package: recommendation.packageName,
+    family: recommendation.familyName,
     answers: parsed.answers,
   });
 
