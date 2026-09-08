@@ -4,7 +4,12 @@ export const contractStatusEnum = pgEnum("contract_status", ["issued", "voided"]
 export const contractStatusValues = ["issued", "voided"] as const;
 
 export type ContractSnapshot = {
-  contractor: { name: string; cpf: string; address: string };
+  contractor: {
+    personType: "individual" | "company";
+    legalName: string;
+    document: string;
+    address: string;
+  };
   client: { name: string; cpf: string; birthday: string; address: string; phone: string | null };
   shoot: {
     date: string;
