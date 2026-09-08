@@ -119,6 +119,36 @@ export const experiences = [
       },
     ],
   },
+  {
+    slug: "familia",
+    name: "Família",
+    image: "familia-aconchego",
+    alt: "Família reunida em um retrato acolhedor de estúdio",
+    position: "50% 50%",
+    copy: "Os vínculos, os gestos e a presença de estar junto.",
+    headline: "A sua família, do jeito que ela é.",
+    introduction:
+      "Entre encontros, risadas e pausas, há uma história que acontece quando vocês estão juntos. Um ensaio para guardar essa presença com calma.",
+    story:
+      "Cada família tem seu ritmo, seus afetos e sua forma de ocupar o mesmo espaço. A direção cria um ambiente leve para que os gestos e as conexões apareçam nas fotografias.",
+    preparation:
+      "Conte ao estúdio quem vai participar e compartilhe referências que façam sentido para vocês. A conversa ajuda a imaginar uma proposta confortável para todos.",
+    hero: "familia-encontro",
+    heroAlt: "Pais e filho reunidos em um retrato de família no estúdio",
+    wide: true,
+    questions: [
+      {
+        question: "Quem pode participar do ensaio?",
+        answer:
+          "Conte ao estúdio quem você gostaria de incluir. A composição do ensaio é alinhada durante a preparação.",
+      },
+      {
+        question: "Como escolhemos os looks?",
+        answer:
+          "Vocês podem compartilhar referências de roupas, cores e texturas. A conversa com o estúdio ajuda a encontrar uma proposta que conecte o grupo.",
+      },
+    ],
+  },
 ];
 
 export function findExperience(slug: string) {
