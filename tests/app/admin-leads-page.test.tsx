@@ -63,21 +63,22 @@ describe("LeadListPage", () => {
       limit: 25,
     });
 
-    render(await LeadListPage({ searchParams: Promise.resolve({ query: "Maria", status: "novo", source: "quiz", ownerId: "staff-1" }) }));
+    render(await LeadListPage({ searchParams: Promise.resolve({ search: "Maria", status: "novo", source: "quiz", ownerId: "staff-1" }) }));
 
+    expect(mocks.listLeads).toHaveBeenCalledWith({ query: "Maria", status: "novo", source: "quiz", ownerId: "staff-1", page: undefined });
     expect(screen.getByRole("link", { name: /Maria Silva/i })).toHaveAttribute("href", "/admin/leads/lead-1");
     expect(screen.getByText("Gestante")).toBeInTheDocument();
     expect(screen.getByText(/Experiência intimista/i)).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Próxima" })).toHaveAttribute(
       "href",
-      "/admin/leads?query=Maria&status=novo&source=quiz&ownerId=staff-1&page=2",
+      "/admin/leads?search=Maria&status=novo&source=quiz&ownerId=staff-1&page=2",
     );
   });
 
   it("shows an empty state for a permitted user with no matching leads", async () => {
     mocks.getCurrentUser.mockResolvedValue({ id: "staff-1", email: "staff@example.test", role: "staff" });
 
-    render(await LeadListPage({ searchParams: Promise.resolve({ query: "ausente" }) }));
+    render(await LeadListPage({ searchParams: Promise.resolve({ search: "ausente" }) }));
 
     expect(screen.getByText("Nenhum lead encontrado")).toBeInTheDocument();
   });

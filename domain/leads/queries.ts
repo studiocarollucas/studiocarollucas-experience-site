@@ -33,7 +33,17 @@ type LeadListInput = {
   limit?: string | number;
 };
 
-export function normalizeLeadListParams(raw: LeadListInput): Required<Pick<LeadListInput, "page" | "limit">> & Omit<LeadListInput, "page" | "limit"> {
+type NormalizedLeadListParams = Omit<LeadListInput, "status" | "page" | "limit"> & {
+  status?: (typeof leadStatusValues)[number];
+  page: number;
+  limit: number;
+};
+
+function isLeadStatus(value: string | undefined): value is (typeof leadStatusValues)[number] {
+  return value !== undefined && leadStatusValues.some((status) => status === value);
+}
+
+export function normalizeLeadListParams(raw: LeadListInput): NormalizedLeadListParams {
   const trim = (value: string | undefined) => (typeof value === "string" && value.trim() ? value.trim() : undefined);
   const status = trim(raw.status);
   const page = Math.max(1, Math.floor(Number(raw.page ?? 1)) || 1);
@@ -41,7 +51,7 @@ export function normalizeLeadListParams(raw: LeadListInput): Required<Pick<LeadL
 
   return {
     query: trim(raw.query),
-    status: status && leadStatusValues.includes(status as (typeof leadStatusValues)[number]) ? status : undefined,
+    status: isLeadStatus(status) ? status : undefined,
     source: trim(raw.source),
     ownerId: trim(raw.ownerId),
     page,

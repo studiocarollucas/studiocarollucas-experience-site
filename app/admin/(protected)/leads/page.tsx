@@ -12,7 +12,7 @@ import { Pagination } from "@/components/admin/pagination";
 import { formatDateTime } from "@/lib/format";
 
 type SearchParams = Promise<{
-  query?: string;
+  search?: string;
   status?: string;
   source?: string;
   ownerId?: string;
@@ -38,7 +38,7 @@ export default async function LeadListPage({ searchParams }: { searchParams: Sea
 
   const sp = await searchParams;
   const [result, owners] = await Promise.all([
-    listLeads({ query: sp.query, status: sp.status, source: sp.source, ownerId: sp.ownerId, page: sp.page }),
+    listLeads({ query: sp.search, status: sp.status, source: sp.source, ownerId: sp.ownerId, page: sp.page }),
     listLeadOwnerOptions(),
   ]);
 
@@ -58,14 +58,14 @@ export default async function LeadListPage({ searchParams }: { searchParams: Sea
         empty={
           <EmptyState
             title="Nenhum lead encontrado"
-            description={sp.query || sp.status || sp.source || sp.ownerId ? "Ajuste a busca ou os filtros." : "Ainda não há leads cadastrados."}
+            description={sp.search || sp.status || sp.source || sp.ownerId ? "Ajuste a busca ou os filtros." : "Ainda não há leads cadastrados."}
           />
         }
       />
 
       <Pagination
         basePath="/admin/leads"
-        searchParams={{ query: sp.query, status: sp.status, source: sp.source, ownerId: sp.ownerId }}
+        searchParams={{ search: sp.search, status: sp.status, source: sp.source, ownerId: sp.ownerId }}
         page={result.page}
         pageSize={result.limit}
         total={result.total}
