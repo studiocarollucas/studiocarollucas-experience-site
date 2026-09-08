@@ -1,5 +1,6 @@
 import { and, asc, count, desc, eq, ilike, inArray, or, sql, type SQL } from "drizzle-orm";
 import { db } from "@/db/client";
+import { logger } from "@/lib/observability/logger";
 import { leads, profiles } from "@/db/schema";
 import { leadStatusValues } from "@/domain/leads/schema";
 
@@ -32,6 +33,26 @@ type LeadListInput = {
   page?: string | number;
   limit?: string | number;
 };
+
+const LEAD_QUERY_TIMEOUT_MS = 15_000;
+
+export async function withLeadQueryTimeout<T>(name: string, operation: Promise<T>, timeoutMs = LEAD_QUERY_TIMEOUT_MS): Promise<T> {
+  const startedAt = Date.now();
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      operation,
+      new Promise<never>((_, reject) => {
+        timer = setTimeout(() => reject(new Error(`lead query timed out: ${name}`)), timeoutMs);
+      }),
+    ]);
+  } catch (error) {
+    logger.error("lead query failed", { name, durationMs: Date.now() - startedAt });
+    throw error;
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
 
 type NormalizedLeadListParams = Omit<LeadListInput, "status" | "page" | "limit"> & {
   status?: (typeof leadStatusValues)[number];
@@ -80,12 +101,12 @@ export async function listLeads(input: LeadListInput): Promise<LeadListResult> {
   const params = normalizeLeadListParams(input);
   const where = buildLeadListPredicate(params);
 
-  const [{ total }] = await db
+  const [{ total }] = await withLeadQueryTimeout("count", db
     .select({ total: count() })
     .from(leads)
-    .where(where ?? sql`true`);
+    .where(where ?? sql`true`));
 
-  const rows = await db
+  const rows = await withLeadQueryTimeout("rows", db
     .select({
       id: leads.id,
       name: leads.name,
@@ -104,17 +125,17 @@ export async function listLeads(input: LeadListInput): Promise<LeadListResult> {
     .where(where ?? sql`true`)
     .orderBy(desc(leads.createdAt), desc(leads.id))
     .limit(params.limit)
-    .offset((params.page - 1) * params.limit);
+    .offset((params.page - 1) * params.limit));
 
   return { rows, total: Number(total), page: params.page, limit: params.limit };
 }
 
 export async function listLeadOwnerOptions(): Promise<{ id: string; name: string }[]> {
-  const rows = await db
+  const rows = await withLeadQueryTimeout("owners", db
     .select({ id: profiles.id, name: profiles.fullName, email: profiles.email })
     .from(profiles)
     .where(inArray(profiles.role, ["staff", "admin"]))
-    .orderBy(asc(profiles.fullName), asc(profiles.email));
+    .orderBy(asc(profiles.fullName), asc(profiles.email)));
 
   return rows.map((row) => ({ id: row.id, name: row.name ?? row.email }));
 }

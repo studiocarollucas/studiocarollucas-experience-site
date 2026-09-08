@@ -5,7 +5,13 @@ import { PgDialect } from "drizzle-orm/pg-core";
 const mocks = vi.hoisted(() => ({ db: { select: vi.fn() } }));
 vi.mock("@/db/client", () => ({ db: mocks.db }));
 
-import { buildLeadSearchPredicate, listLeads, normalizeLeadListParams } from "@/domain/leads/queries";
+import { buildLeadSearchPredicate, listLeads, normalizeLeadListParams, withLeadQueryTimeout } from "@/domain/leads/queries";
+
+describe("withLeadQueryTimeout", () => {
+  it("rejects a stalled database operation before the Vercel runtime timeout", async () => {
+    await expect(withLeadQueryTimeout("owners", new Promise(() => undefined), 1)).rejects.toThrow("lead query timed out: owners");
+  });
+});
 
 describe("normalizeLeadListParams", () => {
   it("normalizes filters and uses the admin default pagination", () => {
