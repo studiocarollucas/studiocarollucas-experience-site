@@ -68,7 +68,8 @@ describe("renderContractPdf", () => {
     expect(text).not.toContain("null");
     expect(text).not.toContain("service_role");
     expect(text).not.toContain("nota interna do cliente");
-  });
+  // @react-pdf/renderer and pdf-parse can exceed Vitest's 5s default on a cold worker.
+  }, 10_000);
 
   it("renders the non-authorization wording when image usage is opted out", async () => {
     const buffer = await renderContractPdf({
