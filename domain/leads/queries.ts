@@ -34,23 +34,13 @@ type LeadListInput = {
   limit?: string | number;
 };
 
-const LEAD_QUERY_TIMEOUT_MS = 15_000;
-
-export async function withLeadQueryTimeout<T>(name: string, operation: Promise<T>, timeoutMs = LEAD_QUERY_TIMEOUT_MS): Promise<T> {
+export async function withLeadQueryTiming<T>(name: string, operation: Promise<T>): Promise<T> {
   const startedAt = Date.now();
-  let timer: ReturnType<typeof setTimeout> | undefined;
   try {
-    return await Promise.race([
-      operation,
-      new Promise<never>((_, reject) => {
-        timer = setTimeout(() => reject(new Error(`lead query timed out: ${name}`)), timeoutMs);
-      }),
-    ]);
+    return await operation;
   } catch (error) {
     logger.error("lead query failed", { name, durationMs: Date.now() - startedAt });
     throw error;
-  } finally {
-    if (timer) clearTimeout(timer);
   }
 }
 
@@ -101,12 +91,12 @@ export async function listLeads(input: LeadListInput): Promise<LeadListResult> {
   const params = normalizeLeadListParams(input);
   const where = buildLeadListPredicate(params);
 
-  const [{ total }] = await withLeadQueryTimeout("count", db
+  const [{ total }] = await withLeadQueryTiming("count", db
     .select({ total: count() })
     .from(leads)
     .where(where ?? sql`true`));
 
-  const rows = await withLeadQueryTimeout("rows", db
+  const rows = await withLeadQueryTiming("rows", db
     .select({
       id: leads.id,
       name: leads.name,
@@ -131,7 +121,7 @@ export async function listLeads(input: LeadListInput): Promise<LeadListResult> {
 }
 
 export async function listLeadOwnerOptions(): Promise<{ id: string; name: string }[]> {
-  const rows = await withLeadQueryTimeout("owners", db
+  const rows = await withLeadQueryTiming("owners", db
     .select({ id: profiles.id, name: profiles.fullName, email: profiles.email })
     .from(leads)
     .innerJoin(profiles, eq(leads.owner, profiles.id))

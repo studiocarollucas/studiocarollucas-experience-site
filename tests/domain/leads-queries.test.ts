@@ -5,11 +5,11 @@ import { PgDialect } from "drizzle-orm/pg-core";
 const mocks = vi.hoisted(() => ({ db: { select: vi.fn() } }));
 vi.mock("@/db/client", () => ({ db: mocks.db }));
 
-import { buildLeadSearchPredicate, listLeadOwnerOptions, listLeads, normalizeLeadListParams, withLeadQueryTimeout } from "@/domain/leads/queries";
+import { buildLeadSearchPredicate, listLeadOwnerOptions, listLeads, normalizeLeadListParams, withLeadQueryTiming } from "@/domain/leads/queries";
 
-describe("withLeadQueryTimeout", () => {
-  it("rejects a stalled database operation before the Vercel runtime timeout", async () => {
-    await expect(withLeadQueryTimeout("owners", new Promise(() => undefined), 1)).rejects.toThrow("lead query timed out: owners");
+describe("withLeadQueryTiming", () => {
+  it("propagates the database rejection without creating a second timeout path", async () => {
+    await expect(withLeadQueryTiming("owners", Promise.reject(new Error("statement timeout")))).rejects.toThrow("statement timeout");
   });
 });
 
