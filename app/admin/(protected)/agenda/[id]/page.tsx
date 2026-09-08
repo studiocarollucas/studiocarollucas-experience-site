@@ -1,12 +1,14 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { getShootDetail } from "@/domain/shoots/queries";
+import { listContractsForShoot } from "@/domain/contracts/queries";
 import { readStylingReferences } from "@/domain/styling/read";
 import { PageHeader } from "@/components/ui/page-header";
 import { Badge } from "@/components/ui/badge";
 import { DataTable, type Column } from "@/components/ui/data-table";
 import { EmptyState } from "@/components/ui/empty-state";
 import { DetailSection, DetailRow } from "@/components/admin/detail-section";
+import { ContractsList } from "@/components/admin/contracts-list";
 import { StylingManager } from "@/components/admin/styling-manager";
 import { EditShootPanel } from "./edit-shoot-panel";
 import { ShootStatusControl } from "./shoot-status-control";
@@ -49,9 +51,10 @@ export default async function ShootDetailPage({ params }: { params: Params }) {
   }
 
   const { id } = await params;
-  const [detail, stylingReferences] = await Promise.all([
+  const [detail, stylingReferences, contracts] = await Promise.all([
     getShootDetail(id),
     readStylingReferences(supabase, id),
+    listContractsForShoot(id),
   ]);
   if (!detail) notFound();
 
@@ -73,6 +76,12 @@ export default async function ShootDetailPage({ params }: { params: Params }) {
         description={`${formatShootDate(shoot.shootDate)}${shoot.startTime ? ` · ${shoot.startTime.slice(0, 5)}` : ""}`}
         action={
           <div className="flex items-start gap-2">
+            <Link
+              href={`/admin/agenda/${id}/contrato`}
+              className="border border-ink px-5 py-3 font-sans text-[10px] uppercase tracking-[0.2em] text-ink hover:bg-ink hover:text-white"
+            >
+              Gerar contrato
+            </Link>
             <ShootStatusControl id={id} status={shoot.status} />
             <Badge
               tone={
@@ -135,6 +144,10 @@ export default async function ShootDetailPage({ params }: { params: Params }) {
           </div>
         </DetailSection>
       </div>
+
+      <DetailSection title="Contratos">
+        <ContractsList contracts={contracts} />
+      </DetailSection>
 
       <DetailSection title="Logística para a cliente">
         <DetailRow label="Local" value={shoot.locationName ?? "—"} />
