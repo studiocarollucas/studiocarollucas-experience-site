@@ -26,6 +26,28 @@ describe("clientFormSchema", () => {
     expect(clientFormSchema.safeParse({ name: "Maria", birthday: "12/03/1994" }).success).toBe(false);
   });
 
+  it("normalizes optional civil fields", () => {
+    const result = clientFormSchema.safeParse({
+      name: "Maria",
+      cpf: "111.444.777-35",
+      addressState: "am",
+      addressPostalCode: "69000-000",
+    });
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.cpf).toBe("11144477735");
+      expect(result.data.addressState).toBe("AM");
+      expect(result.data.addressPostalCode).toBe("69000000");
+    }
+  });
+
+  it("rejects invalid optional civil fields", () => {
+    expect(clientFormSchema.safeParse({ name: "Maria", cpf: "00000000000" }).success).toBe(false);
+    expect(clientFormSchema.safeParse({ name: "Maria", addressPostalCode: "123" }).success).toBe(false);
+    expect(clientFormSchema.safeParse({ name: "Maria", addressState: "A" }).success).toBe(false);
+  });
+
   it("rejects a referrerClientId that is not a uuid", () => {
     expect(clientFormSchema.safeParse({ name: "Maria", referrerClientId: "x" }).success).toBe(false);
   });
