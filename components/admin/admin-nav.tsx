@@ -11,6 +11,7 @@ const LINKS = [
   { href: "/admin/pacotes", label: "Pacotes" },
   { href: "/admin/financeiro", label: "Financeiro" },
   { href: "/admin/producao", label: "Produção" },
+  { href: "/admin/configuracoes/contratante", label: "Configurações" },
 ];
 
 export function AdminNav() {
