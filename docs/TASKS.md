@@ -1674,7 +1674,7 @@ Oferecer um moodboard privado e colaborativo do ensaio ativo, no qual cliente e 
 
 ### SCL-310 — Contratos PDF privados
 
-- Status: IN_PROGRESS
+- Status: MERGE_READY
 - Priority: P1
 - Area: admin/db
 - Owner: agent:codex
@@ -1684,7 +1684,7 @@ Oferecer um moodboard privado e colaborativo do ensaio ativo, no qual cliente e 
 - Blocks: emissão administrativa de contratos
 - Files/Scope: contratos, campos civis da cliente, Storage privado e emissão Admin
 - Migration: yes
-- Updated at: 2026-09-07 America/Manaus
+- Updated at: 2026-09-08 America/Manaus
 
 **Goal**
 
@@ -1692,11 +1692,11 @@ Estabelecer o registro imutável de contratos e a base privada de Storage para f
 
 **Acceptance criteria**
 
-- [ ] schema expõe o contrato imutável, snapshots e estados emitido/anulado;
-- [ ] dados civis da cliente permanecem opcionais;
-- [ ] tabela e objetos de contrato permitem acesso somente a staff autenticado;
-- [ ] bucket `contracts` permanece privado;
-- [ ] migration serial e testes de contrato passam.
+- [x] schema expõe o contrato imutável, snapshots e estados emitido/anulado;
+- [x] dados civis da cliente permanecem opcionais;
+- [x] tabela e objetos de contrato permitem acesso somente a staff autenticado;
+- [x] bucket `contracts` permanece privado;
+- [x] migration serial e testes de contrato passam.
 
 **Implementation notes**
 
@@ -1704,11 +1704,10 @@ Estabelecer o registro imutável de contratos e a base privada de Storage para f
 
 **Blocker/Hand-off notes**
 
-- concluído: —
-- falta: implementação e verificação do modelo de dados privado.
-- arquivos alterados: —
-- testes: pendentes (TDD).
-- próximo passo: criar testes RED do schema e migration.
+- concluído (2026-09-08): implementação de contratos privados, migration serial, emissão administrativa e download protegido.
+- evidência live aprovada: ambiente autorizado de dev/staging confirmou acesso de staff, negação no portal e cleanup completo de fixtures; sem registrar identidades, segredos ou URLs assinadas.
+- gates locais (2026-09-08): regressões focadas de contratos; `predb:migrate`, `test`, `lint`, `typecheck`, `check:admin-auth`, `build` e `git diff --check` concluídos sem falha.
+- próximo passo: merge; somente após o merge este registro pode mudar para `DONE`.
 
 ---
 
