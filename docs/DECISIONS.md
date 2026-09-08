@@ -181,3 +181,11 @@ Cada aresta acima alcança código executável e ao menos uma asserção automat
 **Motivo:** a visitante precisa de uma orientação prática sem transformar o site em tabela de preços, enquanto o estúdio precisa ajustar catálogo, disponibilidade e elegibilidade sem alterar código. A família é uma restrição rígida: uma escolha de gestante, por exemplo, nunca pode receber um pacote de 15 anos.
 
 **Consequências:** o resultado apresenta persona, direção criativa, pacote recomendado e explicação. Paleta é opcional e aparece apenas quando o pacote permite cenário/fundo/balões; ela segue no WhatsApp como referência inicial. SCL-404 permanece deliberadamente fora deste marco: uma visitante anônima não cria Lead, Cliente ou registro de CRM sem identificação e consentimento explícitos.
+
+## 2026-09-08 — Contratos: snapshot emitido, links efêmeros e gate de fechamento
+
+**Decisão:** o snapshot PDF emitido é a verdade histórica do contrato naquele momento. Links assinados de leitura duram 60 segundos e o portal da cliente não faz parte do escopo desta entrega.
+
+**Regra de status:** depois que Task 4 e Task 6 passarem pelos gates aprovados, o único item a ser atualizado para `DONE` é SCL-310, com seus critérios evidenciados e os comandos datados registrados. Até os gates, o estado factual é `IN_PROGRESS`; após os gates, o estado aprovado é `MERGE_READY`; `DONE` só pode ser registrado depois do merge.
+
+**Higiene de evidência:** os comandos registrados não podem conter PII, segredos, links assinados ou caminhos de objetos.

@@ -1,5 +1,8 @@
 # TASKS — Stúdio Carol Lucas Experience + Studio OS
 
+**Versão:** 2.0 — revisão de cobertura funcional · 07/09/2026
+**PRD canônico:** `PRD-Studio-Carol-Lucas-Experience-Studio-OS-v1.1.md`
+
 > Fonte de verdade operacional para desenvolvimento paralelo.
 > Atualizar antes e depois de cada execução relevante.
 
@@ -20,6 +23,22 @@
 9. Toda interrupção deve deixar Hand-off notes atualizadas.
 
 ---
+
+## Revisão 2.0 — escopo faltante identificado
+
+Esta revisão preserva todas as tasks já concluídas e adiciona cobertura explícita para partes do produto que estavam no PRD/protótipos, mas sem backlog operacional completo.
+
+**Novos blocos obrigatórios para fechamento do MVP:**
+
+1. Leads/Comercial: `SCL-250–254`;
+2. Quiz persistido + conversão: `SCL-404–406`;
+3. Galeria/Reveal/Upsell: `SCL-500–507`;
+4. Acervo físico + Paixão Clutch: `SCL-550–558`;
+5. Automações/e-mail: `SCL-700–705`;
+6. Reviews/indicação: `SCL-720–723`;
+7. Futuro registrado: `SCL-800+`.
+
+**Importante:** Styling References (`SCL-305`) não equivale a Acervo físico. A entidade de inspiração não substitui `InventoryItem`/`InventoryReservation`.
 
 ## Quadro resumido
 
@@ -68,9 +87,46 @@
 | SCL-401 | Catálogo de experiências | P1 | site | DONE | codex | SCL-400 |
 | SCL-402 | Páginas verticais — quatro entregues; família pendente | P1 | site | IN_PROGRESS | codex | SCL-401 |
 | SCL-403 | Quiz de curadoria | P1 | site/admin | DONE | codex | SCL-009,SCL-102 |
-| SCL-404 | Persistência consentida da curadoria | P2 | site/client | BACKLOG | unassigned | SCL-403,SCL-101 |
-| SCL-500 | Schema Gallery | P2 | gallery | BACKLOG | unassigned | SCL-103 |
-| SCL-503 | Reveal | P2 | gallery | BACKLOG | unassigned | SCL-500,SCL-301 |
+| SCL-404 | Persistência consentida da curadoria | P1 | site/client | BACKLOG | unassigned | SCL-403,SCL-101 |
+| SCL-500 | Schema Gallery | P1 | gallery | BACKLOG | unassigned | SCL-103 |
+| SCL-503 | Reveal | P1 | gallery | BACKLOG | unassigned | SCL-500,SCL-301 |
+| SCL-250 | Funil de Leads no Admin | P1 | admin/commercial | BACKLOG | unassigned | SCL-101,SCL-200 |
+| SCL-251 | Ficha do Lead | P1 | admin/commercial | BACKLOG | unassigned | SCL-250 |
+| SCL-252 | Transição de estágio + auditoria | P1 | admin/commercial | BACKLOG | unassigned | SCL-101,SCL-107,SCL-251 |
+| SCL-253 | Converter Lead → Client | P1 | admin/commercial | BACKLOG | unassigned | SCL-100,SCL-101,SCL-252 |
+| SCL-254 | Converter Lead ganho → Shoot | P1 | admin/commercial | BACKLOG | unassigned | SCL-103,SCL-211,SCL-253 |
+| SCL-306 | Timeline da experiência | P2 | client | BACKLOG | unassigned | SCL-302,SCL-303,SCL-304 |
+| SCL-405 | CTA WhatsApp contextual + tracking | P1 | site/commercial | BACKLOG | unassigned | SCL-403,SCL-404 |
+| SCL-406 | SEO técnico + Analytics | P1 | site | BACKLOG | unassigned | SCL-400,SCL-401,SCL-402 |
+| SCL-501 | GalleryAsset + storage privado | P1 | gallery | BACKLOG | unassigned | SCL-500 |
+| SCL-502 | Gestão/publicação da galeria | P1 | gallery/admin | BACKLOG | unassigned | SCL-500,SCL-501,SCL-230 |
+| SCL-504 | Favoritos / PhotoSelection | P1 | gallery/client | BACKLOG | unassigned | SCL-500,SCL-503 |
+| SCL-505 | Downloads autorizados | P1 | gallery/client | BACKLOG | unassigned | SCL-501,SCL-503 |
+| SCL-506 | Catálogo de produtos/upsells | P1 | gallery/commerce | BACKLOG | unassigned | SCL-500,SCL-503 |
+| SCL-507 | Pedido de upsell + Financeiro | P1 | gallery/finance | BACKLOG | unassigned | SCL-104,SCL-506 |
+| SCL-550 | Schema InventoryItem | P1 | inventory/db | BACKLOG | unassigned | SCL-005 |
+| SCL-551 | Mídia dos itens de acervo | P1 | inventory/storage | BACKLOG | unassigned | SCL-550 |
+| SCL-552 | CRUD Admin do Acervo | P1 | inventory/admin | BACKLOG | unassigned | SCL-550,SCL-551,SCL-200 |
+| SCL-553 | InventoryReservation + conflitos | P1 | inventory/db | BACKLOG | unassigned | SCL-103,SCL-550 |
+| SCL-554 | Seleção de figurinos/clutches pela cliente | P1 | inventory/client | BACKLOG | unassigned | SCL-305,SCL-553 |
+| SCL-555 | Styling ↔ itens reais reservados | P1 | inventory/client/admin | BACKLOG | unassigned | SCL-305,SCL-553 |
+| SCL-556 | Curadoria Paixão Clutch no Admin | P1 | inventory/admin | BACKLOG | unassigned | SCL-552 |
+| SCL-557 | Paixão Clutch pública | P1 | site/inventory | BACKLOG | unassigned | SCL-551,SCL-556,SCL-400 |
+| SCL-558 | Aluguel avulso Paixão Clutch | P2 | inventory/commerce | DEFERRED | unassigned | SCL-553,SCL-557 |
+| SCL-700 | Infra eventos + Resend + templates | P1 | automation | BACKLOG | unassigned | SCL-008 |
+| SCL-701 | Boas-vindas após reserva | P1 | automation | BACKLOG | unassigned | SCL-211,SCL-700 |
+| SCL-702 | Scheduler D-7 / D-1 | P1 | automation | BACKLOG | unassigned | SCL-700,SCL-103 |
+| SCL-703 | Notificações de Reveal/Galeria | P1 | automation/gallery | BACKLOG | unassigned | SCL-502,SCL-503,SCL-700 |
+| SCL-704 | Pedido de review pós-entrega | P1 | automation/growth | BACKLOG | unassigned | SCL-503,SCL-700,SCL-720 |
+| SCL-705 | Delivery log + retry + idempotência | P1 | automation | BACKLOG | unassigned | SCL-700 |
+| SCL-720 | Schema/serviços Review + Referral | P1 | growth/db | BACKLOG | unassigned | SCL-100,SCL-103 |
+| SCL-721 | Fluxo de avaliação / Google | P1 | growth/client | BACKLOG | unassigned | SCL-704,SCL-720 |
+| SCL-722 | Tracking de indicação e conversão | P1 | growth/admin | BACKLOG | unassigned | SCL-720,SCL-253 |
+| SCL-723 | Oportunidades de recorrência no CRM | P2 | growth/admin | BACKLOG | unassigned | SCL-203,SCL-720 |
+| SCL-800 | Virtual Try-On / Prévia de Styling | P3 | client/ai | DEFERRED | unassigned | SCL-554 |
+| SCL-810 | Assistente contextual de preparação | P3 | client/ai | DEFERRED | unassigned | SCL-302,SCL-303 |
+| SCL-811 | Agente de dúvidas da cliente | P3 | client/ai | DEFERRED | unassigned | SCL-301 |
+| SCL-820 | Programa de fidelidade | P3 | growth | DEFERRED | unassigned | SCL-720,SCL-723 |
 
 ---
 
@@ -81,7 +137,7 @@
 
 - Status: READY
 - Priority: P0 | P1 | P2 | P3
-- Area: auth | db | admin | client | site | finance | production | gallery | infra
+- Area: auth | db | admin | client | site | finance | production | gallery | inventory | commercial | automation | growth | infra
 - Owner: unassigned | human:<name> | agent:<id/name>
 - Branch: —
 - PR: —
@@ -1656,6 +1712,976 @@ Estabelecer o registro imutável de contratos e a base privada de Storage para f
 
 ---
 
+# Release Gate revisado — fechamento do MVP
+
+O produto **não deve ser declarado funcionalmente completo** apenas porque Admin/Portal estão prontos. Para o release de produto planejado, os seguintes blocos precisam estar `DONE` ou conscientemente removidos do release pelo Product Owner:
+
+- Comercial: SCL-250–254 + SCL-404/405;
+- Site: SCL-400–406 + SCL-557;
+- Acervo: SCL-550–557;
+- Galeria/Reveal/Pós-venda: SCL-500–507;
+- Comunicação: SCL-700–705;
+- Review/indicação: SCL-720–722;
+- SCL-310 contratos, ou decisão explícita de lançamento sem emissão administrativa.
+
+`SCL-306`, `SCL-558`, `SCL-723`, `SCL-800`, `SCL-810`, `SCL-811` e `SCL-820` não bloqueiam o MVP.
+
+---
+
+# Tasks novas detalhadas — revisão 2.0
+
+### SCL-250 — Funil de Leads no Admin
+
+- Status: BACKLOG
+- Priority: P1
+- Area: admin/commercial
+- Owner: unassigned
+- Branch: —
+- PR: —
+- Depends on: SCL-101, SCL-200
+- Blocks: SCL-251, SCL-252, SCL-253
+- Files/Scope: `app/admin/**/leads/**`, `domain/leads/**`, `components/admin/**`
+- Migration: no
+- Updated at: 2026-09-07 America/Manaus
+
+**Goal**
+
+Transformar o schema Lead já existente em ferramenta comercial real do Studio OS.
+
+**Acceptance criteria**
+
+- [ ] lista/funil por status `novo`, `contato`, `proposta`, `negociacao`, `ganho`, `perdido`;
+- [ ] busca e filtros por origem, status e responsável;
+- [ ] exibe ocasião e resultado de quiz quando consentido;
+- [ ] link para ficha do Lead;
+- [ ] leitura protegida por staff/admin;
+- [ ] estado vazio e paginação/limites coerentes com o restante do Admin.
+
+---
+
+### SCL-251 — Ficha do Lead
+
+- Status: BACKLOG
+- Priority: P1
+- Area: admin/commercial
+- Owner: unassigned
+- Branch: —
+- PR: —
+- Depends on: SCL-250
+- Blocks: SCL-252, SCL-253
+- Files/Scope: `app/admin/**/leads/[id]/**`, `domain/leads/**`
+- Migration: no
+- Updated at: 2026-09-07 America/Manaus
+
+**Goal**
+
+Centralizar contexto, origem, contatos, quiz e histórico de movimentação do Lead antes da conversão.
+
+**Acceptance criteria**
+
+- [ ] mostra contato/origem/ocasião/status/responsável;
+- [ ] mostra curadoria/quiz consentido sem expor dados além do necessário;
+- [ ] permite notas comerciais;
+- [ ] apresenta CTAs de avançar estágio, converter em Cliente ou marcar perdido;
+- [ ] histórico/auditoria das mudanças relevantes.
+
+---
+
+### SCL-252 — Transição de estágio + auditoria
+
+- Status: BACKLOG
+- Priority: P1
+- Area: commercial
+- Owner: unassigned
+- Branch: —
+- PR: —
+- Depends on: SCL-101, SCL-107, SCL-251
+- Blocks: SCL-253
+- Files/Scope: `domain/leads/**`, Admin Lead actions
+- Migration: no
+- Updated at: 2026-09-07 America/Manaus
+
+**Goal**
+
+Usar `canTransitionLeadStatus()` como única regra de estágio e auditar toda alteração.
+
+**Acceptance criteria**
+
+- [ ] UI oferece somente transições válidas;
+- [ ] Server Action revalida a transição;
+- [ ] `perdido` solicita motivo;
+- [ ] `AuditLog` registra before/after;
+- [ ] nenhuma UI grava status diretamente sem serviço de domínio.
+
+---
+
+### SCL-253 — Converter Lead → Client
+
+- Status: BACKLOG
+- Priority: P1
+- Area: commercial/admin
+- Owner: unassigned
+- Branch: —
+- PR: —
+- Depends on: SCL-100, SCL-101, SCL-252
+- Blocks: SCL-254
+- Files/Scope: `domain/leads/**`, `domain/clients/**`
+- Migration: no
+- Updated at: 2026-09-07 America/Manaus
+
+**Goal**
+
+Converter Lead ganho em Client sem recadastro manual e sem duplicar pessoas.
+
+**Acceptance criteria**
+
+- [ ] detecta Client existente por regras seguras de deduplicação;
+- [ ] cria ou vincula Client;
+- [ ] preserva origem, indicação e perfil/quiz consentido;
+- [ ] marca Lead como `ganho` conforme regra de domínio;
+- [ ] operação auditada e idempotente.
+
+---
+
+### SCL-254 — Converter Lead ganho → Shoot/reserva
+
+- Status: BACKLOG
+- Priority: P1
+- Area: commercial/admin
+- Owner: unassigned
+- Branch: —
+- PR: —
+- Depends on: SCL-103, SCL-211, SCL-253
+- Blocks: first-contact-to-reservation E2E
+- Files/Scope: `domain/leads/**`, `domain/shoots/**`, Admin Lead UI
+- Migration: no
+- Updated at: 2026-09-07 America/Manaus
+
+**Goal**
+
+Criar um Shoot confirmado a partir do Lead convertido reutilizando `createConfirmedShoot()`.
+
+**Acceptance criteria**
+
+- [ ] Client vinculado é reutilizado;
+- [ ] experiência/data/valor passam pelo contrato de Shoot existente;
+- [ ] criação deriva ProductionJob + checklist exatamente como SCL-211;
+- [ ] origem comercial permanece rastreável;
+- [ ] não há segundo fluxo de criação de ensaio com regras próprias.
+
+---
+
+### SCL-404 — Persistência consentida da curadoria
+
+- Status: BACKLOG
+- Priority: P1
+- Area: site/client/commercial
+- Owner: unassigned
+- Branch: —
+- PR: —
+- Depends on: SCL-403, SCL-101
+- Blocks: SCL-405, Lead qualification E2E
+- Files/Scope: quiz result domain, leads, consent UI
+- Migration: evaluate; prefer existing Lead columns if sufficient
+- Updated at: 2026-09-07 America/Manaus
+
+**Goal**
+
+Fazer o quiz gerar qualificação comercial persistível somente com consentimento, conectando Site → Lead → CRM.
+
+**Acceptance criteria**
+
+- [ ] resultado não cria Client prematuramente;
+- [ ] consentimento explícito antes de persistir identificação/resultado;
+- [ ] salva persona/respostas relevantes/origem no Lead;
+- [ ] resultado pode ser reaproveitado após conversão;
+- [ ] recusa de consentimento não impede usar o quiz anonimamente;
+- [ ] analytics diferencia quiz concluído de Lead criado.
+
+---
+
+### SCL-405 — CTA WhatsApp contextual + tracking
+
+- Status: BACKLOG
+- Priority: P1
+- Area: site/commercial
+- Owner: unassigned
+- Branch: —
+- PR: —
+- Depends on: SCL-403, SCL-404
+- Blocks: none
+- Files/Scope: public CTAs, analytics events
+- Migration: no
+- Updated at: 2026-09-07 America/Manaus
+
+**Acceptance criteria**
+
+- [ ] CTA inclui contexto útil do quiz/experiência sem PII sensível;
+- [ ] funciona sem quiz;
+- [ ] registra evento de clique/origem;
+- [ ] URLs configuráveis por ambiente.
+
+---
+
+### SCL-406 — SEO técnico + Analytics
+
+- Status: BACKLOG
+- Priority: P1
+- Area: site
+- Owner: unassigned
+- Branch: —
+- PR: —
+- Depends on: SCL-400, SCL-401, SCL-402
+- Blocks: public launch gate
+- Files/Scope: metadata, sitemap, robots, structured data, analytics
+- Migration: no
+- Updated at: 2026-09-07 America/Manaus
+
+**Acceptance criteria**
+
+- [ ] metadata/title/description por página;
+- [ ] canonical, Open Graph, sitemap e robots;
+- [ ] LocalBusiness/schema.org quando aplicável;
+- [ ] GA4 e Search Console preparados;
+- [ ] eventos: CTA WhatsApp, quiz started/completed, lead created;
+- [ ] nenhuma PII em eventos de analytics.
+
+---
+
+### SCL-500 — Schema Gallery
+
+- Status: BACKLOG
+- Priority: P1
+- Area: gallery/db
+- Owner: unassigned
+- Branch: —
+- PR: —
+- Depends on: SCL-103
+- Blocks: SCL-501,SCL-502,SCL-503
+- Files/Scope: `db/schema/galleries*`, `domain/gallery/**`
+- Migration: yes
+- Updated at: 2026-09-07 America/Manaus
+
+**Acceptance criteria**
+
+- [ ] uma Gallery pertence a um Shoot;
+- [ ] estados `draft`, `published`, `archived` ou contrato equivalente documentado;
+- [ ] cover/title/message/publishedAt modelados;
+- [ ] RLS/servidor isolam cada cliente;
+- [ ] provider de storage não faz parte da identidade de domínio.
+
+---
+
+### SCL-501 — GalleryAsset + storage privado
+
+- Status: BACKLOG
+- Priority: P1
+- Area: gallery/storage
+- Owner: unassigned
+- Branch: —
+- PR: —
+- Depends on: SCL-500
+- Blocks: SCL-502,SCL-505
+- Files/Scope: gallery asset schema, storage abstraction, R2/Supabase adapter
+- Migration: yes
+- Updated at: 2026-09-07 America/Manaus
+
+**Acceptance criteria**
+
+- [ ] asset guarda metadata/object key, nunca depende de URL pública permanente;
+- [ ] originais privados;
+- [ ] thumbnails/variants quando necessário;
+- [ ] URLs assinadas/temporárias;
+- [ ] upload/delete idempotente e observável;
+- [ ] arquitetura permite R2 sem contaminar o domínio.
+
+---
+
+### SCL-502 — Gestão/publicação da galeria
+
+- Status: BACKLOG
+- Priority: P1
+- Area: gallery/admin
+- Owner: unassigned
+- Branch: —
+- PR: —
+- Depends on: SCL-500,SCL-501,SCL-230
+- Blocks: SCL-503
+- Files/Scope: Admin gallery UI/actions
+- Migration: no
+- Updated at: 2026-09-07 America/Manaus
+
+**Acceptance criteria**
+
+- [ ] staff cria/edita galeria de um Shoot;
+- [ ] ordena assets e define cover;
+- [ ] preview antes de publicar;
+- [ ] publicação é auditada;
+- [ ] publicação dispara evento para Reveal/notificação;
+- [ ] cliente não vê draft.
+
+---
+
+### SCL-503 — Reveal
+
+- Status: BACKLOG
+- Priority: P1
+- Area: gallery/client
+- Owner: unassigned
+- Branch: —
+- PR: —
+- Depends on: SCL-500,SCL-502,SCL-301
+- Blocks: SCL-504,SCL-505,SCL-506,SCL-703
+- Files/Scope: client Reveal + gallery read model
+- Migration: no
+- Updated at: 2026-09-07 America/Manaus
+
+**Acceptance criteria**
+
+- [ ] experiência de abertura/reveal com mensagem/cover;
+- [ ] somente a cliente do Shoot publicado acessa;
+- [ ] mobile-first e acessível;
+- [ ] entra na galeria sem expor storage direto;
+- [ ] estado de entrega alimenta pós-venda/review.
+
+---
+
+### SCL-504 — Favoritos / PhotoSelection
+
+- Status: BACKLOG
+- Priority: P1
+- Area: gallery/client
+- Owner: unassigned
+- Branch: —
+- PR: —
+- Depends on: SCL-500,SCL-503
+- Blocks: SCL-506
+- Files/Scope: gallery selections domain/UI
+- Migration: yes
+- Updated at: 2026-09-07 America/Manaus
+
+**Acceptance criteria**
+
+- [ ] cliente favorita/desfavorita somente assets da própria Gallery;
+- [ ] persistência única por cliente/gallery/asset;
+- [ ] contagem disponível para Admin e upsell;
+- [ ] concorrência/idempotência tratadas.
+
+---
+
+### SCL-505 — Downloads autorizados
+
+- Status: BACKLOG
+- Priority: P1
+- Area: gallery/client
+- Owner: unassigned
+- Branch: —
+- PR: —
+- Depends on: SCL-501,SCL-503
+- Blocks: none
+- Files/Scope: download authorization, signed URLs
+- Migration: no
+- Updated at: 2026-09-07 America/Manaus
+
+**Acceptance criteria**
+
+- [ ] download só de assets autorizados;
+- [ ] signed URL com expiração;
+- [ ] opção de bloquear originais/download por Gallery;
+- [ ] nenhuma chave privada no browser.
+
+---
+
+### SCL-506 — Catálogo de produtos/upsells
+
+- Status: BACKLOG
+- Priority: P1
+- Area: gallery/commerce
+- Owner: unassigned
+- Branch: —
+- PR: —
+- Depends on: SCL-500,SCL-503
+- Blocks: SCL-507
+- Files/Scope: upsell product schema/domain/UI
+- Migration: yes
+- Updated at: 2026-09-07 America/Manaus
+
+**Acceptance criteria**
+
+- [ ] produtos configuráveis: foto adicional, coleção completa, álbum, quadro, Reel/Stories;
+- [ ] preço interno/ativo/descrição;
+- [ ] ofertas podem ser habilitadas por Gallery/Shoot;
+- [ ] não hardcodear catálogo na UI.
+
+---
+
+### SCL-507 — Pedido de upsell + Financeiro
+
+- Status: BACKLOG
+- Priority: P1
+- Area: gallery/finance
+- Owner: unassigned
+- Branch: —
+- PR: —
+- Depends on: SCL-104,SCL-506
+- Blocks: none
+- Files/Scope: UpsellOrder/OrderItem, finance integration
+- Migration: yes
+- Updated at: 2026-09-07 America/Manaus
+
+**Acceptance criteria**
+
+- [ ] pedido vinculado a Client/Shoot/Gallery;
+- [ ] itens e valor snapshotados no pedido;
+- [ ] status de pedido separado de pagamento;
+- [ ] cobrança reutiliza Payment/Financeiro ou fluxo documentado, sem saldo paralelo;
+- [ ] Admin acompanha pedidos.
+
+---
+
+### SCL-550 — Schema InventoryItem
+
+- Status: BACKLOG
+- Priority: P1
+- Area: inventory/db
+- Owner: unassigned
+- Branch: —
+- PR: —
+- Depends on: SCL-005
+- Blocks: SCL-551,SCL-552,SCL-553
+- Files/Scope: inventory schema/domain
+- Migration: yes
+- Updated at: 2026-09-07 America/Manaus
+
+**Goal**
+
+Criar fonte de verdade para o acervo físico do estúdio, incluindo Paixão Clutch.
+
+**Acceptance criteria**
+
+- [ ] tipos iniciais: outfit, clutch, accessory, prop/scenery;
+- [ ] código, nome, descrição, cor, tamanho opcional, status, ativo e preço interno opcional;
+- [ ] status não é derivado só pela UI;
+- [ ] RLS staff/admin;
+- [ ] estrutura preparada para fotos e reservas.
+
+---
+
+### SCL-551 — Mídia dos itens de acervo
+
+- Status: BACKLOG
+- Priority: P1
+- Area: inventory/storage
+- Owner: unassigned
+- Branch: —
+- PR: —
+- Depends on: SCL-550
+- Blocks: SCL-552,SCL-557
+- Files/Scope: inventory media schema/storage
+- Migration: yes
+- Updated at: 2026-09-07 America/Manaus
+
+**Acceptance criteria**
+
+- [ ] múltiplas fotos por item;
+- [ ] cover/order;
+- [ ] mídia de Admin privada e variante publicável quando item entra no catálogo público;
+- [ ] sem URL pública persistente como fonte de verdade.
+
+---
+
+### SCL-552 — CRUD Admin do Acervo
+
+- Status: BACKLOG
+- Priority: P1
+- Area: inventory/admin
+- Owner: unassigned
+- Branch: —
+- PR: —
+- Depends on: SCL-550,SCL-551,SCL-200
+- Blocks: SCL-556
+- Files/Scope: Admin inventory screens/actions
+- Migration: no
+- Updated at: 2026-09-07 America/Manaus
+
+**Acceptance criteria**
+
+- [ ] listar/buscar/filtrar por tipo/status/cor/tamanho;
+- [ ] criar/editar/inativar item;
+- [ ] gerenciar fotos;
+- [ ] ficha mostra reservas futuras;
+- [ ] ações auditadas.
+
+---
+
+### SCL-553 — InventoryReservation + conflitos
+
+- Status: BACKLOG
+- Priority: P1
+- Area: inventory/db
+- Owner: unassigned
+- Branch: —
+- PR: —
+- Depends on: SCL-103,SCL-550
+- Blocks: SCL-554,SCL-555,SCL-558
+- Files/Scope: reservation schema/domain, shoot integration
+- Migration: yes
+- Updated at: 2026-09-07 America/Manaus
+
+**Acceptance criteria**
+
+- [ ] reserva vincula InventoryItem a Shoot;
+- [ ] intervalo/status/cancelamento modelados;
+- [ ] não confirma conflito de datas sem decisão explícita;
+- [ ] fluxo de ensaio mostra itens reservados;
+- [ ] cancelamento/liberação mantém histórico.
+
+---
+
+### SCL-554 — Seleção de figurinos/clutches pela cliente
+
+- Status: BACKLOG
+- Priority: P1
+- Area: inventory/client
+- Owner: unassigned
+- Branch: —
+- PR: —
+- Depends on: SCL-305,SCL-553
+- Blocks: none
+- Files/Scope: Minha Experiência styling inventory UI
+- Migration: no
+- Updated at: 2026-09-07 America/Manaus
+
+**Acceptance criteria**
+
+- [ ] cliente vê somente itens elegíveis/ativos para seu fluxo;
+- [ ] diferencia preferência de reserva confirmada;
+- [ ] fotos e detalhes suficientes para decisão;
+- [ ] staff confirma/ajusta reserva;
+- [ ] indisponibilidade aparece sem prometer item conflitante.
+
+---
+
+### SCL-555 — Styling ↔ itens reais reservados
+
+- Status: BACKLOG
+- Priority: P1
+- Area: inventory/client/admin
+- Owner: unassigned
+- Branch: —
+- PR: —
+- Depends on: SCL-305,SCL-553
+- Blocks: none
+- Files/Scope: styling/inventory integration
+- Migration: evaluate
+- Updated at: 2026-09-07 America/Manaus
+
+**Acceptance criteria**
+
+- [ ] moodboard continua aceitando referências livres;
+- [ ] item real do acervo é exibido com identidade própria;
+- [ ] portal mostra o que é inspiração vs. reservado;
+- [ ] Admin consegue relacionar referência a item quando útil.
+
+---
+
+### SCL-556 — Curadoria Paixão Clutch no Admin
+
+- Status: BACKLOG
+- Priority: P1
+- Area: inventory/admin
+- Owner: unassigned
+- Branch: —
+- PR: —
+- Depends on: SCL-552
+- Blocks: SCL-557
+- Files/Scope: inventory clutch fields/curation
+- Migration: evaluate
+- Updated at: 2026-09-07 America/Manaus
+
+**Acceptance criteria**
+
+- [ ] filtrar `InventoryItem.type = clutch`;
+- [ ] marcar itens publicáveis/destaque;
+- [ ] definir ordem/cover/copy curta;
+- [ ] disponibilidade operacional vem das reservas, não de flag manual isolada.
+
+---
+
+### SCL-557 — Paixão Clutch pública
+
+- Status: BACKLOG
+- Priority: P1
+- Area: site/inventory
+- Owner: unassigned
+- Branch: —
+- PR: —
+- Depends on: SCL-551,SCL-556,SCL-400
+- Blocks: public launch gate
+- Files/Scope: public Paixão Clutch section/page
+- Migration: no
+- Updated at: 2026-09-07 America/Manaus
+
+**Acceptance criteria**
+
+- [ ] seção/página coerente com o branding Carol Lucas;
+- [ ] usa somente itens marcados como publicáveis;
+- [ ] CTA “consultar disponibilidade”/WhatsApp;
+- [ ] integra a clutch como parte do styling dos ensaios;
+- [ ] não exige preço público;
+- [ ] SEO/analytics cobrem a página/CTA.
+
+---
+
+### SCL-558 — Aluguel avulso Paixão Clutch
+
+- Status: DEFERRED
+- Priority: P2
+- Area: inventory/commerce
+- Owner: unassigned
+- Branch: —
+- PR: —
+- Depends on: SCL-553,SCL-557
+- Blocks: none
+- Files/Scope: standalone rental workflow
+- Migration: yes
+- Updated at: 2026-09-07 America/Manaus
+
+**Goal**
+
+Evoluir a consulta pública para um fluxo completo de aluguel independente de ensaio.
+
+**Acceptance criteria**
+
+- [ ] reserva avulsa com cliente/período/item;
+- [ ] retirada/devolução;
+- [ ] valor/caução quando aplicável;
+- [ ] conflito usa o mesmo motor de InventoryReservation;
+- [ ] financeiro reutilizado.
+
+---
+
+### SCL-700 — Infra de eventos + Resend + templates
+
+- Status: BACKLOG
+- Priority: P1
+- Area: automation
+- Owner: unassigned
+- Branch: —
+- PR: —
+- Depends on: SCL-008
+- Blocks: SCL-701,SCL-702,SCL-703,SCL-704,SCL-705
+- Files/Scope: automation events/outbox, email provider, templates
+- Migration: yes
+- Updated at: 2026-09-07 America/Manaus
+
+**Acceptance criteria**
+
+- [ ] evento persistido/idempotente antes ou junto da ação relevante;
+- [ ] provider Resend encapsulado;
+- [ ] templates versionados;
+- [ ] nenhuma PII em logs desnecessários;
+- [ ] delivery status modelado;
+- [ ] ambiente dev/test não envia e-mail real por padrão.
+
+---
+
+### SCL-701 — Boas-vindas após reserva
+
+- Status: BACKLOG
+- Priority: P1
+- Area: automation
+- Owner: unassigned
+- Branch: —
+- PR: —
+- Depends on: SCL-211,SCL-700
+- Blocks: none
+- Files/Scope: reservation event handler/template
+- Migration: no
+- Updated at: 2026-09-07 America/Manaus
+
+**Acceptance criteria**
+
+- [ ] 1 envio por reserva confirmada/idempotente;
+- [ ] CTA para Minha Experiência;
+- [ ] conteúdo não expõe informação interna;
+- [ ] falha entra no retry/log.
+
+---
+
+### SCL-702 — Scheduler D-7 / D-1
+
+- Status: BACKLOG
+- Priority: P1
+- Area: automation
+- Owner: unassigned
+- Branch: —
+- PR: —
+- Depends on: SCL-700,SCL-103
+- Blocks: none
+- Files/Scope: scheduler/reminders
+- Migration: no
+- Updated at: 2026-09-07 America/Manaus
+
+**Acceptance criteria**
+
+- [ ] calcula datas em timezone do estúdio;
+- [ ] não envia para ensaio cancelado/reagendado fora da janela;
+- [ ] D-7 e D-1 idempotentes;
+- [ ] conteúdo contextualiza preparação/portal.
+
+---
+
+### SCL-703 — Notificações de Reveal/Galeria
+
+- Status: BACKLOG
+- Priority: P1
+- Area: automation/gallery
+- Owner: unassigned
+- Branch: —
+- PR: —
+- Depends on: SCL-502,SCL-503,SCL-700
+- Blocks: none
+- Files/Scope: gallery publish event/templates
+- Migration: no
+- Updated at: 2026-09-07 America/Manaus
+
+**Acceptance criteria**
+
+- [ ] publica e comunica em eventos separados/idempotentes;
+- [ ] link autenticado para Reveal;
+- [ ] draft nunca dispara comunicação;
+- [ ] retry sem duplicar envio.
+
+---
+
+### SCL-704 — Pedido de review pós-entrega
+
+- Status: BACKLOG
+- Priority: P1
+- Area: automation/growth
+- Owner: unassigned
+- Branch: —
+- PR: —
+- Depends on: SCL-503,SCL-700,SCL-720
+- Blocks: SCL-721
+- Files/Scope: post-delivery review automation
+- Migration: no
+- Updated at: 2026-09-07 America/Manaus
+
+**Acceptance criteria**
+
+- [ ] só dispara após entrega/reveal conforme regra definida;
+- [ ] não dispara novamente se review concluído;
+- [ ] CTA configurável para Google;
+- [ ] status registrado no Review.
+
+---
+
+### SCL-705 — Delivery log + retry + idempotência
+
+- Status: BACKLOG
+- Priority: P1
+- Area: automation
+- Owner: unassigned
+- Branch: —
+- PR: —
+- Depends on: SCL-700
+- Blocks: production reliability gate
+- Files/Scope: automation delivery workers/logging
+- Migration: evaluate
+- Updated at: 2026-09-07 America/Manaus
+
+**Acceptance criteria**
+
+- [ ] chave idempotente por evento/template/destinatário;
+- [ ] estados pending/sent/failed/retry ou equivalentes;
+- [ ] retry com limite/backoff;
+- [ ] erro observável no Sentry/log estruturado;
+- [ ] reprocessamento manual seguro pelo Admin/runbook.
+
+---
+
+### SCL-720 — Schema/serviços Review + Referral
+
+- Status: BACKLOG
+- Priority: P1
+- Area: growth/db
+- Owner: unassigned
+- Branch: —
+- PR: —
+- Depends on: SCL-100,SCL-103
+- Blocks: SCL-704,SCL-721,SCL-722
+- Files/Scope: review/referral schema/domain
+- Migration: yes
+- Updated at: 2026-09-07 America/Manaus
+
+**Acceptance criteria**
+
+- [ ] Review vincula Client/Shoot quando aplicável, requestedAt/completedAt/source/external target;
+- [ ] Referral registra referrer e referred Client/Lead quando conhecido;
+- [ ] conversão de indicação mensurável;
+- [ ] RLS/admin access definidos;
+- [ ] não duplicar `clients.referrer_client_id`: decidir papel do campo legado e registrar em DECISIONS.
+
+---
+
+### SCL-721 — Fluxo de avaliação / Google
+
+- Status: BACKLOG
+- Priority: P1
+- Area: growth/client
+- Owner: unassigned
+- Branch: —
+- PR: —
+- Depends on: SCL-704,SCL-720
+- Blocks: none
+- Files/Scope: client review CTA/admin tracking
+- Migration: no
+- Updated at: 2026-09-07 America/Manaus
+
+**Acceptance criteria**
+
+- [ ] CTA de avaliação aparece no momento pós-entrega correto;
+- [ ] link externo configurável;
+- [ ] pedido/conclusão rastreáveis;
+- [ ] sem dark patterns ou bloqueio de uso do portal.
+
+---
+
+### SCL-722 — Tracking de indicação e conversão
+
+- Status: BACKLOG
+- Priority: P1
+- Area: growth/admin
+- Owner: unassigned
+- Branch: —
+- PR: —
+- Depends on: SCL-720,SCL-253
+- Blocks: none
+- Files/Scope: referral conversion/domain/admin
+- Migration: no
+- Updated at: 2026-09-07 America/Manaus
+
+**Acceptance criteria**
+
+- [ ] Lead pode apontar origem por indicação;
+- [ ] conversão preserva a relação;
+- [ ] dashboard/CRM conseguem medir indicações convertidas;
+- [ ] não criar loops/relações inconsistentes.
+
+---
+
+### SCL-723 — Oportunidades de recorrência no CRM
+
+- Status: BACKLOG
+- Priority: P2
+- Area: growth/admin
+- Owner: unassigned
+- Branch: —
+- PR: —
+- Depends on: SCL-203,SCL-720
+- Blocks: none
+- Files/Scope: CRM opportunities/insights
+- Migration: evaluate
+- Updated at: 2026-09-07 America/Manaus
+
+**Goal**
+
+Sinalizar ocasiões futuras e histórico para recompra, sem implementar ainda programa formal de fidelidade.
+
+---
+
+### SCL-306 — Timeline da experiência
+
+- Status: BACKLOG
+- Priority: P2
+- Area: client
+- Owner: unassigned
+- Branch: —
+- PR: —
+- Depends on: SCL-302,SCL-303,SCL-304
+- Blocks: none
+- Files/Scope: client journey timeline
+- Migration: no
+- Updated at: 2026-09-07 America/Manaus
+
+**Acceptance criteria**
+
+- [ ] mostra Reserva → Preparação → Ensaio → Produção → Reveal → Entrega;
+- [ ] todos os estados são derivados das entidades existentes;
+- [ ] nenhuma timeline paralela persistida.
+
+---
+
+### SCL-800 — Virtual Try-On / Prévia de Styling
+
+- Status: DEFERRED
+- Priority: P3
+- Area: client/ai
+- Owner: unassigned
+- Branch: —
+- PR: —
+- Depends on: SCL-554
+- Blocks: none
+- Files/Scope: future
+- Migration: evaluate
+- Updated at: 2026-09-07 America/Manaus
+
+**Goal**
+
+Avaliar e, somente após aprovação de qualidade/custo/LGPD, integrar API especializada de virtual try-on. Não bloqueia o MVP.
+
+---
+
+### SCL-810 — Assistente contextual de preparação
+
+- Status: DEFERRED
+- Priority: P3
+- Area: client/ai
+- Owner: unassigned
+- Branch: —
+- PR: —
+- Depends on: SCL-302,SCL-303
+- Blocks: none
+- Files/Scope: future
+- Migration: evaluate
+- Updated at: 2026-09-07 America/Manaus
+
+---
+
+### SCL-811 — Agente de dúvidas da cliente
+
+- Status: DEFERRED
+- Priority: P3
+- Area: client/ai
+- Owner: unassigned
+- Branch: —
+- PR: —
+- Depends on: SCL-301
+- Blocks: none
+- Files/Scope: future
+- Migration: evaluate
+- Updated at: 2026-09-07 America/Manaus
+
+---
+
+### SCL-820 — Programa de fidelidade
+
+- Status: DEFERRED
+- Priority: P3
+- Area: growth
+- Owner: unassigned
+- Branch: —
+- PR: —
+- Depends on: SCL-720,SCL-723
+- Blocks: none
+- Files/Scope: future
+- Migration: yes
+- Updated at: 2026-09-07 America/Manaus
+
+---
+
 ## Hand-off global atual
 
 - PRD: concluído.
@@ -1664,4 +2690,4 @@ Estabelecer o registro imutável de contratos e a base privada de Storage para f
 - Controle legado: planilha disponível para futura migração.
 - Domínio: `studiocarollucas.com.br` registrado na Hostinger.
 - Stack proposta: Next.js + TypeScript + Tailwind + shadcn/ui + Supabase + Drizzle + Zod + R2 + Resend + Vercel.
-- Próximo passo recomendado: SCL-001 e SCL-004 podem começar em paralelo.
+- Próximo passo recomendado (revisão 2.0): concluir SCL-310/SCL-402 em andamento e iniciar em paralelo os contratos SCL-500/501 (Galeria), SCL-550/551 (Acervo), SCL-700 (Automações) e a UI SCL-250 (Leads), respeitando migrations serializadas.
