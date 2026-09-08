@@ -5,7 +5,7 @@ import { PgDialect } from "drizzle-orm/pg-core";
 const mocks = vi.hoisted(() => ({ db: { select: vi.fn() } }));
 vi.mock("@/db/client", () => ({ db: mocks.db }));
 
-import { buildLeadSearchPredicate, listLeads, normalizeLeadListParams, withLeadQueryTimeout } from "@/domain/leads/queries";
+import { buildLeadSearchPredicate, listLeadOwnerOptions, listLeads, normalizeLeadListParams, withLeadQueryTimeout } from "@/domain/leads/queries";
 
 describe("withLeadQueryTimeout", () => {
   it("rejects a stalled database operation before the Vercel runtime timeout", async () => {
@@ -84,5 +84,17 @@ describe("listLeads", () => {
       sql`order by ${orderBy.mock.calls[0][0]}, ${orderBy.mock.calls[0][1]}`,
     );
     expect(ordering.sql).toBe('order by "leads"."created_at" desc, "leads"."id" desc');
+  });
+});
+
+describe("listLeadOwnerOptions", () => {
+  it("derives owner options from assigned leads instead of scanning every profile", async () => {
+    const orderBy = vi.fn().mockResolvedValue([]);
+    const innerJoin = vi.fn().mockReturnValue({ where: vi.fn().mockReturnValue({ orderBy }) });
+    mocks.db.select.mockReturnValue({ from: vi.fn().mockReturnValue({ innerJoin }) });
+
+    await listLeadOwnerOptions();
+
+    expect(innerJoin).toHaveBeenCalledOnce();
   });
 });

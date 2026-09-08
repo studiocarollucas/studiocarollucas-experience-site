@@ -1,4 +1,4 @@
-import { and, asc, count, desc, eq, ilike, inArray, or, sql, type SQL } from "drizzle-orm";
+import { and, asc, count, desc, eq, ilike, isNotNull, or, sql, type SQL } from "drizzle-orm";
 import { db } from "@/db/client";
 import { logger } from "@/lib/observability/logger";
 import { leads, profiles } from "@/db/schema";
@@ -133,9 +133,10 @@ export async function listLeads(input: LeadListInput): Promise<LeadListResult> {
 export async function listLeadOwnerOptions(): Promise<{ id: string; name: string }[]> {
   const rows = await withLeadQueryTimeout("owners", db
     .select({ id: profiles.id, name: profiles.fullName, email: profiles.email })
-    .from(profiles)
-    .where(inArray(profiles.role, ["staff", "admin"]))
+    .from(leads)
+    .innerJoin(profiles, eq(leads.owner, profiles.id))
+    .where(isNotNull(leads.owner))
     .orderBy(asc(profiles.fullName), asc(profiles.email)));
 
-  return rows.map((row) => ({ id: row.id, name: row.name ?? row.email }));
+  return [...new Map(rows.map((row) => [row.id, { id: row.id, name: row.name ?? row.email }])).values()];
 }
