@@ -13,7 +13,20 @@ export type ContractIssueContext = {
     locationAddress: string | null;
     agreedPrice: string;
   };
-  client: { id: string; name: string; phone: string | null };
+  client: {
+    id: string;
+    name: string;
+    phone: string | null;
+    cpf: string | null;
+    birthday: string | null;
+    addressStreet: string | null;
+    addressNumber: string | null;
+    addressComplement: string | null;
+    addressNeighborhood: string | null;
+    addressCity: string | null;
+    addressState: string | null;
+    addressPostalCode: string | null;
+  };
   package: {
     name: string;
     description: string | null;
@@ -24,7 +37,9 @@ export type ContractIssueContext = {
   payments: Array<{ amount: string; status: "pendente" | "confirmado" | "estornado" }>;
 };
 
-export async function getContractIssueContext(shootId: string): Promise<ContractIssueContext | null> {
+export async function getContractIssueContext(
+  shootId: string
+): Promise<ContractIssueContext | null> {
   const rows = await db
     .select({
       shootId: shoots.id,
@@ -36,6 +51,15 @@ export async function getContractIssueContext(shootId: string): Promise<Contract
       clientId: clients.id,
       clientName: clients.name,
       clientPhone: clients.phone,
+      clientCpf: clients.cpf,
+      clientBirthday: clients.birthday,
+      clientAddressStreet: clients.addressStreet,
+      clientAddressNumber: clients.addressNumber,
+      clientAddressComplement: clients.addressComplement,
+      clientAddressNeighborhood: clients.addressNeighborhood,
+      clientAddressCity: clients.addressCity,
+      clientAddressState: clients.addressState,
+      clientAddressPostalCode: clients.addressPostalCode,
       packageName: experiencePackages.name,
       packageDescription: experiencePackages.description,
       packageDurationMinutes: experiencePackages.durationMinutes,
@@ -62,7 +86,20 @@ export async function getContractIssueContext(shootId: string): Promise<Contract
       locationAddress: first.locationAddress,
       agreedPrice: first.agreedPrice,
     },
-    client: { id: first.clientId, name: first.clientName, phone: first.clientPhone },
+    client: {
+      id: first.clientId,
+      name: first.clientName,
+      phone: first.clientPhone,
+      cpf: first.clientCpf,
+      birthday: first.clientBirthday,
+      addressStreet: first.clientAddressStreet,
+      addressNumber: first.clientAddressNumber,
+      addressComplement: first.clientAddressComplement,
+      addressNeighborhood: first.clientAddressNeighborhood,
+      addressCity: first.clientAddressCity,
+      addressState: first.clientAddressState,
+      addressPostalCode: first.clientAddressPostalCode,
+    },
     package: {
       name: first.packageName,
       description: first.packageDescription,

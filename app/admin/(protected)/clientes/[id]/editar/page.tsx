@@ -23,11 +23,20 @@ export default async function EditClientPage({ params }: { params: Params }) {
             email: client.email,
             instagramHandle: client.instagramHandle,
             birthday: client.birthday,
+            cpf: client.cpf,
+            addressStreet: client.addressStreet,
+            addressNumber: client.addressNumber,
+            addressComplement: client.addressComplement,
+            addressNeighborhood: client.addressNeighborhood,
+            addressCity: client.addressCity,
+            addressState: client.addressState,
+            addressPostalCode: client.addressPostalCode,
             source: client.source,
             styleProfile: client.styleProfile,
             notes: client.notes,
             marketingConsent: client.marketingConsent,
           }}
+          showContractFields
         />
       </Card>
     </div>
