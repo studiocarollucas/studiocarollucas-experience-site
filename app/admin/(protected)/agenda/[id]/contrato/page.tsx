@@ -9,6 +9,7 @@ import { calculateBalance } from "@/domain/payments/balance";
 import { formatBRL, formatShootDate } from "@/lib/format";
 import { fromCents, sumCents } from "@/lib/money";
 import { ContractIssuePanel } from "./contract-issue-panel";
+import { getActiveContractorProfile } from "@/domain/contractor-profile/service";
 
 type Params = Promise<{ id: string }>;
 
@@ -24,6 +25,7 @@ export default async function ContractIssuePage({ params }: { params: Params }) 
   const { id } = await params;
   const context = await getContractIssueContext(id);
   if (!context) notFound();
+  const contractorConfigured = Boolean(await getActiveContractorProfile());
 
   const confirmedPaid = fromCents(
     sumCents(context.payments.filter((payment) => payment.status === "confirmado").map((payment) => payment.amount)),
@@ -53,6 +55,7 @@ export default async function ContractIssuePage({ params }: { params: Params }) 
       <Card>
         <ContractIssuePanel
           shootId={context.shoot.id}
+          contractorConfigured={contractorConfigured}
           initialCivilData={{
             cpf: context.client.cpf,
             birthday: context.client.birthday,

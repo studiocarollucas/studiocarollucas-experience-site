@@ -4,7 +4,7 @@ import { buildContractSnapshot, CONTRACT_TEMPLATE_VERSION, CONTRACTS_BUCKET } fr
 describe("buildContractSnapshot", () => {
   it("creates a fresh historical snapshot from issuance-time values only", () => {
     const context = {
-      contractor: { name: "Contractor Test", cpf: "11144477735", address: "Rua Profissional, 1" },
+      contractor: { personType: "individual" as const, legalName: "Contractor Test", document: "11144477735", address: "Rua Profissional, 1" },
       client: {
         name: "Client Test",
         cpf: "11144477735",

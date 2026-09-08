@@ -7,10 +7,11 @@ import { getContractDownload } from "@/domain/contracts/queries";
 import { CONTRACTS_BUCKET } from "@/domain/contracts/snapshot";
 
 export const dynamic = "force-dynamic";
+type ContractDownloadRouteContext = { params: Promise<{ id: string }> };
 
 export async function GET(
   _request: Request,
-  ctx: RouteContext<"/api/admin/contracts/[id]/download">,
+  ctx: ContractDownloadRouteContext,
 ) {
   const user = await getCurrentUser();
   if (!user || !hasMinimumRole(user.role, "staff")) {

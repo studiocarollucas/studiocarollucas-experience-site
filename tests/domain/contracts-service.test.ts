@@ -31,10 +31,15 @@ function createDeps(overrides: Partial<IssueContractDeps> = {}): IssueContractDe
   };
 
   return {
-    getContractorProfile: () => ({
-      name: "Prestadora de Teste",
-      cpf: "11144477735",
+    getActiveContractorProfile: async () => ({
+      id: "00000000-0000-4000-8000-000000000999",
+      scope: "active",
+      personType: "individual",
+      legalName: "Prestadora de Teste",
+      document: "11144477735",
       address: "Endereço profissional de teste",
+      createdAt: new Date("2026-09-08T00:00:00.000Z"),
+      updatedAt: new Date("2026-09-08T00:00:00.000Z"),
     }),
     getIssueContext: vi.fn().mockResolvedValue({
       shoot: {

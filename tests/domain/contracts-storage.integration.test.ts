@@ -38,7 +38,7 @@ describeIfLiveDb("contracts private Storage (live RLS integration)", () => {
   let bucketReady = false;
 
   const snapshot: ContractSnapshot = {
-    contractor: { name: "Studio Teste", cpf: "000.000.000-00", address: "Rua Teste, 1" },
+    contractor: { personType: "individual", legalName: "Studio Teste", document: "000.000.000-00", address: "Rua Teste, 1" },
     client: {
       name: "Cliente Teste",
       cpf: "111.111.111-11",

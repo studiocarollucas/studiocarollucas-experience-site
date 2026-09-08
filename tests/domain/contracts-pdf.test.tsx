@@ -6,8 +6,9 @@ import { renderContractPdf } from "@/domain/contracts/pdf";
 
 const fixtureSnapshot = {
   contractor: {
-    name: "Prestadora de Exemplo",
-    cpf: "000.000.000-00",
+    personType: "individual" as const,
+    legalName: "Prestadora de Exemplo",
+    document: "000.000.000-00",
     address: "Rua da Prestadora, 100 - Manaus/AM",
   },
   client: {

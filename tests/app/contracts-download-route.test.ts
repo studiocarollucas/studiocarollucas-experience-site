@@ -21,7 +21,7 @@ vi.mock("@/lib/supabase/server", () => ({ createSupabaseServerClient }));
 
 import { GET } from "@/app/api/admin/contracts/[id]/download/route";
 
-const context = { params: Promise.resolve({ id: "00000000-0000-4000-8000-000000000123" }) } as RouteContext<"/api/admin/contracts/[id]/download">;
+const context = { params: Promise.resolve({ id: "00000000-0000-4000-8000-000000000123" }) };
 
 beforeEach(() => {
   getCurrentUser.mockReset();

@@ -5,7 +5,7 @@ import { db } from "@/db/client";
 import { auditLog, clients, contracts, type ContractSnapshot } from "@/db/schema";
 import { logger } from "@/lib/observability/logger";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { getContractorProfile } from "./contractor";
+import { getActiveContractorProfile } from "@/domain/contractor-profile/service";
 import { renderContractPdf, type ContractPdfInput } from "./pdf";
 import { getContractIssueContext, type ContractIssueContext } from "./queries";
 import { issueContractSchema } from "./schema";
@@ -66,7 +66,7 @@ type ContractIssuanceDatabase = {
 };
 
 export type IssueContractDeps = {
-  getContractorProfile: typeof getContractorProfile;
+  getActiveContractorProfile: typeof getActiveContractorProfile;
   getIssueContext(shootId: string): Promise<ContractIssueContext | null>;
   renderPdf(input: ContractPdfInput): Promise<Uint8Array>;
   storage: ContractStorage;
@@ -132,7 +132,7 @@ async function createProductionDeps(): Promise<IssueContractDeps> {
   const supabase = await createSupabaseServerClient();
   const storage = supabase.storage.from(CONTRACTS_BUCKET);
   return {
-    getContractorProfile,
+    getActiveContractorProfile,
     getIssueContext: getContractIssueContext,
     renderPdf: async (input) => new Uint8Array(await renderContractPdf(input)),
     storage: {
@@ -186,7 +186,8 @@ async function issueContractInternal(
   if (!request) throw new Error("contract issuance failed");
 
   const input = issueContractSchema.parse(request.input);
-  const contractor = deps.getContractorProfile();
+  const contractor = await deps.getActiveContractorProfile();
+  if (!contractor) throw new Error("contractor profile is not configured");
   const context = await deps.getIssueContext(input.shootId);
   if (!context) throw new Error("shoot not found");
 

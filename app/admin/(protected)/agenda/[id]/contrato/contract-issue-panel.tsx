@@ -8,6 +8,7 @@ import { FormStatus } from "@/components/admin/form-status";
 import { SubmitButton } from "@/components/admin/submit-button";
 import { issueContractAction } from "@/domain/contracts/actions";
 import { toFormAction } from "@/lib/auth/action-result";
+import Link from "next/link";
 
 type CivilData = {
   cpf: string | null;
@@ -23,9 +24,11 @@ type CivilData = {
 
 export function ContractIssuePanel({
   shootId,
+  contractorConfigured,
   initialCivilData,
 }: {
   shootId: string;
+  contractorConfigured: boolean;
   initialCivilData: CivilData;
 }) {
   const router = useRouter();
@@ -85,7 +88,7 @@ export function ContractIssuePanel({
         {fieldError("imageUsage") ? <p role="alert" className="font-sans text-xs text-danger">{fieldError("imageUsage")}</p> : null}
       </fieldset>
 
-      <SubmitButton>Emitir contrato</SubmitButton>
+      {contractorConfigured ? <SubmitButton>Emitir contrato</SubmitButton> : <p role="alert">Cadastre a contratante antes de emitir o contrato. <Link href="/admin/configuracoes/contratante" className="underline">Configurar contratante</Link></p>}
 
       {issued ? (
         <a href={`/api/admin/contracts/${issued.id}/download`} className="underline underline-offset-2">

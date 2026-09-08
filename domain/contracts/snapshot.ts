@@ -59,8 +59,9 @@ export function buildContractSnapshot(input: BuildContractSnapshotInput): Contra
 
   return {
     contractor: {
-      name: input.contractor.name,
-      cpf: input.contractor.cpf,
+      personType: input.contractor.personType,
+      legalName: input.contractor.legalName,
+      document: input.contractor.document,
       address: input.contractor.address,
     },
     client: {

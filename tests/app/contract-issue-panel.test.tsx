@@ -21,7 +21,7 @@ const emptyCivilData = {
 
 describe("ContractIssuePanel", () => {
   it("requires explicit image usage and hides download before issuance", () => {
-    render(<ContractIssuePanel shootId={shootId} initialCivilData={emptyCivilData} />);
+    render(<ContractIssuePanel shootId={shootId} contractorConfigured initialCivilData={emptyCivilData} />);
 
     expect(screen.getByRole("radio", { name: "Autorizo o uso de imagem" })).not.toBeChecked();
     expect(screen.getByRole("radio", { name: "Não autorizo o uso de imagem" })).not.toBeChecked();
@@ -29,7 +29,7 @@ describe("ContractIssuePanel", () => {
   });
 
   it("collects the exact civil fields required for issuance", () => {
-    render(<ContractIssuePanel shootId={shootId} initialCivilData={emptyCivilData} />);
+    render(<ContractIssuePanel shootId={shootId} contractorConfigured initialCivilData={emptyCivilData} />);
 
     for (const name of ["cpf", "birthday", "addressStreet", "addressNumber", "addressComplement", "addressNeighborhood", "addressCity", "addressState", "addressPostalCode", "imageUsage"]) {
       expect(document.querySelector(`[name=\"${name}\"]`)).toBeInTheDocument();

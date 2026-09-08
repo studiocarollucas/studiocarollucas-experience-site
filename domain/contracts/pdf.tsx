@@ -74,6 +74,7 @@ function ContractPageLayout({
 }
 
 function ContractPdfDocument({ contractNumber, issuedAt, snapshot }: ContractPdfInput) {
+  const contractorDocumentLabel = snapshot.contractor.personType === "company" ? "CNPJ" : "CPF";
   const imageAuthorization = snapshot.terms.imageUsageAuthorized
     ? "A CONTRATANTE AUTORIZA o uso de imagem, voz e nome resultantes da sessão para divulgação do portfólio e dos canais institucionais da CONTRATADA, sem remuneração adicional."
     : "A CONTRATANTE NÃO AUTORIZA o uso de imagem, voz e nome resultantes da sessão para divulgação do portfólio e dos canais institucionais da CONTRATADA.";
@@ -87,7 +88,7 @@ function ContractPdfDocument({ contractNumber, issuedAt, snapshot }: ContractPdf
         </View>
 
         <Section title="1. PARTES">
-          <Paragraph><Text style={styles.label}>CONTRATADA: </Text>{value(snapshot.contractor.name)}, CPF {value(snapshot.contractor.cpf)}, endereço {value(snapshot.contractor.address)}.</Paragraph>
+          <Paragraph><Text style={styles.label}>CONTRATADA: </Text>{value(snapshot.contractor.legalName)}, {contractorDocumentLabel} {value(snapshot.contractor.document)}, endereço {value(snapshot.contractor.address)}.</Paragraph>
           <Paragraph><Text style={styles.label}>CONTRATANTE: </Text>{value(snapshot.client.name)}, CPF {value(snapshot.client.cpf)}, nascida em {value(snapshot.client.birthday)}, endereço {value(snapshot.client.address)}, telefone {value(snapshot.client.phone)}.</Paragraph>
         </Section>
 
@@ -127,7 +128,7 @@ function ContractPdfDocument({ contractNumber, issuedAt, snapshot }: ContractPdf
           <View style={styles.signatures}>
             <View style={styles.signature}>
               <Text style={styles.signatureLabel}>CONTRATADA</Text>
-              <Text style={styles.signatureName}>{value(snapshot.contractor.name)}</Text>
+              <Text style={styles.signatureName}>{value(snapshot.contractor.legalName)}</Text>
             </View>
             <View style={styles.signature}>
               <Text style={styles.signatureLabel}>CONTRATANTE</Text>
