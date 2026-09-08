@@ -24,7 +24,7 @@ export const quizLeadCaptureSchema = z.object({
     .max(40)
     .refine((value) => {
       const digits = value.replace(/\D/g, "");
-      return digits.length >= 10 && digits.length <= 15;
+      return /^\+?[\d\s()-]+$/.test(value) && digits.length >= 10 && digits.length <= 15;
     }, "telefone inválido")
     .optional(),
   result: z.unknown(),

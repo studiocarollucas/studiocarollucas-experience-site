@@ -112,6 +112,25 @@ describe("captureQuizLead", () => {
     expect(mocks.createLead).not.toHaveBeenCalled();
   });
 
+  it("rejects letters mixed with otherwise valid phone digits", async () => {
+    await expect(captureQuizLead({ ...validInput, consent: true, phone: "abc1234567890" })).rejects.toThrow();
+
+    expect(mocks.createLead).not.toHaveBeenCalled();
+  });
+
+  it("rejects answers with an invalid enum value before recommending", async () => {
+    await expect(
+      captureQuizLead({
+        ...validInput,
+        consent: true,
+        answers: { ...validInput.answers, aesthetic: "invalid" as never },
+      }),
+    ).rejects.toThrow();
+
+    expect(mocks.recommendQuizPackage).not.toHaveBeenCalled();
+    expect(mocks.createLead).not.toHaveBeenCalled();
+  });
+
   it("rejects invalid contact data before persisting", async () => {
     await expect(captureQuizLead({ ...validInput, consent: true, email: "invalid-email" })).rejects.toThrow();
 
