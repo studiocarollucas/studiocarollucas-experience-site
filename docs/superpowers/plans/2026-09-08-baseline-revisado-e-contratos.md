@@ -168,7 +168,7 @@ export function ContractsList({ contracts }: { contracts: ContractListItem[] }) 
 }
 ~~~
 
-Load the existing queries with page reads. Add a Contratos detail section and a Gerar contrato link on shoot detail. Add a Documentos section on client detail. Pass only the five ContractListItem fields.
+Load the existing queries with page reads. Add a Contratos detail section on shoot detail and a Documentos section on client detail. Pass only the five ContractListItem fields. Task 3 adds the Gerar contrato link together with the route it targets, so this task introduces no broken navigation.
 
 - [ ] **Step 4: Verify GREEN and commit**
 
@@ -186,6 +186,7 @@ git commit -m "feat(admin): show contract history"
 **Files:**
 - Create: app/admin/(protected)/agenda/[id]/contrato/page.tsx
 - Create: app/admin/(protected)/agenda/[id]/contrato/contract-issue-panel.tsx
+- Modify: app/admin/(protected)/agenda/[id]/page.tsx
 - Test: tests/app/contract-issue-page.test.tsx
 - Test: tests/app/contract-issue-panel.test.tsx
 
@@ -216,7 +217,7 @@ Expected: FAIL because page and panel do not exist.
 
 - [ ] **Step 3: Implement the server page and bounded panel**
 
-The page awaits params, loads context, calls notFound() on null and renders package, date, local, value, confirmed paid and derived balance using existing money helpers. The panel uses useActionState(toFormAction(issueContractAction), null), all civil inputs, hidden shootId, Field errors and FormStatus. It must contain:
+The page awaits params, loads context, calls notFound() on null and renders package, date, local, value, confirmed paid and derived balance using existing money helpers. It also adds the Gerar contrato link on the shoot-detail Contratos section, now that its target route exists. The panel uses useActionState(toFormAction(issueContractAction), null), all civil inputs, hidden shootId, Field errors and FormStatus. It must contain:
 
 ~~~tsx
 <fieldset>
@@ -240,7 +241,7 @@ Run: npx vitest run tests/app/contract-issue-page.test.tsx tests/app/contract-is
 Expected: PASS.
 
 ~~~powershell
-git add -- "app/admin/(protected)/agenda/[id]/contrato/page.tsx" "app/admin/(protected)/agenda/[id]/contrato/contract-issue-panel.tsx" tests/app/contract-issue-page.test.tsx tests/app/contract-issue-panel.test.tsx
+git add -- "app/admin/(protected)/agenda/[id]/contrato/page.tsx" "app/admin/(protected)/agenda/[id]/contrato/contract-issue-panel.tsx" "app/admin/(protected)/agenda/[id]/page.tsx" tests/app/contract-issue-page.test.tsx tests/app/contract-issue-panel.test.tsx
 git commit -m "feat(admin): issue contracts from shoot review"
 ~~~
 
