@@ -24,7 +24,7 @@ const styles = StyleSheet.create({
   signature: { flexGrow: 1, flexBasis: 0, borderTopWidth: 1, borderTopColor: "#374151", paddingTop: 5 },
   signatureLabel: { fontSize: 8.5, textAlign: "center" },
   signatureName: { fontSize: 8.5, textAlign: "center", marginTop: 2 },
-  footer: { position: "absolute", bottom: 25, left: 48, right: 48, fontSize: 8, color: "#6b7280", textAlign: "center" },
+  footer: { position: "absolute", bottom: 25, left: 48, right: 48, minHeight: 10, fontSize: 8, color: "#6b7280", textAlign: "center" },
 });
 
 function value(text: string | null | undefined): string {
@@ -41,9 +41,9 @@ function contractDate(issuedAt: string): string {
   return Number.isNaN(date.valueOf()) ? issuedAt : date.toLocaleDateString("pt-BR", { timeZone: "UTC" });
 }
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
+function Section({ title, children, keepTogether = false }: { title: string; children: React.ReactNode; keepTogether?: boolean }) {
   return (
-    <View style={styles.section} wrap={false}>
+    <View style={styles.section} wrap={!keepTogether}>
       <Text style={styles.heading}>{title}</Text>
       {children}
     </View>
@@ -54,6 +54,25 @@ function Paragraph({ children }: { children: React.ReactNode }) {
   return <Text style={styles.paragraph}>{children}</Text>;
 }
 
+function ContractPageLayout({
+  children,
+  pageNumber,
+  totalPages,
+}: {
+  children: React.ReactNode;
+  pageNumber?: number;
+  totalPages?: number;
+}) {
+  return (
+    <>
+      {children}
+      <Text style={styles.footer}>
+        Página {pageNumber} de {totalPages}
+      </Text>
+    </>
+  );
+}
+
 function ContractPdfDocument({ contractNumber, issuedAt, snapshot }: ContractPdfInput) {
   const imageAuthorization = snapshot.terms.imageUsageAuthorized
     ? "A CONTRATANTE AUTORIZA o uso de imagem, voz e nome resultantes da sessão para divulgação do portfólio e dos canais institucionais da CONTRATADA, sem remuneração adicional."
@@ -61,11 +80,7 @@ function ContractPdfDocument({ contractNumber, issuedAt, snapshot }: ContractPdf
 
   return (
     <Document title={`Contrato ${contractNumber}`} author="Modelo de contrato">
-      <Page size="A4" style={styles.page}>
-        <Text
-          fixed
-          style={styles.footer}
-        >Contrato {value(contractNumber)} - Página 1 de 2</Text>
+      <Page size="A4" style={styles.page} layout={ContractPageLayout}>
         <View style={styles.header}>
           <Text style={styles.title}>CONTRATO DE PRESTAÇÃO DE SERVIÇOS FOTOGRÁFICOS</Text>
           <Text style={styles.meta}>Contrato nº {value(contractNumber)} - Emitido em {contractDate(issuedAt)} - Modelo {CONTRACT_TEMPLATE_VERSION}</Text>
@@ -106,11 +121,8 @@ function ContractPdfDocument({ contractNumber, issuedAt, snapshot }: ContractPdf
         <Section title="8. DADOS PESSOAIS">
           <Paragraph>Os dados pessoais deste contrato serão utilizados exclusivamente para executar, registrar e comprovar a relação contratual, cumprir obrigações legais e viabilizar a comunicação necessária sobre a sessão e a entrega.</Paragraph>
         </Section>
-      </Page>
 
-      <Page size="A4" style={styles.page}>
-        <Text fixed style={styles.footer}>Contrato {value(contractNumber)} - Página 2 de 2</Text>
-        <Section title="9. ASSINATURAS">
+        <Section title="9. ASSINATURAS" keepTogether>
           <Paragraph>As partes declaram que leram e concordam com as condições deste contrato. Blocos para assinatura manual:</Paragraph>
           <View style={styles.signatures}>
             <View style={styles.signature}>

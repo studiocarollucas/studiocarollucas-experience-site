@@ -39,6 +39,12 @@ const fixtureSnapshot = {
   },
 } satisfies ContractSnapshot;
 
+const fixtureSnapshotWithPrivateData = {
+  ...fixtureSnapshot,
+  internalNote: "FORBIDDEN_INTERNAL_NOTE",
+  serviceRoleKey: "FORBIDDEN_SERVICE_ROLE_KEY",
+} as ContractSnapshot;
+
 async function extractPdfText(buffer: Buffer): Promise<string> {
   const { PDFParse } = await import("pdf-parse");
   const parser = new PDFParse({ data: buffer });
@@ -52,7 +58,7 @@ describe("renderContractPdf", () => {
     const buffer = await renderContractPdf({
       contractNumber: "CT-EXEMPLO-0001",
       issuedAt: "2026-09-07T12:00:00.000Z",
-      snapshot: fixtureSnapshot,
+      snapshot: fixtureSnapshotWithPrivateData,
     });
     const text = await extractPdfText(buffer);
 
@@ -66,8 +72,8 @@ describe("renderContractPdf", () => {
     expect(text).toContain("Página 2 de 2");
     expect(text).not.toContain("undefined");
     expect(text).not.toContain("null");
-    expect(text).not.toContain("service_role");
-    expect(text).not.toContain("nota interna do cliente");
+    expect(text).not.toContain("FORBIDDEN_SERVICE_ROLE_KEY");
+    expect(text).not.toContain("FORBIDDEN_INTERNAL_NOTE");
   // @react-pdf/renderer and pdf-parse can exceed Vitest's 5s default on a cold worker.
   }, 10_000);
 
@@ -83,4 +89,27 @@ describe("renderContractPdf", () => {
 
     await expect(extractPdfText(buffer)).resolves.toContain("NÃO AUTORIZA o uso de imagem");
   });
+
+  it("numbers every generated page when snapshot content overflows the template", async () => {
+    const buffer = await renderContractPdf({
+      contractNumber: "CT-EXEMPLO-0003",
+      issuedAt: "2026-09-07T12:00:00.000Z",
+      snapshot: {
+        ...fixtureSnapshot,
+        package: {
+          ...fixtureSnapshot.package,
+          description: "Descrição extensa do pacote. ".repeat(350),
+          scenes: "Detalhes adicionais da sessão. ".repeat(350),
+        },
+      },
+    });
+    const text = await extractPdfText(buffer);
+
+    const totalPages = Number(text.match(/-- 1 of (\d+) --/)?.[1]);
+
+    expect(totalPages).toBeGreaterThan(2);
+    for (let pageNumber = 1; pageNumber <= totalPages; pageNumber += 1) {
+      expect(text).toContain(`Página ${pageNumber} de ${totalPages}`);
+    }
+  }, 10_000);
 });
