@@ -2,7 +2,7 @@ import { describe, it, expect, afterAll } from "vitest";
 import { eq } from "drizzle-orm";
 import { db } from "@/db/client";
 import { clients } from "@/db/schema";
-import { createClientSchema } from "@/domain/clients/schema";
+import { createClientSchema, updateClientSchema } from "@/domain/clients/schema";
 import { getClientById, createClient } from "@/domain/clients/service";
 
 describe("createClientSchema", () => {
@@ -34,6 +34,33 @@ describe("createClientSchema", () => {
   it("accepts a valid ISO birthday", () => {
     const result = createClientSchema.safeParse({ name: "Maria Silva", birthday: "1994-03-12" });
     expect(result.success).toBe(true);
+  });
+
+  it("normalizes optional civil fields while retaining name-only creation", () => {
+    expect(createClientSchema.safeParse({ name: "Maria Silva" }).success).toBe(true);
+
+    const result = createClientSchema.safeParse({
+      name: "Maria Silva",
+      cpf: "111.444.777-35",
+      addressState: "am",
+      addressPostalCode: "69000-000",
+    });
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.cpf).toBe("11144477735");
+      expect(result.data.addressState).toBe("AM");
+      expect(result.data.addressPostalCode).toBe("69000000");
+    }
+  });
+
+  it("rejects invalid optional civil fields on create and update", () => {
+    expect(createClientSchema.safeParse({ name: "Maria Silva", cpf: "00000000000" }).success).toBe(false);
+    expect(createClientSchema.safeParse({ name: "Maria Silva", addressPostalCode: "123" }).success).toBe(false);
+    expect(createClientSchema.safeParse({ name: "Maria Silva", addressState: "A" }).success).toBe(false);
+    expect(updateClientSchema.safeParse({ cpf: "00000000000" }).success).toBe(false);
+    expect(updateClientSchema.safeParse({ addressPostalCode: "123" }).success).toBe(false);
+    expect(updateClientSchema.safeParse({ addressState: "A" }).success).toBe(false);
   });
 
   // `clients.birthday` is a Postgres `date` column — Zod must reject a malformed

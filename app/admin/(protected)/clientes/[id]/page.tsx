@@ -1,11 +1,13 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getClientDetail } from "@/domain/clients/queries";
+import { listContractsForClient } from "@/domain/contracts/queries";
 import { PageHeader } from "@/components/ui/page-header";
 import { Badge } from "@/components/ui/badge";
 import { DataTable, type Column } from "@/components/ui/data-table";
 import { EmptyState } from "@/components/ui/empty-state";
 import { DetailSection, DetailRow } from "@/components/admin/detail-section";
+import { ContractsList } from "@/components/admin/contracts-list";
 import { formatBRL, formatShootDate } from "@/lib/format";
 import type { ClientShootSummary } from "@/domain/clients/queries";
 
@@ -38,7 +40,7 @@ const shootColumns: Column<ClientShootSummary>[] = [
 
 export default async function ClientDetailPage({ params }: { params: Params }) {
   const { id } = await params;
-  const detail = await getClientDetail(id);
+  const [detail, contracts] = await Promise.all([getClientDetail(id), listContractsForClient(id)]);
   if (!detail) notFound();
 
   const { client, shoots, lifetimeRevenue, openBalance } = detail;
@@ -80,6 +82,10 @@ export default async function ClientDetailPage({ params }: { params: Params }) {
           ) : null}
         </DetailSection>
       </div>
+
+      <DetailSection title="Documentos">
+        <ContractsList contracts={contracts} />
+      </DetailSection>
 
       <DetailSection title="Histórico de ensaios">
         <DataTable

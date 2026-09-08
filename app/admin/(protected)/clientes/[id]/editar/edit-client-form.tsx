@@ -7,7 +7,15 @@ import type { ActionResult } from "@/lib/auth/action-result";
 
 type Values = React.ComponentProps<typeof ClientForm>["initialValues"];
 
-export function EditClientForm({ id, initialValues }: { id: string; initialValues: Values }) {
+export function EditClientForm({
+  id,
+  initialValues,
+  showContractFields,
+}: {
+  id: string;
+  initialValues: Values;
+  showContractFields?: boolean;
+}) {
   const router = useRouter();
 
   async function action(raw: unknown): Promise<ActionResult<{ id: string }>> {
@@ -16,5 +24,13 @@ export function EditClientForm({ id, initialValues }: { id: string; initialValue
     return result;
   }
 
-  return <ClientForm action={action} initialValues={initialValues} submitLabel="Salvar" hiddenId={id} />;
+  return (
+    <ClientForm
+      action={action}
+      initialValues={initialValues}
+      submitLabel="Salvar"
+      hiddenId={id}
+      showContractFields={showContractFields}
+    />
+  );
 }

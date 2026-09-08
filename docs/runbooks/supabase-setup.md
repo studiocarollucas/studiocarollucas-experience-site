@@ -68,3 +68,11 @@ exit $exitCode
 ```
 
 Os fixtures usam nomes `Teste Epic3 ...` e e-mails descartáveis `scl302-*`, `scl304-*` e `scl305-*`. Todo teste deve apagar objetos de Storage antes das rows, depois Shoot/Client e por fim o Auth user, acumulando erros de teardown e verificando ausência. Como ainda não há banco dedicado, uma falha de rede durante o teardown exige auditoria e limpeza explícitas antes da próxima execução live.
+
+## Contratos privados — operação protegida
+
+`STUDIO_CONTRACTOR_NAME`, `STUDIO_CONTRACTOR_CPF` e `STUDIO_CONTRACTOR_ADDRESS` são **Vercel Secrets**. Nunca use o prefixo `NEXT_PUBLIC_`, nunca os exponha ao browser e nunca os registre em documentação, logs ou evidências.
+
+Ao promover o ambiente, migre essas variáveis para o ambiente Vercel pretendido e confirme, no painel do Supabase, que o bucket de contratos permanece privado e que as policies/RLS continuam limitando o acesso a staff autenticado. Para validar o ciclo operacional, emita e exclua um contrato descartável usando apenas dados de teste; não reutilize dados reais em evidências.
+
+Obtenha revisão jurídica brasileira antes de qualquer uso comercial dos contratos.

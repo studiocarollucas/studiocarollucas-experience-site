@@ -2,25 +2,21 @@ import fs from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 
-const sql = fs.readFileSync(
-  path.resolve("db/migrations/0027_styling_storage_access.sql"),
-  "utf8",
-);
-const hardeningSql = fs.readFileSync(
-  path.resolve("db/migrations/0028_harden_styling_paths.sql"),
-  "utf8",
-);
+const readSql = (filePath: string) => fs.readFileSync(filePath, "utf8").replace(/\r\n/g, "\n");
+
+const sql = readSql(path.resolve("db/migrations/0027_styling_storage_access.sql"));
+const hardeningSql = readSql(path.resolve("db/migrations/0028_harden_styling_paths.sql"));
 const reservationSqlPath = path.resolve("db/migrations/0029_styling_upload_reservations.sql");
 const reservationSql = fs.existsSync(reservationSqlPath)
-  ? fs.readFileSync(reservationSqlPath, "utf8")
+  ? readSql(reservationSqlPath)
   : "";
 const deletionGuardSqlPath = path.resolve("db/migrations/0030_guard_styling_row_deletion.sql");
 const deletionGuardSql = fs.existsSync(deletionGuardSqlPath)
-  ? fs.readFileSync(deletionGuardSqlPath, "utf8")
+  ? readSql(deletionGuardSqlPath)
   : "";
 const serializationSqlPath = path.resolve("db/migrations/0031_serialize_styling_lifecycle.sql");
 const serializationSql = fs.existsSync(serializationSqlPath)
-  ? fs.readFileSync(serializationSqlPath, "utf8")
+  ? readSql(serializationSqlPath)
   : "";
 
 describe("styling migrations", () => {

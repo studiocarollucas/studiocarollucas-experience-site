@@ -1,11 +1,12 @@
 # PRD — Stúdio Carol Lucas Experience + Studio OS
 
-**Versão:** 1.0  
-**Status:** Aprovado para início do desenvolvimento  
+**Versão:** 1.1 — revisão de cobertura funcional  
+**Status:** Em desenvolvimento — escopo revisado para fechamento do MVP  
 **Domínio:** `studiocarollucas.com.br`  
 **Produto:** Site público + Minha Experiência + Studio OS / Admin  
 **Protótipo de referência:** `studio-carol-lucas-prototipo-v2.3-studio-os.html`  
-**Documento de modelagem de referência:** `studio-carol-lucas-v2.3-modelo-dados.md`
+**Documento de modelagem de referência:** `studio-carol-lucas-v2.3-modelo-dados.md`  
+**Revisão de escopo:** 07/09/2026 — incorpora gaps identificados após implementação avançada do Studio OS/Portal
 
 ---
 
@@ -28,6 +29,22 @@ O princípio central é evitar controles desconectados. Cliente, ensaio, pagamen
 ### Princípio operacional
 
 > Nunca criar telas que mantenham cópias independentes do mesmo dado. Agenda, financeiro, produção, portal da cliente e galeria devem ser diferentes visões das mesmas entidades.
+
+### Revisão 1.1 — fechamento de cobertura
+
+Esta revisão não invalida o que já foi implementado. Ela explicita capacidades que estavam presentes no conceito/protótipo, mas não tinham backlog operacional completo:
+
+- **Acervo físico** de figurinos, clutches, acessórios e props;
+- **Paixão Clutch** como parte do styling e como oferta pública complementar;
+- **Funil comercial** sobre a entidade `Lead`, incluindo conversão para Cliente/Ensaio;
+- **Persistência consentida do Quiz** e continuidade do resultado no CRM/portal;
+- **Galeria/Reveal completos**, favoritos, download e pós-venda;
+- **Upsells** após o ensaio;
+- **Automações de comunicação** (boas-vindas, D-7, D-1, Reveal, review);
+- **Reviews e indicações** como loops de crescimento;
+- **SEO/Analytics** como requisito explícito do site público.
+
+O objetivo desta revisão é impedir que o MVP seja considerado concluído apenas porque o núcleo Admin/Portal está pronto. A entrega final deve cobrir também conversão, acervo, entrega e pós-venda.
 
 ---
 
@@ -132,6 +149,7 @@ Todos os ambientes deverão usar o mesmo backend e a mesma fonte de verdade.
 - 15 anos.
 - Gestante.
 - Família.
+- **Paixão Clutch / acervo de clutches.**
 - Página de descoberta de estilo / quiz.
 - Contato / WhatsApp.
 - Política de privacidade.
@@ -147,6 +165,8 @@ Todos os ambientes deverão usar o mesmo backend e a mesma fonte de verdade.
 - Links para WhatsApp devem carregar contexto quando possível.
 - SEO técnico correto: metadata, sitemap, robots, canonical e dados estruturados quando aplicável.
 - Integração com analytics.
+- A Paixão Clutch deve aparecer como parte do ecossistema de styling do estúdio e possuir CTA próprio para consulta de disponibilidade/aluguel.
+- O catálogo público de clutches não deve depender de preços públicos; disponibilidade e preço podem ser tratados no contato comercial.
 
 ---
 
@@ -168,8 +188,9 @@ Criar engajamento e qualificar o lead antes do contato comercial.
 - Recomendar uma experiência sem exibir preço público.
 - Explicar o motivo da recomendação.
 - Permitir levar o resultado para WhatsApp.
-- Caso haja identificação do visitante, salvar o resultado no Lead/Client.
-- Ao converter em cliente, permitir reaproveitar o resultado em **Minha Experiência**.
+- Com consentimento, persistir o resultado como dado de qualificação do `Lead`.
+- A persistência deve registrar origem, persona, respostas relevantes e consentimento, sem criar `Client` prematuramente.
+- Ao converter o Lead em Cliente/Ensaio, reaproveitar o resultado em **Minha Experiência** e no styling.
 
 ### Não utilizar no copy principal
 
@@ -248,15 +269,22 @@ Cada tarefa deverá possuir:
 
 ---
 
-## 6.3 Styling
+## 6.3 Styling e Acervo selecionável
 
 MVP:
 
-- referências de figurinos;
-- referências de cenário;
-- clutches e acessórios;
-- informações relevantes de styling;
-- salvar preferências quando necessário.
+- referências colaborativas de figurinos, make e cenário;
+- seleção de **itens reais do acervo** do estúdio;
+- figurinos, clutches, acessórios e props com fotos próprias;
+- diferenciar claramente **referência de inspiração** de **item físico reservado**;
+- permitir que a equipe vincule itens do acervo ao ensaio;
+- permitir que a cliente visualize e, quando habilitado, sinalize preferências;
+- salvar preferências e reservas na mesma entidade de ensaio;
+- detectar indisponibilidade/conflito de reserva antes da confirmação de um item.
+
+### Regra de produto
+
+`StylingReference`/moodboard não substitui `InventoryItem`. Uma foto de inspiração pode não existir fisicamente no estúdio; um figurino ou clutch do acervo precisa possuir identidade, status e disponibilidade próprios.
 
 ### Virtual Try-On
 
@@ -288,23 +316,30 @@ Transformar a entrega em continuação da experiência, evitando uma entrega fri
 
 ### MVP
 
+- schema de Gallery/GalleryAsset desacoplado do provider de storage;
+- upload/publicação pela equipe;
 - página de Reveal;
 - foto de capa;
 - título/mensagem personalizada;
 - acesso à galeria privada;
-- favoritos;
+- favoritos/seleção;
 - controle de download quando permitido;
 - estado de publicação;
-- pós-entrega.
+- pós-entrega;
+- eventos de publicação/entrega para automações.
 
-### Upsells planejados
+### Upsells do MVP de lançamento
+
+A galeria é também um segundo ponto de conversão. O produto deve permitir cadastrar e ofertar, ao menos:
 
 - fotos adicionais;
 - coleção completa;
 - álbum;
 - impressão/quadro;
 - Reel/Stories;
-- outros produtos futuros.
+- outros produtos configuráveis.
+
+O pedido de upsell deve possuir status, valor e vínculo com o ensaio. A cobrança pode inicialmente reutilizar o fluxo financeiro/manual existente; gateway online não é requisito do MVP.
 
 A infraestrutura de galeria pode ser própria ou integrada a um provider. O modelo de dados não deve ficar acoplado a um único fornecedor.
 
@@ -379,6 +414,19 @@ Campos relevantes:
 - observações.
 
 A conversão de Lead para Cliente deve reaproveitar o registro, evitando novo cadastro manual.
+
+### Interface operacional obrigatória
+
+O fato de o schema `Lead` existir não caracteriza o funil como entregue. O Studio OS deve possuir:
+
+- lista/funil de Leads;
+- ficha do Lead;
+- mudança de estágio com auditoria;
+- filtros por origem/status/responsável;
+- resultado do quiz quando houver consentimento;
+- conversão `Lead → Client`;
+- criação/reserva de `Shoot` a partir do Lead ganho;
+- motivo de perda obrigatório/recomendado ao marcar `Perdido`.
 
 ---
 
@@ -536,26 +584,77 @@ O preço-base é interno e pode diferir do valor acordado em cada ensaio.
 
 ---
 
-## 7.8 Acervo
+## 7.8 Acervo físico — P1 do fechamento do MVP
 
-P2/P3, arquitetura preparada desde o início.
+O acervo deixa de ser apenas preparação futura e passa a fazer parte do MVP de lançamento, pois participa diretamente da proposta premium e da Paixão Clutch.
 
-Tipos:
+### Tipos iniciais
 
 - figurino;
 - clutch;
-- cenário;
-- prop/acessório.
+- acessório;
+- prop;
+- cenário/item de cenário quando fizer sentido controlar disponibilidade.
 
-Deverá futuramente permitir reservas por ensaio e detecção de conflito.
+### `InventoryItem` — campos mínimos
+
+- id/código interno;
+- tipo;
+- nome;
+- descrição;
+- cor/paleta;
+- tamanho quando aplicável;
+- fotos/mídia;
+- status (`disponivel`, `reservado`, `manutencao`, `inativo`);
+- preço de aluguel interno quando aplicável;
+- ativo/inativo;
+- observações.
+
+### Reserva
+
+Um `InventoryItem` pode ser vinculado/reservado para um ensaio por `InventoryReservation`.
+
+Requisitos:
+
+- intervalo/data de reserva;
+- vínculo com Shoot;
+- status da reserva;
+- checagem de conflito;
+- histórico;
+- liberação/cancelamento.
+
+### Paixão Clutch
+
+Paixão Clutch deve ser tratada simultaneamente como:
+
+1. parte do styling dos ensaios Carol Lucas;
+2. categoria do acervo físico;
+3. oferta pública complementar no site.
+
+No MVP público, permitir visualizar uma curadoria de clutches e consultar disponibilidade via WhatsApp. O fluxo completo de aluguel avulso (retirada/devolução/caução) pode ser uma evolução P2, mas o modelo não deve impedir esse uso.
 
 ---
 
-## 7.9 Automações
+## 7.9 Automações e notificações — P1 do fechamento do MVP
 
-### MVP
+### Infra mínima
 
-Criar uma camada de eventos, mesmo que nem todas as comunicações sejam automatizadas na primeira entrega.
+- camada de eventos/outbox ou mecanismo equivalente;
+- templates versionados;
+- Resend como primeiro provider de e-mail;
+- log de tentativa/entrega/falha;
+- retry seguro/idempotente;
+- scheduler para comunicações temporais.
+
+### Fluxos obrigatórios
+
+- reserva confirmada / boas-vindas;
+- D-7;
+- D-1;
+- produção finalizada quando houver comunicação pertinente;
+- galeria/Reveal publicado;
+- entrega concluída;
+- pedido de avaliação após entrega.
 
 Eventos importantes:
 
@@ -565,7 +664,8 @@ Eventos importantes:
 - D-1;
 - produção finalizada;
 - galeria publicada;
-- entrega concluída.
+- entrega concluída;
+- review solicitado/concluído.
 
 ### Comportamentos futuros
 
@@ -593,6 +693,30 @@ Eventos importantes:
 
 ---
 
+## 7.10 Reviews, indicação e recorrência
+
+A experiência não termina na entrega. O sistema deve fechar o ciclo de relacionamento.
+
+### Review
+
+- registrar quando o pedido foi enviado;
+- registrar conclusão quando conhecida;
+- armazenar origem/destino do review quando aplicável;
+- CTA prioritário para Google Business Profile ou canal configurado;
+- não pedir review antes da entrega/Reveal.
+
+### Referral
+
+- manter quem indicou quem;
+- distinguir indicação informada de indicação convertida;
+- permitir medir clientes e receita por indicação.
+
+### Recorrência
+
+O CRM deve manter histórico de ensaios e suportar oportunidades futuras (aniversário, família, gestante/newborn etc.). Programa formal de fidelidade/benefícios progressivos permanece pós-MVP.
+
+---
+
 # 8. Modelo de dados inicial
 
 Entidades prioritárias:
@@ -611,20 +735,25 @@ ProductionJob
 Gallery
 GalleryAsset
 PhotoSelection
+UpsellProduct
 UpsellOrder
+UpsellOrderItem
+InventoryItem
+InventoryReservation
 Review
 Referral
 AutomationEvent
+NotificationDelivery
 AuditLog
 ```
 
 Entidades posteriores:
 
 ```text
-Asset
-AssetReservation
+StandaloneClutchRental
 NotificationPreference
 VirtualTryOnRequest
+LoyaltyAccount / LoyaltyBenefit
 ```
 
 ### Relacionamentos principais
@@ -640,8 +769,11 @@ Shoot 1 ─── 0..1 Gallery
 Gallery 1 ─── N GalleryAsset
 Gallery 1 ─── N PhotoSelection
 Shoot 1 ─── N UpsellOrder
+Shoot 1 ─── N InventoryReservation
+InventoryItem 1 ─── N InventoryReservation
 Client 1 ─── N Review
 Client 1 ─── N Referral
+AutomationEvent 1 ─── N NotificationDelivery
 ```
 
 IDs devem ser estáveis e não depender de nome/e-mail como chave natural.
@@ -1023,8 +1155,8 @@ Não bloquear o MVP por:
 - WhatsApp Cloud API completa;
 - gateway de pagamentos;
 - agendamento self-service com pagamento;
-- gestão avançada de estoque;
-- conflitos automáticos de figurinos/clutches;
+- gestão **avançada** de estoque (lavanderia, manutenção detalhada, depreciação, compras);
+- aluguel avulso completo da Paixão Clutch com caução, retirada e devolução automatizadas;
 - app mobile nativo;
 - multi-tenant/SaaS para outros estúdios;
 - edição de fotografia dentro do sistema.
@@ -1035,7 +1167,7 @@ A arquitetura não deve inviabilizar esses recursos futuros.
 
 # 18. Fases sugeridas
 
-## P0 — Fundação
+## P0 — Fundação — majoritariamente concluída
 
 - setup do repositório;
 - Next.js/TypeScript/Tailwind;
@@ -1048,39 +1180,53 @@ A arquitetura não deve inviabilizar esses recursos futuros.
 - CI/CD;
 - observabilidade básica.
 
-## P1 — Operação essencial
+## P1A — Operação e Portal — majoritariamente concluída
 
 - Client;
 - ExperiencePackage;
 - Shoot;
-- Payment;
-- Expense;
+- Payment/Expense;
 - dashboard;
-- agenda/lista de ensaios;
-- CRM;
+- agenda;
+- CRM de clientes;
 - ProductionJob/Kanban;
 - PreparationTask;
-- Minha Experiência conectada.
+- Minha Experiência conectada;
+- styling/referências colaborativas;
+- contratos privados.
 
-## P2 — Experiência e crescimento
+## P1B — Fechamento funcional do MVP — obrigatório antes de declarar produto completo
 
-- quiz persistente/CRM;
+- UI de Leads e conversão `Lead → Client → Shoot`;
+- persistência consentida do Quiz;
+- Paixão Clutch pública;
+- acervo físico e reservas por ensaio;
+- seleção de figurinos/clutches reais no styling;
+- Gallery/GalleryAsset + publicação;
 - Reveal;
-- Gallery;
-- favoritos;
-- upsells;
-- review;
-- indicação;
-- automações reais.
+- favoritos/seleção/download;
+- upsell pós-ensaio;
+- automações de e-mail (boas-vindas, D-7, D-1, Reveal, review);
+- review/indicação;
+- SEO/Analytics e eventos de conversão.
 
-## P3 — Acervo e inteligência
+## P2 — Crescimento
 
-- Asset;
-- AssetReservation;
-- figurinos/clutches/cenários;
-- prevenção de conflito;
-- assistente contextual;
-- prévia de styling/virtual try-on se validado.
+- timeline mais rica da jornada da cliente;
+- aluguel avulso Paixão Clutch ponta a ponta;
+- WhatsApp Cloud API;
+- checkout/gateway;
+- automações comerciais avançadas;
+- calendário visual e capacidade;
+- relatórios de conversão/coortes.
+
+## P3 — Inteligência e fidelização
+
+- Prévia de Styling / Virtual Try-On;
+- assistente contextual de preparação;
+- agente de dúvidas;
+- programa de fidelidade;
+- recomendações inteligentes de acervo/upsell.
 
 ---
 
@@ -1411,123 +1557,149 @@ Agentes devem consultar as decisões antes de alterar arquitetura já definida.
 
 ---
 
-# 20. Backlog inicial recomendado
+# 20. Backlog canônico revisado
+
+O `TASKS.md` do repositório é a fonte operacional de status. Esta lista define a cobertura funcional esperada e os IDs reservados para novas frentes.
 
 ## Epic 0 — Fundação
 
-- **SCL-001** — Inicializar repositório Next.js/TypeScript/Tailwind.
-- **SCL-002** — Configurar lint, format, typecheck e testes.
-- **SCL-003** — Configurar CI e preview deploys.
-- **SCL-004** — Criar projeto Supabase e ambientes.
-- **SCL-005** — Integrar Drizzle e strategy de migrations.
-- **SCL-006** — Implementar Auth base.
-- **SCL-007** — Implementar roles/RBAC/RLS base.
-- **SCL-008** — Configurar observabilidade e logging.
-- **SCL-009** — Criar design tokens e layout base.
-- **SCL-010** — Criar `docs/TASKS.md` e protocolo de agentes.
+SCL-001–009 — já existentes/implementados conforme `TASKS.md`.
 
 ## Epic 1 — Core de dados
 
-- **SCL-100** — Schema Client.
-- **SCL-101** — Schema Lead.
-- **SCL-102** — Schema ExperiencePackage.
-- **SCL-103** — Schema Shoot.
-- **SCL-104** — Schema Payment/Expense.
-- **SCL-105** — Schema PreparationTask.
-- **SCL-106** — Schema ProductionJob.
-- **SCL-107** — AuditLog.
-- **SCL-108** — Seeds de experiências.
+SCL-100–108 — já existentes/implementados conforme `TASKS.md`.
 
 ## Epic 2 — Studio OS
 
-- **SCL-200** — Shell/Admin navigation.
-- **SCL-201** — Dashboard.
-- **SCL-202** — Lista de clientes.
-- **SCL-203** — Ficha da cliente.
-- **SCL-204** — Cadastro de cliente.
-- **SCL-210** — Lista Agenda/Ensaios.
-- **SCL-211** — Criar ensaio.
-- **SCL-212** — Ficha do ensaio.
-- **SCL-220** — Registrar pagamento.
-- **SCL-221** — Financeiro/dashboard financeiro.
-- **SCL-222** — Despesas.
-- **SCL-230** — Kanban Produção.
-- **SCL-231** — Alterar status ProductionJob.
-- **SCL-240** — Checklist de preparação interno.
+SCL-200–240 — núcleo operacional já existente. Acrescentar:
+
+- **SCL-250** — Funil/lista de Leads no Admin.
+- **SCL-251** — Ficha do Lead.
+- **SCL-252** — Transição de estágio + auditoria/motivo de perda.
+- **SCL-253** — Converter Lead → Client.
+- **SCL-254** — Converter Lead ganho → Shoot/reserva.
 
 ## Epic 3 — Minha Experiência
 
-- **SCL-300** — Auth passwordless da cliente.
-- **SCL-301** — Shell do portal.
-- **SCL-302** — Home/countdown/progresso.
-- **SCL-303** — Checklist da cliente.
-- **SCL-304** — Meu ensaio.
-- **SCL-305** — Styling/moodboard base.
+SCL-300–305 — já existentes. Acrescentar:
 
-## Epic 4 — Site
+- **SCL-306** — Timeline da experiência (P2).
+
+## Epic 4 — Site e Conversão
 
 - **SCL-400** — Home editorial.
-- **SCL-401** — Experiências.
-- **SCL-402** — Páginas verticais de ensaio.
+- **SCL-401** — Catálogo de experiências.
+- **SCL-402** — Páginas verticais.
 - **SCL-403** — Quiz.
-- **SCL-404** — Resultado/persistência do quiz.
-- **SCL-405** — CTA WhatsApp contextual.
-- **SCL-406** — SEO/analytics.
+- **SCL-404** — Persistência consentida do Quiz **(P1)**.
+- **SCL-405** — CTA WhatsApp contextual e tracking.
+- **SCL-406** — SEO técnico + Analytics + eventos de conversão.
 
-## Epic 5 — Reveal/Galeria
+## Epic 5 — Reveal, Galeria e Pós-venda
 
-- **SCL-500** — Schema Gallery/GalleryAsset.
-- **SCL-501** — Storage abstraction.
-- **SCL-502** — Publicação de galeria.
-- **SCL-503** — Reveal.
-- **SCL-504** — Favoritos.
-- **SCL-505** — Downloads autorizados.
+- **SCL-500** — Schema Gallery.
+- **SCL-501** — GalleryAsset + abstração/storage privado.
+- **SCL-502** — Gestão/publicação da galeria no Admin.
+- **SCL-503** — Reveal da cliente.
+- **SCL-504** — Favoritos/PhotoSelection.
+- **SCL-505** — Download autorizado.
+- **SCL-506** — Catálogo de produtos/upsells.
+- **SCL-507** — Pedido de upsell + integração com financeiro.
 
-## Epic 6 — Migração
+## Epic 5B — Acervo & Paixão Clutch
 
-- **SCL-600** — Parser/import staging da planilha.
-- **SCL-601** — Detecção de duplicidade.
-- **SCL-602** — Relatório de divergências.
-- **SCL-603** — Fluxo de conciliação.
-- **SCL-604** — Import final.
+- **SCL-550** — Schema InventoryItem.
+- **SCL-551** — Mídia privada/pública dos itens de acervo.
+- **SCL-552** — CRUD Admin do Acervo.
+- **SCL-553** — InventoryReservation por ensaio + conflitos.
+- **SCL-554** — Seleção/preferências de itens pela cliente.
+- **SCL-555** — Integrar referências de Styling com itens reais reservados.
+- **SCL-556** — Curadoria/catalogação Paixão Clutch no Admin.
+- **SCL-557** — Página/seção pública Paixão Clutch + consulta de disponibilidade.
+- **SCL-558** — Aluguel avulso Paixão Clutch ponta a ponta (P2).
+
+## Epic 6 — Migração do legado
+
+IDs históricos **SCL-600–604** permanecem reservados para parser/conciliação/importação da planilha caso essa migração ainda seja necessária. Não reutilizar estes IDs para Acervo.
+
+## Epic 7 — Comunicação e Automações
+
+- **SCL-700** — Infra de eventos/outbox + Resend + templates.
+- **SCL-701** — Boas-vindas após reserva.
+- **SCL-702** — Scheduler D-7 / D-1.
+- **SCL-703** — Comunicação de produção/Reveal/galeria.
+- **SCL-704** — Pedido de review pós-entrega.
+- **SCL-705** — Delivery log, retry e idempotência.
+
+## Epic 7B — Reviews, indicação e recorrência
+
+- **SCL-720** — Schema/serviços Review + Referral.
+- **SCL-721** — Fluxo de avaliação/Google Business Profile.
+- **SCL-722** — Tracking de indicação e conversão.
+- **SCL-723** — Oportunidades de recorrência no CRM (P2).
+
+## Epic 8 — Recursos futuros
+
+- **SCL-800** — Avaliar/implementar Virtual Try-On (DEFERRED/P3).
+- **SCL-810** — Assistente contextual de preparação (DEFERRED/P3).
+- **SCL-811** — Agente de dúvidas da cliente (DEFERRED/P3).
+- **SCL-820** — Programa de fidelidade (DEFERRED/P3).
 
 ---
 
-# 21. Ordem sugerida para desenvolvimento paralelo
+# 21. Ordem sugerida para o fechamento do MVP
 
-A paralelização deve ocorrer por contratos estáveis, e não simplesmente por telas.
+Como o núcleo P0/P1A já está amplamente implementado, a ordem agora deve minimizar retrabalho entre as frentes faltantes.
 
-### Onda 1 — Sequencial / fundação
+### Onda A — Contratos compartilhados
 
-```text
-SCL-001 → SCL-004/SCL-005 → SCL-006/SCL-007 → Core schemas
-```
-
-### Onda 2 — Contratos do domínio
-
-Após Client, ExperiencePackage, Shoot, Payment e ProductionJob estarem estáveis:
+Executar primeiro, com migrations serializadas:
 
 ```text
-                      ┌─ Admin Clientes
-Core Domain ──────────┼─ Admin Ensaios
-                      ├─ Financeiro
-                      ├─ Produção
-                      └─ Portal da Cliente
+SCL-250/251 (UI Lead pode iniciar sem migration nova)
+SCL-404 (contrato de persistência do quiz)
+SCL-500/501 (Gallery + assets/storage)
+SCL-550/551 (Inventory + media)
+SCL-700 (eventos/notificações)
+SCL-720 (Review/Referral)
 ```
 
-Essas frentes podem rodar em paralelo desde que não alterem independentemente os contratos comuns.
+### Onda B — Paralelização por domínio
 
-### Onda 3 — Site público
+Após os contratos acima estabilizarem, podem trabalhar em paralelo:
 
-Pode rodar em paralelo mais cedo, pois possui baixo acoplamento com o Studio OS, desde que design tokens e componentes base já estejam definidos.
+```text
+Comercial:  SCL-252 → 253 → 254
+Galeria:    SCL-502 → 503/504/505 → 506/507
+Acervo:     SCL-552 → 553 → 554/555/556/557
+Automação:  SCL-701/702/703/704 → 705
+Growth:     SCL-721/722 + SCL-405/406
+```
 
-### Onda 4 — Reveal/Galeria
+### Regra de integração
 
-Iniciar após contratos de Shoot/Client/Auth e abstração de storage estarem definidos.
+- `SCL-554` e `SCL-555` dependem do contrato de `InventoryItem/InventoryReservation`;
+- `SCL-506/507` dependem da galeria e devem reutilizar `Payment`/Financeiro, sem novo saldo paralelo;
+- `SCL-704/721` dependem do evento real de entrega;
+- `SCL-404` deve integrar com `Lead`, não criar CRM paralelo;
+- todas as migrations permanecem serializadas conforme §19.7.
 
-### Onda 5 — Migração
+---
 
-Pode ser desenvolvida em paralelo após o schema alvo estabilizar. Não importar dados definitivos antes de fechar o modelo P1.
+# 21.1 Release Gate funcional — quando podemos chamar o MVP de completo
+
+Antes de declarar o produto funcionalmente completo para lançamento, devem estar `DONE` ou conscientemente removidas do release pelo Product Owner:
+
+- Site público: SCL-400–406, incluindo Paixão Clutch (SCL-557);
+- Comercial: SCL-250–254 + SCL-404;
+- Studio OS/Portal: núcleo já implementado e contratos concluídos;
+- Acervo: SCL-550–557;
+- Galeria/Reveal: SCL-500–507;
+- Comunicação: SCL-700–705;
+- Review/indicação: SCL-720–722;
+- contratos privados SCL-310 ou decisão explícita de release sem emissão.
+
+Virtual Try-On, agente, fidelidade e aluguel avulso completo não bloqueiam o MVP.
 
 ---
 
@@ -1549,7 +1721,7 @@ Uma task somente pode ser considerada `DONE` quando:
 
 ---
 
-# 23. Entregável esperado do primeiro marco
+# 23. Entregável esperado do marco de fechamento do MVP
 
 O primeiro marco de produto deverá permitir demonstrar o seguinte fluxo real:
 

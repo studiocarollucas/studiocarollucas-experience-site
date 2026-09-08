@@ -8,6 +8,15 @@ import { recordAuditEvent } from "@/domain/audit/service";
 import { clientFormSchema } from "./form-schema";
 import { updateClientSchema } from "./schema";
 
+const CIVIL_AUDIT_FIELDS = new Set([
+  "cpf", "birthday", "addressStreet", "addressNumber", "addressComplement",
+  "addressNeighborhood", "addressCity", "addressState", "addressPostalCode",
+]);
+
+function redactClientCivilData(client: Record<string, unknown>) {
+  return Object.fromEntries(Object.entries(client).filter(([key]) => !CIVIL_AUDIT_FIELDS.has(key)));
+}
+
 export const createClientAction = defineAdminAction(
   { role: "staff", input: clientFormSchema },
   async (input, ctx) => {
@@ -18,7 +27,7 @@ export const createClientAction = defineAdminAction(
       entityType: "client",
       entityId: created.id,
       before: null,
-      after: created,
+      after: redactClientCivilData(created),
     });
     revalidatePath("/admin/clientes");
     return { id: created.id };
@@ -37,8 +46,8 @@ export const updateClientAction = defineAdminAction(
       action: "client.updated",
       entityType: "client",
       entityId: id,
-      before,
-      after: updated,
+      before: redactClientCivilData(before),
+      after: redactClientCivilData(updated),
     });
     revalidatePath(`/admin/clientes/${id}`);
     revalidatePath("/admin/clientes");

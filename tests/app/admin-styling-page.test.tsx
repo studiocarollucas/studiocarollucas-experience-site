@@ -5,6 +5,7 @@ const mocks = vi.hoisted(() => ({
   authGetUser: vi.fn(),
   createSupabaseServerClient: vi.fn(),
   getShootDetail: vi.fn(),
+  listContractsForShoot: vi.fn(),
   getCurrentUser: vi.fn(),
   hasMinimumRole: vi.fn(),
   readStylingReferences: vi.fn(),
@@ -30,6 +31,9 @@ vi.mock("@/lib/supabase/client", () => ({
   createSupabaseBrowserClient: vi.fn(() => ({ source: "browser" })),
 }));
 vi.mock("@/domain/shoots/queries", () => ({ getShootDetail: mocks.getShootDetail }));
+vi.mock("@/domain/contracts/queries", () => ({
+  listContractsForShoot: mocks.listContractsForShoot,
+}));
 vi.mock("@/lib/auth/session", () => ({ getCurrentUser: mocks.getCurrentUser }));
 vi.mock("@/lib/auth/rbac", () => ({ hasMinimumRole: mocks.hasMinimumRole }));
 vi.mock("@/domain/styling/read", () => ({
@@ -79,6 +83,7 @@ describe("ShootDetailPage styling management", () => {
       error: null,
     });
     mocks.getShootDetail.mockResolvedValue(shootDetail);
+    mocks.listContractsForShoot.mockResolvedValue([]);
     mocks.readStylingReferences.mockResolvedValue([]);
   });
 
