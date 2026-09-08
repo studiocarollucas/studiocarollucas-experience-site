@@ -1,4 +1,6 @@
 import { render, screen } from "@testing-library/react";
+import { readFileSync } from "node:fs";
+import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { ContractsList } from "@/components/admin/contracts-list";
 
@@ -23,5 +25,14 @@ describe("ContractsList", () => {
       "/api/admin/contracts/f8a1cdb8-0d69-41b5-9693-e8d1a76ef3dd/download",
     );
     expect(screen.queryByText(/contracts\//)).not.toBeInTheDocument();
+  });
+
+  it("does not add the contract generation link before its route exists", () => {
+    const shootDetailPage = readFileSync(
+      path.resolve(process.cwd(), "app/admin/(protected)/agenda/[id]/page.tsx"),
+      "utf8",
+    );
+
+    expect(shootDetailPage).not.toContain("Gerar contrato");
   });
 });

@@ -76,12 +76,6 @@ export default async function ShootDetailPage({ params }: { params: Params }) {
         description={`${formatShootDate(shoot.shootDate)}${shoot.startTime ? ` · ${shoot.startTime.slice(0, 5)}` : ""}`}
         action={
           <div className="flex items-start gap-2">
-            <Link
-              href={`/admin/agenda/${id}/contrato`}
-              className="border border-ink px-5 py-3 font-sans text-[10px] uppercase tracking-[0.2em] text-ink hover:bg-ink hover:text-white"
-            >
-              Gerar contrato
-            </Link>
             <ShootStatusControl id={id} status={shoot.status} />
             <Badge
               tone={
