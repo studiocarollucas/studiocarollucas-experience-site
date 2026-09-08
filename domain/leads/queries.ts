@@ -1,4 +1,4 @@
-import { and, count, desc, eq, ilike, or, sql, type SQL } from "drizzle-orm";
+import { and, asc, count, desc, eq, ilike, inArray, or, sql, type SQL } from "drizzle-orm";
 import { db } from "@/db/client";
 import { leads, profiles } from "@/db/schema";
 import { leadStatusValues } from "@/domain/leads/schema";
@@ -97,4 +97,14 @@ export async function listLeads(input: LeadListInput): Promise<LeadListResult> {
     .offset((params.page - 1) * params.limit);
 
   return { rows, total: Number(total), page: params.page, limit: params.limit };
+}
+
+export async function listLeadOwnerOptions(): Promise<{ id: string; name: string }[]> {
+  const rows = await db
+    .select({ id: profiles.id, name: profiles.fullName, email: profiles.email })
+    .from(profiles)
+    .where(inArray(profiles.role, ["staff", "admin"]))
+    .orderBy(asc(profiles.fullName), asc(profiles.email));
+
+  return rows.map((row) => ({ id: row.id, name: row.name ?? row.email }));
 }
