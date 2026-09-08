@@ -1,6 +1,6 @@
 import { db } from "@/db/client";
 import { auditLog, leads, type AuditLogEntry, type Lead } from "@/db/schema";
-import { desc, eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import { transitionLeadStatusSchema, type TransitionLeadStatusInput } from "./schema";
 import { canTransitionLeadStatus } from "./status";
 
@@ -13,7 +13,7 @@ export async function getLeadDetail(id: string): Promise<LeadDetail | null> {
   const audit = await db
     .select()
     .from(auditLog)
-    .where(eq(auditLog.entityId, id))
+    .where(and(eq(auditLog.entityId, id), eq(auditLog.entityType, "lead")))
     .orderBy(desc(auditLog.createdAt));
 
   return { ...lead, audit };
@@ -34,8 +34,10 @@ export async function transitionLeadStatus(input: TransitionLeadStatusInput): Pr
     const [updated] = await tx
       .update(leads)
       .set({ status: parsed.status, lostReason: parsed.status === "perdido" ? parsed.lostReason : null })
-      .where(eq(leads.id, parsed.leadId))
+      .where(and(eq(leads.id, parsed.leadId), eq(leads.status, current.status)))
       .returning();
+
+    if (!updated) throw new Error("Transição de Lead inválida");
 
     await tx.insert(auditLog).values({
       actorUserId: parsed.actorUserId,

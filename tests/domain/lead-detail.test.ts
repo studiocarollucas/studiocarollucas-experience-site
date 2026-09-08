@@ -1,4 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { sql } from "drizzle-orm";
+import { PgDialect } from "drizzle-orm/pg-core";
+import type { Lead } from "@/db/schema";
 
 const mocks = vi.hoisted(() => ({
   db: {
@@ -14,7 +17,7 @@ import { getLeadDetail, transitionLeadStatus } from "@/domain/leads/detail";
 const LEAD_ID = "00000000-0000-4000-8000-000000000001";
 const STAFF_ID = "00000000-0000-4000-8000-000000000002";
 
-const lead = {
+const lead: Lead = {
   id: LEAD_ID,
   clientId: null,
   name: "Maria",
@@ -23,7 +26,7 @@ const lead = {
   source: "quiz",
   occasion: null,
   quizResult: "Romântica",
-  status: "novo" as const,
+  status: "novo",
   lostReason: null,
   owner: null,
   createdAt: new Date("2026-09-08T00:00:00.000Z"),
@@ -41,7 +44,7 @@ function configureTransition(current = lead, updated = { ...lead, status: "conta
   const from = vi.fn().mockReturnValue({ where: selectWhere });
   const tx = { select: vi.fn().mockReturnValue({ from }), update, insert };
   mocks.db.transaction.mockImplementation(async (operation) => operation(tx));
-  return { tx, set, values };
+  return { tx, set, values, returning };
 }
 
 describe("transitionLeadStatus", () => {
@@ -51,6 +54,13 @@ describe("transitionLeadStatus", () => {
     await expect(transitionLeadStatus({ leadId: LEAD_ID, actorUserId: STAFF_ID, status: "perdido" })).rejects.toThrow(
       "Informe o motivo da perda",
     );
+    expect(mocks.db.transaction).not.toHaveBeenCalled();
+  });
+
+  it("rejects a lost transition with a whitespace-only reason", async () => {
+    await expect(
+      transitionLeadStatus({ leadId: LEAD_ID, actorUserId: STAFF_ID, status: "perdido", lostReason: "   " }),
+    ).rejects.toThrow("Informe o motivo da perda");
     expect(mocks.db.transaction).not.toHaveBeenCalled();
   });
 
@@ -87,6 +97,16 @@ describe("transitionLeadStatus", () => {
       after: { status: "contato", lostReason: null },
     });
   });
+
+  it("rejects a stale transition when the status changes before the conditional update", async () => {
+    const { returning, values } = configureTransition();
+    returning.mockResolvedValue([]);
+
+    await expect(transitionLeadStatus({ leadId: LEAD_ID, actorUserId: STAFF_ID, status: "contato" })).rejects.toThrow(
+      "Transição de Lead inválida",
+    );
+    expect(values).not.toHaveBeenCalled();
+  });
 });
 
 describe("getLeadDetail", () => {
@@ -105,5 +125,9 @@ describe("getLeadDetail", () => {
 
     await expect(getLeadDetail(LEAD_ID)).resolves.toEqual({ ...lead, audit: [newestAudit, oldestAudit] });
     expect(auditOrderBy).toHaveBeenCalledOnce();
+
+    const filter = new PgDialect().sqlToQuery(sql`where ${auditWhere.mock.calls[0][0]}`);
+    expect(filter.sql).toBe('where ("audit_log"."entity_id" = $1 and "audit_log"."entity_type" = $2)');
+    expect(filter.params).toEqual([LEAD_ID, "lead"]);
   });
 });
