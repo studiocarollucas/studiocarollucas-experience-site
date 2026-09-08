@@ -35,13 +35,15 @@ const mocks = vi.hoisted(() => {
   const chain = {
     from: vi.fn(),
     innerJoin: vi.fn(),
+    leftJoin: vi.fn(),
     where: vi.fn(),
   };
   chain.from.mockReturnValue(chain);
   chain.innerJoin.mockReturnValue(chain);
+  chain.leftJoin.mockReturnValue(chain);
   chain.where.mockResolvedValue(rows);
 
-  return { db: { select: vi.fn(() => chain) } };
+  return { db: { select: vi.fn(() => chain) }, chain };
 });
 
 vi.mock("@/db/client", () => ({ db: mocks.db }));
@@ -56,5 +58,42 @@ describe("getContractIssueContext", () => {
       cpf: "52998224725",
       addressPostalCode: "69000000",
     });
+  });
+
+  it("keeps a shoot issuable when it has no payments", async () => {
+    mocks.chain.where.mockResolvedValueOnce([
+      {
+        shootId: "11111111-1111-4111-8111-111111111111",
+        shootDate: "2026-10-10",
+        startTime: "14:00",
+        locationName: "Estúdio",
+        locationAddress: "Rua das Flores, 10",
+        agreedPrice: "300.00",
+        clientId: "22222222-2222-4222-8222-222222222222",
+        clientName: "Lia",
+        clientPhone: null,
+        clientCpf: null,
+        clientBirthday: null,
+        clientAddressStreet: null,
+        clientAddressNumber: null,
+        clientAddressComplement: null,
+        clientAddressNeighborhood: null,
+        clientAddressCity: null,
+        clientAddressState: null,
+        clientAddressPostalCode: null,
+        packageName: "Ensaio",
+        packageDescription: null,
+        packageDurationMinutes: 60,
+        packageIncludedPhotos: 20,
+        packageScenes: null,
+        paymentAmount: null,
+        paymentStatus: null,
+      },
+    ]);
+
+    const context = await getContractIssueContext("11111111-1111-4111-8111-111111111111");
+
+    expect(mocks.chain.leftJoin).toHaveBeenCalled();
+    expect(context?.payments).toEqual([]);
   });
 });

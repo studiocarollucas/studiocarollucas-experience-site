@@ -27,12 +27,13 @@ describe("ContractsList", () => {
     expect(screen.queryByText(/contracts\//)).not.toBeInTheDocument();
   });
 
-  it("does not add the contract generation link before its route exists", () => {
+  it("links the shoot detail to the contract issuance route", () => {
     const shootDetailPage = readFileSync(
       path.resolve(process.cwd(), "app/admin/(protected)/agenda/[id]/page.tsx"),
       "utf8",
     );
 
-    expect(shootDetailPage).not.toContain("Gerar contrato");
+    expect(shootDetailPage).toContain("Gerar contrato");
+    expect(shootDetailPage).toContain("`/admin/agenda/${id}/contrato`");
   });
 });

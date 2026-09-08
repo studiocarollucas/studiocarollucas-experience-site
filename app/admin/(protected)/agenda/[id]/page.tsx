@@ -140,6 +140,14 @@ export default async function ShootDetailPage({ params }: { params: Params }) {
       </div>
 
       <DetailSection title="Contratos">
+        <div className="mb-4">
+          <Link
+            href={`/admin/agenda/${id}/contrato`}
+            className="border border-ink px-5 py-3 font-sans text-[10px] uppercase tracking-[0.2em] text-ink hover:bg-ink hover:text-white"
+          >
+            Gerar contrato
+          </Link>
+        </div>
         <ContractsList contracts={contracts} />
       </DetailSection>
 

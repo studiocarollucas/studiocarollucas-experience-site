@@ -71,7 +71,7 @@ export async function getContractIssueContext(
     .from(shoots)
     .innerJoin(clients, eq(shoots.clientId, clients.id))
     .innerJoin(experiencePackages, eq(shoots.experiencePackageId, experiencePackages.id))
-    .innerJoin(payments, eq(payments.shootId, shoots.id))
+    .leftJoin(payments, eq(payments.shootId, shoots.id))
     .where(eq(shoots.id, shootId));
 
   const first = rows[0];
@@ -107,7 +107,11 @@ export async function getContractIssueContext(
       includedPhotos: first.packageIncludedPhotos,
       scenes: first.packageScenes,
     },
-    payments: rows.map((row) => ({ amount: row.paymentAmount, status: row.paymentStatus })),
+    payments: rows.flatMap((row) =>
+      row.paymentAmount !== null && row.paymentStatus !== null
+        ? [{ amount: row.paymentAmount, status: row.paymentStatus }]
+        : [],
+    ),
   };
 }
 
