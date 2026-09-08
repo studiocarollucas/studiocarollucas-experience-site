@@ -73,10 +73,11 @@ describe("issueContract", () => {
 
     await expect(
       issueContract(deps, { input: validInput, issuedByAuthUserId: "00000000-0000-4000-8000-000000000111" }),
-    ).resolves.toMatchObject({
+    ).resolves.toEqual({
+      id: CONTRACT_ID,
+      contractNumber: `SCL-${CONTRACT_ID.toUpperCase()}`,
       status: "issued",
-      imageUsageAuthorized: true,
-      pdfStoragePath: expect.stringMatching(/^contracts\/[0-9a-f-]{36}\.pdf$/i),
+      issuedAt: "2026-09-07T12:00:00.000Z",
     });
 
     expect(deps.storage.upload).toHaveBeenCalledWith(

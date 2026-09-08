@@ -82,10 +82,13 @@ type IssueContractRequest = {
 
 export type IssueContractResult = {
   id: string;
-  clientId: string;
   contractNumber: string;
   status: "issued";
   issuedAt: string;
+};
+
+type IssuedContractInternalResult = IssueContractResult & {
+  clientId: string;
   imageUsageAuthorized: boolean;
   pdfStoragePath: string;
 };
@@ -149,6 +152,35 @@ export async function issueContract(
   depsOrRequest: IssueContractDeps | IssueContractRequest,
   suppliedRequest?: IssueContractRequest,
 ): Promise<IssueContractResult> {
+  const issued = await issueContractInternal(depsOrRequest, suppliedRequest);
+  return {
+    id: issued.id,
+    contractNumber: issued.contractNumber,
+    status: issued.status,
+    issuedAt: issued.issuedAt,
+  };
+}
+
+export async function issueContractForRevalidation(request: IssueContractRequest): Promise<{
+  result: IssueContractResult;
+  clientId: string;
+}> {
+  const issued = await issueContractInternal(request);
+  return {
+    result: {
+      id: issued.id,
+      contractNumber: issued.contractNumber,
+      status: issued.status,
+      issuedAt: issued.issuedAt,
+    },
+    clientId: issued.clientId,
+  };
+}
+
+async function issueContractInternal(
+  depsOrRequest: IssueContractDeps | IssueContractRequest,
+  suppliedRequest?: IssueContractRequest,
+): Promise<IssuedContractInternalResult> {
   const deps = isDependencies(depsOrRequest) ? depsOrRequest : await createProductionDeps();
   const request = isDependencies(depsOrRequest) ? suppliedRequest : depsOrRequest;
   if (!request) throw new Error("contract issuance failed");
