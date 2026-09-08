@@ -1,0 +1,2 @@
+# The approved PRD uses intentional trailing spaces for Markdown hard breaks.
+docs/PRD.md whitespace=-trailing-space
