@@ -82,7 +82,7 @@ Esta revisão preserva todas as tasks já concluídas e adiciona cobertura expl�
 | SCL-303 | Checklist acionável pela cliente | P1 | client/admin | DONE | agent:codex | SCL-240,SCL-302 |
 | SCL-304 | Meu ensaio | P1 | client/admin | DONE | agent:codex | SCL-220,SCL-302 |
 | SCL-305 | Styling e referências colaborativas | P1 | client/admin | DONE | agent:codex | SCL-103,SCL-105,SCL-302 |
-| SCL-310 | Contratos PDF privados | P1 | admin/db | MERGE_READY | agent:codex | SCL-100,SCL-103,SCL-104,SCL-107 |
+| SCL-310 | Contratos PDF privados | P1 | admin/db | DONE | agent:codex | SCL-100,SCL-103,SCL-104,SCL-107 |
 | SCL-400 | Home pública editorial | P1 | site | DONE | codex | SCL-009 |
 | SCL-401 | Catálogo de experiências | P1 | site | DONE | codex | SCL-400 |
 | SCL-402 | Páginas verticais — quatro entregues; família pendente | P1 | site | IN_PROGRESS | codex | SCL-401 |
@@ -1674,7 +1674,7 @@ Oferecer um moodboard privado e colaborativo do ensaio ativo, no qual cliente e 
 
 ### SCL-310 — Contratos PDF privados
 
-- Status: MERGE_READY
+- Status: DONE
 - Priority: P1
 - Area: admin/db
 - Owner: agent:codex
@@ -1707,7 +1707,7 @@ Estabelecer o registro imutável de contratos e a base privada de Storage para f
 - concluído (2026-09-08): implementação de contratos privados, migration serial, emissão administrativa e download protegido.
 - evidência live aprovada: ambiente autorizado de dev/staging confirmou acesso de staff, negação no portal e cleanup completo de fixtures; sem registrar identidades, segredos ou URLs assinadas.
 - gates locais (2026-09-08): regressões focadas de contratos; `predb:migrate`, `test`, `lint`, `typecheck`, `check:admin-auth`, `build` e `git diff --check` concluídos sem falha.
-- próximo passo: merge; somente após o merge este registro pode mudar para `DONE`.
+- concluído após merge (2026-09-08): integrado em `main` no commit `bdc8da0`.
 
 ---
 
