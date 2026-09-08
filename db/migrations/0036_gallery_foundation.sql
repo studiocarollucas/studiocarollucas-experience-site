@@ -40,6 +40,7 @@ create policy gallery_assets_staff_access on public.gallery_assets
 insert into storage.buckets (id, name, public)
 values ('gallery-assets', 'gallery-assets', false)
 on conflict (id) do update set public = false;
+drop policy if exists gallery_assets_objects_staff_access on storage.objects;
 create policy gallery_assets_objects_staff_access on storage.objects
   for all to authenticated
   using (bucket_id = 'gallery-assets' and public.is_staff_or_admin())

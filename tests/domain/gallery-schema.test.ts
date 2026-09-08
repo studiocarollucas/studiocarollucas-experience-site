@@ -66,4 +66,16 @@ describe("gallery foundation migration", () => {
     expect(migrationSql).toContain("bucket_id = 'gallery-assets' and public.is_staff_or_admin()");
     expect(migrationSql).not.toMatch(/public\s*=\s*true/i);
   });
+
+  it("recreates the staff Storage policy safely when it already exists", () => {
+    const dropPolicy = migrationSql.indexOf(
+      "drop policy if exists gallery_assets_objects_staff_access on storage.objects",
+    );
+    const createPolicy = migrationSql.indexOf(
+      "create policy gallery_assets_objects_staff_access on storage.objects",
+    );
+
+    expect(dropPolicy).toBeGreaterThanOrEqual(0);
+    expect(dropPolicy).toBeLessThan(createPolicy);
+  });
 });
