@@ -10,6 +10,14 @@ export const createClientSchema = z.object({
   // instead of surfacing as a raw Postgres error (plan's Global Constraint: Zod
   // validates input *before* it reaches the database).
   birthday: z.iso.date().optional(), // "YYYY-MM-DD", e.g. "1994-03-12"
+  cpf: z.string().optional(),
+  addressStreet: z.string().trim().min(1).max(180).optional(),
+  addressNumber: z.string().trim().min(1).max(30).optional(),
+  addressComplement: z.string().trim().max(120).optional(),
+  addressNeighborhood: z.string().trim().min(1).max(120).optional(),
+  addressCity: z.string().trim().min(1).max(120).optional(),
+  addressState: z.string().trim().length(2).optional(),
+  addressPostalCode: z.string().optional(),
   source: z.string().optional(),
   referrerClientId: z.string().uuid().optional(),
   styleProfile: z.string().optional(),
