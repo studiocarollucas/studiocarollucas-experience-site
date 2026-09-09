@@ -13,6 +13,7 @@ const mocks = vi.hoisted(() => ({
   selectWhere: vi.fn(),
   selectFrom: vi.fn(),
   select: vi.fn(),
+  transaction: vi.fn(),
   updateReturning: vi.fn(),
   updateWhere: vi.fn(),
   updateSet: vi.fn(),
@@ -26,6 +27,7 @@ vi.mock("@/db/client", () => ({
     delete: mocks.delete,
     insert: mocks.insert,
     select: mocks.select,
+    transaction: mocks.transaction,
     update: mocks.update,
   },
 }));
@@ -69,6 +71,7 @@ function configureUploadFixture() {
 
 beforeEach(() => {
   vi.resetAllMocks();
+  mocks.transaction.mockImplementation(async (operation) => operation({ select: mocks.select, update: mocks.update }));
   configureUploadFixture();
 });
 
@@ -129,6 +132,9 @@ describe("gallery asset lifecycle", () => {
   });
 
   it("reorders exactly the supplied asset ids", async () => {
+    mocks.selectWhere.mockResolvedValue([{ id: OTHER_ASSET_ID }, { id: ASSET_ID }]);
+    mocks.selectFrom.mockReturnValue({ where: mocks.selectWhere });
+    mocks.select.mockReturnValue({ from: mocks.selectFrom });
     mocks.updateReturning
       .mockResolvedValueOnce([{ id: OTHER_ASSET_ID }])
       .mockResolvedValueOnce([{ id: ASSET_ID }]);
@@ -144,6 +150,19 @@ describe("gallery asset lifecycle", () => {
     expect(mocks.updateSet).toHaveBeenNthCalledWith(2, { sortOrder: 1 });
   });
 
+  it("validates every asset belongs to the gallery before changing any order", async () => {
+    mocks.selectWhere.mockResolvedValue([{ id: ASSET_ID }]);
+    mocks.selectFrom.mockReturnValue({ where: mocks.selectWhere });
+    mocks.select.mockReturnValue({ from: mocks.selectFrom });
+
+    await expect(
+      reorderGalleryAssets({ galleryId: GALLERY_ID, assetIds: [ASSET_ID, OTHER_ASSET_ID] }),
+    ).rejects.toThrow("A foto não pertence a esta galeria.");
+
+    expect(mocks.transaction).toHaveBeenCalledOnce();
+    expect(mocks.update).not.toHaveBeenCalled();
+  });
+
   it("rejects duplicate ids before updating the gallery order", async () => {
     await expect(
       reorderGalleryAssets({ galleryId: GALLERY_ID, assetIds: [ASSET_ID, ASSET_ID] }),
@@ -152,13 +171,10 @@ describe("gallery asset lifecycle", () => {
     expect(mocks.update).not.toHaveBeenCalled();
   });
 
-  it("removes the private object before its metadata row", async () => {
-    mocks.selectWhere.mockResolvedValue([
+  it("removes metadata before the private object so a Storage failure can be compensated", async () => {
+    mocks.deleteReturning.mockResolvedValue([
       { id: ASSET_ID, galleryId: GALLERY_ID, storagePath: `gallery-assets/${GALLERY_ID}/${ASSET_ID}.png` },
     ]);
-    mocks.selectFrom.mockReturnValue({ where: mocks.selectWhere });
-    mocks.select.mockReturnValue({ from: mocks.selectFrom });
-    mocks.deleteReturning.mockResolvedValue([{ id: ASSET_ID }]);
     mocks.deleteWhere.mockReturnValue({ returning: mocks.deleteReturning });
     mocks.delete.mockReturnValue({ where: mocks.deleteWhere });
 
@@ -166,7 +182,32 @@ describe("gallery asset lifecycle", () => {
 
     expect(mocks.remove).toHaveBeenCalledWith([`gallery-assets/${GALLERY_ID}/${ASSET_ID}.png`]);
     expect(mocks.delete).toHaveBeenCalledOnce();
-    expect(mocks.remove.mock.invocationCallOrder[0]).toBeLessThan(mocks.delete.mock.invocationCallOrder[0]);
+    expect(mocks.delete.mock.invocationCallOrder[0]).toBeLessThan(mocks.remove.mock.invocationCallOrder[0]);
+  });
+
+  it("restores metadata when private object removal fails", async () => {
+    const asset = {
+      id: ASSET_ID,
+      galleryId: GALLERY_ID,
+      storagePath: `gallery-assets/${GALLERY_ID}/${ASSET_ID}.png`,
+      sortOrder: 3,
+      createdAt: new Date("2026-09-08T00:00:00.000Z"),
+    };
+    mocks.selectWhere.mockResolvedValue([asset]);
+    mocks.selectFrom.mockReturnValue({ where: mocks.selectWhere });
+    mocks.select.mockReturnValue({ from: mocks.selectFrom });
+    mocks.deleteReturning.mockResolvedValue([asset]);
+    mocks.deleteWhere.mockReturnValue({ returning: mocks.deleteReturning });
+    mocks.delete.mockReturnValue({ where: mocks.deleteWhere });
+    mocks.remove.mockResolvedValue({ data: null, error: new Error("bucket unavailable") });
+
+    await expect(removeGalleryAsset({ galleryId: GALLERY_ID, assetId: ASSET_ID })).rejects.toThrow(
+      "Não foi possível remover a foto da galeria.",
+    );
+
+    expect(mocks.delete).toHaveBeenCalledOnce();
+    expect(mocks.insertValues).toHaveBeenCalledWith(asset);
+    expect(mocks.delete.mock.invocationCallOrder[0]).toBeLessThan(mocks.remove.mock.invocationCallOrder[0]);
   });
 
   it("marks a draft gallery published and returns the ordered asset ids", async () => {

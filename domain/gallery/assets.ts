@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, eq, inArray } from "drizzle-orm";
 import { db } from "@/db/client";
 import { galleries, galleryAssets } from "@/db/schema";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
@@ -93,34 +93,48 @@ export async function uploadGalleryAsset(input: unknown) {
 
 export async function reorderGalleryAssets(input: unknown): Promise<string[]> {
   const { galleryId, assetIds } = reorderGalleryAssetsSchema.parse(input);
-  const reorderedIds: string[] = [];
+  return db.transaction(async (transaction) => {
+    const existingAssets = await transaction
+      .select({ id: galleryAssets.id })
+      .from(galleryAssets)
+      .where(and(eq(galleryAssets.galleryId, galleryId), inArray(galleryAssets.id, assetIds)));
+    if (existingAssets.length !== assetIds.length) {
+      throw new Error("A foto não pertence a esta galeria.");
+    }
 
-  for (const [sortOrder, assetId] of assetIds.entries()) {
-    const [updated] = await db
-      .update(galleryAssets)
-      .set({ sortOrder })
-      .where(and(eq(galleryAssets.id, assetId), eq(galleryAssets.galleryId, galleryId)))
-      .returning({ id: galleryAssets.id });
-    if (!updated) throw new Error("A foto não pertence a esta galeria.");
-    reorderedIds.push(updated.id);
-  }
+    for (const [sortOrder, assetId] of assetIds.entries()) {
+      await transaction
+        .update(galleryAssets)
+        .set({ sortOrder })
+        .where(and(eq(galleryAssets.id, assetId), eq(galleryAssets.galleryId, galleryId)));
+    }
 
-  return reorderedIds;
+    return assetIds;
+  });
 }
 
 export async function removeGalleryAsset(input: unknown): Promise<void> {
   const { galleryId, assetId } = removeGalleryAssetSchema.parse(input);
   const [asset] = await db
-    .select({ id: galleryAssets.id, galleryId: galleryAssets.galleryId, storagePath: galleryAssets.storagePath })
-    .from(galleryAssets)
-    .where(and(eq(galleryAssets.id, assetId), eq(galleryAssets.galleryId, galleryId)));
+    .delete(galleryAssets)
+    .where(and(eq(galleryAssets.id, assetId), eq(galleryAssets.galleryId, galleryId)))
+    .returning();
   if (!asset) throw new Error("Foto da galeria não encontrada.");
 
-  const storage = await getGalleryStorage();
-  const removed = await storage.remove([asset.storagePath]);
-  if (removed.error) throw new Error("Não foi possível remover a foto da galeria.", { cause: removed.error });
-
-  await db.delete(galleryAssets).where(and(eq(galleryAssets.id, assetId), eq(galleryAssets.galleryId, galleryId)));
+  try {
+    const storage = await getGalleryStorage();
+    const removed = await storage.remove([asset.storagePath]);
+    if (removed.error) throw removed.error;
+  } catch (error) {
+    try {
+      await db.insert(galleryAssets).values(asset);
+    } catch (restoreError) {
+      throw new Error("Não foi possível remover a foto da galeria.", {
+        cause: new AggregateError([error, restoreError], "gallery asset restoration failed"),
+      });
+    }
+    throw new Error("Não foi possível remover a foto da galeria.", { cause: error });
+  }
 }
 
 export async function publishGallery(galleryId: string) {
