@@ -77,7 +77,7 @@ export function QuizResult({ result, answers, onRestart, captureLead, leadAnswer
         <p>Deixe seus dados apenas se quiser que a gente entre em contato.</p>
         <div className={styles.captureFields}>
           <label>Nome<input required value={name} onChange={(event) => setName(event.target.value)} /></label>
-          <label>E-mail<input required type="email" value={email} onChange={(event) => setEmail(event.target.value)} /></label>
+          <label>E-mail<input required type="email" maxLength={254} value={email} onChange={(event) => setEmail(event.target.value)} /></label>
           <label>Telefone <em>(opcional)</em><input type="tel" value={phone} onChange={(event) => setPhone(event.target.value)} /></label>
         </div>
         <label className={styles.consent}><input type="checkbox" checked={consent} onChange={(event) => setConsent(event.target.checked)} /> Concordo em receber contato do Estúdio Carol Lucas sobre minha curadoria.</label>

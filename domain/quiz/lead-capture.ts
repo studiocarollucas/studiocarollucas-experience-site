@@ -17,7 +17,7 @@ const quizAnswersSchema = z.object({
 export const quizLeadCaptureSchema = z.object({
   consent: z.literal(true),
   name: z.string().trim().min(2).max(120),
-  email: z.string().email(),
+  email: z.string().email().max(254),
   phone: z
     .string()
     .trim()

@@ -136,4 +136,12 @@ describe("captureQuizLead", () => {
 
     expect(mocks.createLead).not.toHaveBeenCalled();
   });
+
+  it("rejects a structurally valid email longer than 254 characters before persisting", async () => {
+    const email = `${"a".repeat(243)}@example.com`;
+
+    await expect(captureQuizLead({ ...validInput, consent: true, email })).rejects.toThrow();
+
+    expect(mocks.createLead).not.toHaveBeenCalled();
+  });
 });
