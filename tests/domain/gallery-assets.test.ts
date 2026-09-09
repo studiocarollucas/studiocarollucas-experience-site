@@ -131,6 +131,63 @@ describe("gallery asset lifecycle", () => {
     expect(mocks.remove.mock.invocationCallOrder[0]).toBeLessThan(mocks.delete.mock.invocationCallOrder[0]);
   });
 
+  it("keeps the metadata reservation when upload cleanup cannot remove the object", async () => {
+    const uploadError = new Error("upload interrupted");
+    const removeError = new Error("object cleanup unavailable");
+    mocks.upload.mockResolvedValue({ data: null, error: uploadError });
+    mocks.remove.mockResolvedValue({ data: null, error: removeError });
+
+    const rejection = uploadGalleryAsset({ galleryId: GALLERY_ID, file: imageFile() });
+    await expect(rejection).rejects.toMatchObject({
+      message: "Não foi possível enviar a foto da galeria.",
+      context: {
+        galleryId: GALLERY_ID,
+        assetId: expect.any(String),
+        storagePath: expect.stringMatching(new RegExp(`^gallery-assets/${GALLERY_ID}/`)),
+      },
+    });
+    await rejection.catch((error: unknown) => {
+      expect((error as Error).cause).toBeInstanceOf(AggregateError);
+      expect(((error as Error).cause as AggregateError).errors).toEqual(
+        expect.arrayContaining([uploadError, removeError]),
+      );
+    });
+
+    expect(mocks.delete).not.toHaveBeenCalled();
+  });
+
+  it("reuploads the object when reservation cleanup cannot delete metadata", async () => {
+    const uploadError = new Error("upload interrupted");
+    const deleteError = new Error("reservation delete unavailable");
+    mocks.upload
+      .mockResolvedValueOnce({ data: null, error: uploadError })
+      .mockResolvedValueOnce({ data: { path: "restored" }, error: null });
+    mocks.deleteWhere.mockRejectedValue(deleteError);
+    mocks.delete.mockReturnValue({ where: mocks.deleteWhere });
+
+    const rejection = uploadGalleryAsset({ galleryId: GALLERY_ID, file: imageFile() });
+    await expect(rejection).rejects.toMatchObject({
+      message: "Não foi possível enviar a foto da galeria.",
+      context: {
+        galleryId: GALLERY_ID,
+        assetId: expect.any(String),
+        storagePath: expect.stringMatching(new RegExp(`^gallery-assets/${GALLERY_ID}/`)),
+      },
+    });
+    await rejection.catch((error: unknown) => {
+      expect((error as Error).cause).toBeInstanceOf(AggregateError);
+      expect(((error as Error).cause as AggregateError).errors).toEqual(
+        expect.arrayContaining([uploadError, deleteError]),
+      );
+    });
+
+    expect(mocks.remove).toHaveBeenCalledOnce();
+    expect(mocks.delete).toHaveBeenCalledOnce();
+    expect(mocks.upload).toHaveBeenCalledTimes(2);
+    expect(mocks.remove.mock.invocationCallOrder[0]).toBeLessThan(mocks.delete.mock.invocationCallOrder[0]);
+    expect(mocks.delete.mock.invocationCallOrder[0]).toBeLessThan(mocks.upload.mock.invocationCallOrder[1]);
+  });
+
   it("reorders exactly the supplied asset ids", async () => {
     mocks.selectWhere.mockResolvedValue([{ id: OTHER_ASSET_ID }, { id: ASSET_ID }]);
     mocks.selectFrom.mockReturnValue({ where: mocks.selectWhere });

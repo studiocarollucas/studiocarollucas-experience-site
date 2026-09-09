@@ -27,25 +27,53 @@ type GalleryStorage = {
   remove(paths: string[]): Promise<{ data: unknown[] | null; error: unknown | null }>;
 };
 
+export type GalleryAssetLifecycleContext = {
+  galleryId: string;
+  assetId: string;
+  storagePath: string;
+};
+
+export class GalleryAssetLifecycleError extends Error {
+  constructor(message: string, public readonly context: GalleryAssetLifecycleContext, cause: unknown) {
+    super(message, { cause });
+    this.name = "GalleryAssetLifecycleError";
+  }
+}
+
 async function getGalleryStorage(): Promise<GalleryStorage> {
   const supabase = await createSupabaseServerClient();
   return supabase.storage.from("gallery-assets") as GalleryStorage;
 }
 
-async function releaseUploadReservation(galleryId: string, assetId: string, storagePath: string) {
+async function releaseUploadReservation(
+  storage: GalleryStorage,
+  context: GalleryAssetLifecycleContext,
+  file: File,
+  contentType: "image/jpeg" | "image/png" | "image/webp",
+) {
   const cleanupFailures: unknown[] = [];
   try {
-    const storage = await getGalleryStorage();
-    const removed = await storage.remove([storagePath]);
-    if (removed.error) cleanupFailures.push(removed.error);
+    const removed = await storage.remove([context.storagePath]);
+    if (removed.error) throw removed.error;
   } catch (error) {
     cleanupFailures.push(error);
+    return cleanupFailures;
   }
 
   try {
-    await db.delete(galleryAssets).where(and(eq(galleryAssets.id, assetId), eq(galleryAssets.galleryId, galleryId)));
+    await db
+      .delete(galleryAssets)
+      .where(and(eq(galleryAssets.id, context.assetId), eq(galleryAssets.galleryId, context.galleryId)));
   } catch (error) {
     cleanupFailures.push(error);
+    try {
+      const restored = await storage.upload(context.storagePath, file, { contentType, upsert: false });
+      if (restored.error || !restored.data) {
+        throw restored.error ?? new Error("gallery object restoration returned no data");
+      }
+    } catch (restoreError) {
+      cleanupFailures.push(restoreError);
+    }
   }
 
   return cleanupFailures;
@@ -56,6 +84,7 @@ export async function uploadGalleryAsset(input: unknown) {
   const assetId = crypto.randomUUID();
   const extension = galleryAssetExtensions[file.type];
   const storagePath = galleryAssetPath(galleryId, assetId, extension);
+  const context = { galleryId, assetId, storagePath };
 
   let asset: typeof galleryAssets.$inferSelect;
   try {
@@ -69,8 +98,9 @@ export async function uploadGalleryAsset(input: unknown) {
     throw new Error("Não foi possível salvar a foto da galeria.", { cause: error });
   }
 
+  let storage: GalleryStorage | undefined;
   try {
-    const storage = await getGalleryStorage();
+    storage = await getGalleryStorage();
     const uploaded = await storage.upload(storagePath, file as File, {
       contentType: file.type,
       upsert: false,
@@ -79,13 +109,26 @@ export async function uploadGalleryAsset(input: unknown) {
       throw uploaded.error ?? new Error("gallery storage upload returned no data");
     }
   } catch (error) {
-    const cleanupFailures = await releaseUploadReservation(galleryId, assetId, storagePath);
+    const cleanupFailures = storage
+      ? await releaseUploadReservation(storage, context, file as File, file.type)
+      : await (async () => {
+          try {
+            await db
+              .delete(galleryAssets)
+              .where(and(eq(galleryAssets.id, assetId), eq(galleryAssets.galleryId, galleryId)));
+            return [] as unknown[];
+          } catch (cleanupError) {
+            return [cleanupError];
+          }
+        })();
     if (cleanupFailures.length > 0) {
-      throw new Error("Não foi possível enviar a foto da galeria.", {
-        cause: new AggregateError([error, ...cleanupFailures], "gallery upload cleanup failed"),
-      });
+      throw new GalleryAssetLifecycleError(
+        "Não foi possível enviar a foto da galeria.",
+        context,
+        new AggregateError([error, ...cleanupFailures], "gallery upload cleanup failed"),
+      );
     }
-    throw new Error("Não foi possível enviar a foto da galeria.", { cause: error });
+    throw new GalleryAssetLifecycleError("Não foi possível enviar a foto da galeria.", context, error);
   }
 
   return asset;
