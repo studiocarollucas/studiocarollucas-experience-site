@@ -62,6 +62,81 @@ describe("lead conversion", () => {
     expect(tx.update).not.toHaveBeenCalled();
   });
 
+  it("rejects a Lead that is not won before creating any records", async () => {
+    const lock = vi.fn().mockResolvedValue([{ id: LEAD_ID, status: "negociacao", name: "Maria Silva", email: null, phone: null }]);
+    const lockedLimit = vi.fn().mockReturnValue({ for: lock });
+    const where = vi.fn().mockReturnValue({ limit: lockedLimit });
+    const from = vi.fn().mockReturnValue({ where });
+    const tx = { select: vi.fn().mockReturnValue({ from }), insert: vi.fn(), update: vi.fn() };
+    mocks.transaction.mockImplementation(async (operation) => operation(tx));
+
+    await expect(convertWonLead({ leadId: LEAD_ID, actorUserId: STAFF_ID, client: { mode: "new" } })).rejects.toThrow(
+      "Apenas Leads ganhos podem ser convertidos",
+    );
+    expect(tx.insert).not.toHaveBeenCalled();
+    expect(tx.update).not.toHaveBeenCalled();
+  });
+
+  it("rejects an explicitly selected Client that does not exist", async () => {
+    const lead = { id: LEAD_ID, status: "ganho", name: "Maria Silva", email: null, phone: null };
+    const lock = vi.fn().mockResolvedValue([lead]);
+    const lockedLimit = vi.fn().mockReturnValue({ for: lock });
+    const limit = vi.fn().mockResolvedValueOnce([]).mockResolvedValueOnce([]);
+    const where = vi.fn().mockReturnValueOnce({ limit: lockedLimit }).mockReturnValue({ limit });
+    const from = vi.fn().mockReturnValue({ where });
+    const tx = { select: vi.fn().mockReturnValue({ from }), insert: vi.fn(), update: vi.fn() };
+    mocks.transaction.mockImplementation(async (operation) => operation(tx));
+
+    await expect(
+      convertWonLead({ leadId: LEAD_ID, actorUserId: STAFF_ID, client: { mode: "existing", clientId: "missing-client" } }),
+    ).rejects.toThrow("Cliente inexistente");
+    expect(tx.insert).not.toHaveBeenCalled();
+    expect(tx.update).not.toHaveBeenCalled();
+  });
+
+  it("rolls back the Client, conversion, and Lead update when the audit write fails", async () => {
+    const lead = { id: LEAD_ID, status: "ganho", clientId: null, name: "Maria Silva", email: null, phone: null };
+    const persisted = { clients: [] as string[], conversions: [] as string[], leadClientId: null as string | null };
+    const staged = { clients: [] as string[], conversions: [] as string[], leadClientId: null as string | null };
+    const lock = vi.fn().mockResolvedValue([lead]);
+    const lockedLimit = vi.fn().mockReturnValue({ for: lock });
+    const limit = vi.fn().mockResolvedValue([]);
+    const where = vi.fn().mockReturnValueOnce({ limit: lockedLimit }).mockReturnValue({ limit });
+    const from = vi.fn().mockReturnValue({ where });
+    const client = { id: "client-1", name: lead.name };
+    const clientValues = vi.fn().mockReturnValue({ returning: vi.fn().mockImplementation(async () => {
+      staged.clients.push(client.id);
+      return [client];
+    }) });
+    const conversionValues = vi.fn().mockReturnValue({ returning: vi.fn().mockImplementation(async () => {
+      staged.conversions.push(client.id);
+      return [{ leadId: LEAD_ID, clientId: client.id, convertedByUserId: STAFF_ID }];
+    }) });
+    const auditValues = vi.fn().mockReturnValue({ returning: vi.fn().mockRejectedValue(new Error("audit write failed")) });
+    const updateSet = vi.fn().mockImplementation(({ clientId }) => {
+      staged.leadClientId = clientId;
+      return { where: vi.fn().mockReturnValue({ returning: vi.fn().mockResolvedValue([]) }) };
+    });
+    const tx = {
+      select: vi.fn().mockReturnValue({ from }),
+      insert: vi.fn().mockReturnValueOnce({ values: clientValues }).mockReturnValueOnce({ values: conversionValues }).mockReturnValueOnce({ values: auditValues }),
+      update: vi.fn().mockReturnValue({ set: updateSet }),
+    };
+    mocks.transaction.mockImplementation(async (operation) => {
+      try {
+        await operation(tx);
+        persisted.clients.push(...staged.clients);
+        persisted.conversions.push(...staged.conversions);
+        persisted.leadClientId = staged.leadClientId;
+      } catch (error) {
+        throw error;
+      }
+    });
+
+    await expect(convertWonLead({ leadId: LEAD_ID, actorUserId: STAFF_ID, client: { mode: "new" } })).rejects.toThrow("audit write failed");
+    expect(persisted).toEqual({ clients: [], conversions: [], leadClientId: null });
+  });
+
   it("creates a Client from the Lead, persists one conversion, updates the Lead, and audits it", async () => {
     const lead = { id: LEAD_ID, status: "ganho", clientId: null, name: "Maria Silva", email: "maria@example.com", phone: "92999990000" };
     const client = { id: "client-1", name: lead.name, email: lead.email, phone: lead.phone, source: "lead_conversion" };
