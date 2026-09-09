@@ -2,32 +2,23 @@ import "server-only";
 
 import { and, eq, ne } from "drizzle-orm";
 import { db } from "@/db/client";
-import { inventoryItems, profiles, type InventoryItem } from "@/db/schema";
+import { inventoryItems, type InventoryItem } from "@/db/schema";
 import { recordAuditEvent } from "@/domain/audit/service";
 import { createInventoryItemSchema, updateInventoryItemSchema, type UpdateInventoryItemInput } from "./catalog-schema";
 import type { CreateInventoryItemInput } from "./schema";
+import { requireInventoryCatalogActor } from "./authorization";
 
-async function requireInventoryCatalogActor(actorUserId: string): Promise<void> {
-  const [actor] = await db
-    .select({ role: profiles.role })
-    .from(profiles)
-    .where(eq(profiles.id, actorUserId))
-    .limit(1);
+type InventoryReader = Pick<typeof db, "select">;
 
-  if (!actor || (actor.role !== "staff" && actor.role !== "admin")) {
-    throw new Error("ator não autorizado para catálogo de acervo");
-  }
-}
-
-async function findItem(id: string): Promise<InventoryItem | undefined> {
-  const [item] = await db.select().from(inventoryItems).where(eq(inventoryItems.id, id)).limit(1);
+async function findItem(reader: InventoryReader, id: string): Promise<InventoryItem | undefined> {
+  const [item] = await reader.select().from(inventoryItems).where(eq(inventoryItems.id, id)).limit(1);
   return item;
 }
 
-async function assertCodeAvailable(code: string, idToExclude?: string): Promise<void> {
+async function assertCodeAvailable(reader: InventoryReader, code: string, idToExclude?: string): Promise<void> {
   const conditions = [eq(inventoryItems.code, code)];
   if (idToExclude) conditions.push(ne(inventoryItems.id, idToExclude));
-  const [existing] = await db
+  const [existing] = await reader
     .select({ id: inventoryItems.id })
     .from(inventoryItems)
     .where(and(...conditions))
@@ -41,7 +32,7 @@ export async function createInventoryItem(
 ): Promise<InventoryItem> {
   const parsed = createInventoryItemSchema.parse(input);
   await requireInventoryCatalogActor(actorUserId);
-  await assertCodeAvailable(parsed.code);
+  await assertCodeAvailable(db, parsed.code);
 
   return db.transaction(async (tx) => {
     const [item] = await tx.insert(inventoryItems).values(parsed).returning();
@@ -68,11 +59,11 @@ export async function updateInventoryItem(
 ): Promise<InventoryItem> {
   const patch = updateInventoryItemSchema.parse(input);
   await requireInventoryCatalogActor(actorUserId);
-  const before = await findItem(id);
-  if (!before) throw new Error("item de acervo inexistente");
-  if (patch.code && patch.code !== before.code) await assertCodeAvailable(patch.code, id);
 
   return db.transaction(async (tx) => {
+    const before = await findItem(tx, id);
+    if (!before) throw new Error("item de acervo inexistente");
+    if (patch.code && patch.code !== before.code) await assertCodeAvailable(tx, patch.code, id);
     const [item] = await tx
       .update(inventoryItems)
       .set({ ...patch, updatedAt: new Date() })
@@ -96,10 +87,10 @@ export async function updateInventoryItem(
 
 export async function deactivateInventoryItem(id: string, actorUserId: string): Promise<InventoryItem> {
   await requireInventoryCatalogActor(actorUserId);
-  const before = await findItem(id);
-  if (!before) throw new Error("item de acervo inexistente");
 
   return db.transaction(async (tx) => {
+    const before = await findItem(tx, id);
+    if (!before) throw new Error("item de acervo inexistente");
     const [item] = await tx
       .update(inventoryItems)
       .set({ active: false, updatedAt: new Date() })

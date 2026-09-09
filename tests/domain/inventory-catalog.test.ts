@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   select: vi.fn(),
+  transactionSelect: vi.fn(),
   insert: vi.fn(),
   update: vi.fn(),
   transaction: vi.fn(),
@@ -59,7 +60,7 @@ describe("inventory catalog mutations", () => {
   beforeEach(() => {
     vi.resetAllMocks();
     mocks.transaction.mockImplementation(async (operation) =>
-      operation({ select: mocks.select, insert: mocks.insert, update: mocks.update }),
+      operation({ select: mocks.transactionSelect, insert: mocks.insert, update: mocks.update }),
     );
     mocks.select
       .mockReturnValueOnce(roleResult("staff"))
@@ -115,13 +116,13 @@ describe("inventory catalog mutations", () => {
 
   it("updates a catalog item and records before and after values", async () => {
     mocks.select.mockReset();
-    mocks.select
-      .mockReturnValueOnce(roleResult("staff"))
+    mocks.transactionSelect
       .mockReturnValueOnce({
         from: vi.fn().mockReturnValue({
           where: vi.fn().mockReturnValue({ limit: vi.fn().mockResolvedValue([item]) }),
         }),
       });
+    mocks.select.mockReturnValueOnce(roleResult("staff"));
     const updated = { ...item, name: "Clutch dourada lisa", updatedAt: new Date("2030-01-02") };
     mocks.update.mockReturnValueOnce({
       set: vi.fn().mockReturnValue({ where: vi.fn().mockReturnValue(returning(updated)) }),
@@ -134,17 +135,19 @@ describe("inventory catalog mutations", () => {
       expect.objectContaining({ action: "inventory_item.updated", before: item, after: updated }),
       expect.anything(),
     );
+    expect(mocks.select).toHaveBeenCalledOnce();
+    expect(mocks.transactionSelect).toHaveBeenCalledOnce();
   });
 
   it("deactivates instead of deleting and writes an audit event", async () => {
     mocks.select.mockReset();
-    mocks.select
-      .mockReturnValueOnce(roleResult("staff"))
+    mocks.transactionSelect
       .mockReturnValueOnce({
         from: vi.fn().mockReturnValue({
           where: vi.fn().mockReturnValue({ limit: vi.fn().mockResolvedValue([item]) }),
         }),
       });
+    mocks.select.mockReturnValueOnce(roleResult("staff"));
     const inactive = { ...item, active: false };
     mocks.update.mockReturnValueOnce({
       set: vi.fn().mockReturnValue({ where: vi.fn().mockReturnValue(returning(inactive)) }),
@@ -158,6 +161,31 @@ describe("inventory catalog mutations", () => {
       expect.objectContaining({ action: "inventory_item.deactivated", before: item, after: inactive }),
       expect.anything(),
     );
+    expect(mocks.select).toHaveBeenCalledOnce();
+    expect(mocks.transactionSelect).toHaveBeenCalledOnce();
+  });
+
+  it("checks a replacement code inside the same transaction as the audit preimage", async () => {
+    mocks.select.mockReset();
+    mocks.transactionSelect
+      .mockReturnValueOnce({
+        from: vi.fn().mockReturnValue({
+          where: vi.fn().mockReturnValue({ limit: vi.fn().mockResolvedValue([item]) }),
+        }),
+      })
+      .mockReturnValueOnce({
+        from: vi.fn().mockReturnValue({
+          where: vi.fn().mockReturnValue({ limit: vi.fn().mockResolvedValue([{ id: "other-item" }]) }),
+        }),
+      });
+    mocks.select.mockReturnValueOnce(roleResult("admin"));
+
+    await expect(updateInventoryItem(itemId, { code: "CL-002" }, actorUserId)).rejects.toThrow("código já cadastrado");
+
+    expect(mocks.select).toHaveBeenCalledOnce();
+    expect(mocks.transactionSelect).toHaveBeenCalledTimes(2);
+    expect(mocks.update).not.toHaveBeenCalled();
+    expect(mocks.recordAuditEvent).not.toHaveBeenCalled();
   });
 
   it.each(["client", undefined])("rejects a %s or missing actor before catalog mutation", async (role) => {

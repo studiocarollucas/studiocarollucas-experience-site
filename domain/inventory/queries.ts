@@ -4,6 +4,7 @@ import { and, asc, count, desc, eq, gte, ilike, inArray, or, sql, type SQL } fro
 import { db } from "@/db/client";
 import { inventoryItems, inventoryReservations } from "@/db/schema";
 import { inventoryItemStatusValues, inventoryItemTypeValues } from "./schema";
+import { requireInventoryCatalogActor } from "./authorization";
 
 const blockingReservationStatuses = ["pending", "confirmed"] as const;
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
@@ -83,12 +84,13 @@ function listPredicate(filters: NormalizedInventoryListFilters): SQL {
   return conditions.length ? and(...conditions) as SQL : sql`true`;
 }
 
-export async function listInventoryItems(filters: InventoryListFilters): Promise<{
+export async function listInventoryItems(filters: InventoryListFilters, actorUserId: string): Promise<{
   rows: InventoryListRow[];
   total: number;
   page: number;
   pageSize: number;
 }> {
+  await requireInventoryCatalogActor(actorUserId);
   const normalized = normalizeInventoryListFilters(filters);
   const where = listPredicate(normalized);
   const [{ total }] = await db.select({ total: count() }).from(inventoryItems).where(where);
@@ -151,13 +153,14 @@ export async function listInventoryItems(filters: InventoryListFilters): Promise
   };
 }
 
-export async function searchReservableInventoryItems(query: string, shootId: string): Promise<Array<{
+export async function searchReservableInventoryItems(query: string, shootId: string, actorUserId: string): Promise<Array<{
   id: string;
   code: string;
   name: string;
   type: (typeof inventoryItemTypeValues)[number];
   status: "available";
 }>> {
+  await requireInventoryCatalogActor(actorUserId);
   // The caller owns the shoot context; availability itself remains in InventoryReservation.
   void shootId;
   const search = query.trim();
