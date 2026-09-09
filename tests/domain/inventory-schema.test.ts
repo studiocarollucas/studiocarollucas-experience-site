@@ -5,10 +5,13 @@ import {
   inventoryItemTypeValues,
 } from "@/domain/inventory/schema";
 import {
+  inventoryMedia,
   inventoryReservationPurposeValues,
   inventoryReservations,
   inventoryReservationStatusValues,
-} from "@/db/schema/inventory";
+  type InventoryMedia,
+  type NewInventoryMedia,
+} from "@/db/schema";
 
 describe("createInventoryItemSchema", () => {
   it("exports the four initial item types and validates a physical item", () => {
@@ -84,5 +87,28 @@ describe("inventory reservations schema", () => {
       "overriddenByUserId",
       "overriddenAt",
     ]));
+  });
+});
+
+describe("inventory media schema", () => {
+  it("stores ordered private media for an inventory item", () => {
+    expect(Object.keys(inventoryMedia)).toEqual(expect.arrayContaining([
+      "id",
+      "inventoryItemId",
+      "storagePath",
+      "sortOrder",
+      "isCover",
+      "publishable",
+      "createdAt",
+    ]));
+    expect(inventoryMedia.storagePath.isUnique).toBe(true);
+    expect(inventoryMedia.sortOrder.default).toBe(0);
+    expect(inventoryMedia.isCover.default).toBe(false);
+    expect(inventoryMedia.publishable.default).toBe(false);
+
+    const media: InventoryMedia | undefined = undefined;
+    const newMedia: NewInventoryMedia | undefined = undefined;
+    expect(media).toBeUndefined();
+    expect(newMedia).toBeUndefined();
   });
 });

@@ -2172,48 +2172,60 @@ Criar fonte de verdade para o acervo físico do estúdio, incluindo Paixão Clut
 
 ### SCL-551 — Mídia dos itens de acervo
 
-- Status: BACKLOG
+- Status: MERGE_READY
 - Priority: P1
 - Area: inventory/storage
-- Owner: unassigned
-- Branch: —
+- Owner: agent:codex
+- Branch: codex/inventory-catalog
 - PR: —
 - Depends on: SCL-550
 - Blocks: SCL-552,SCL-557
 - Files/Scope: inventory media schema/storage
 - Migration: yes
-- Updated at: 2026-09-07 America/Manaus
+- Updated at: 2026-09-09 America/Manaus
 
 **Acceptance criteria**
 
-- [ ] múltiplas fotos por item;
-- [ ] cover/order;
-- [ ] mídia de Admin privada e variante publicável quando item entra no catálogo público;
-- [ ] sem URL pública persistente como fonte de verdade.
+- [x] múltiplas fotos por item;
+- [x] cover/order;
+- [x] mídia de Admin privada e variante publicável quando item entra no catálogo público;
+- [x] sem URL pública persistente como fonte de verdade.
+
+**Blocker/Hand-off notes**
+
+- implementação pronta para merge em `e4f28a9` (schema) e `02d9ee4` (domínio/mídia), com revisão corretiva em `70ba093`;
+- não marcar `DONE` até o merge desta branch em `main`;
+- SCL-557 pode ser planejada após o merge, mas continua pendente da curadoria em SCL-556.
 
 ---
 
 ### SCL-552 — CRUD Admin do Acervo
 
-- Status: BACKLOG
+- Status: MERGE_READY
 - Priority: P1
 - Area: inventory/admin
-- Owner: unassigned
-- Branch: —
+- Owner: agent:codex
+- Branch: codex/inventory-catalog
 - PR: —
 - Depends on: SCL-550,SCL-551,SCL-200
 - Blocks: SCL-556
 - Files/Scope: Admin inventory screens/actions
 - Migration: no
-- Updated at: 2026-09-07 America/Manaus
+- Updated at: 2026-09-09 America/Manaus
 
 **Acceptance criteria**
 
-- [ ] listar/buscar/filtrar por tipo/status/cor/tamanho;
-- [ ] criar/editar/inativar item;
-- [ ] gerenciar fotos;
-- [ ] ficha mostra reservas futuras;
-- [ ] ações auditadas.
+- [x] listar/buscar/filtrar por tipo/status/cor/tamanho;
+- [x] criar/editar/inativar item;
+- [x] gerenciar fotos;
+- [x] ficha mostra reservas futuras;
+- [x] ações auditadas.
+
+**Blocker/Hand-off notes**
+
+- implementação pronta para merge em `d80eec0` (domínio), `0bd11d5` (importação) e `f907328` (Admin), com revisões em `0750def`, `70ba093`, `f5f5b2d` e `bca7d9b`;
+- não marcar `DONE` até o merge desta branch em `main`;
+- SCL-556 está desbloqueada para planejamento, mas permanece pendente.
 
 ---
 
@@ -2300,7 +2312,7 @@ Criar fonte de verdade para o acervo físico do estúdio, incluindo Paixão Clut
 - Blocks: SCL-557
 - Files/Scope: inventory clutch fields/curation
 - Migration: evaluate
-- Updated at: 2026-09-07 America/Manaus
+- Updated at: 2026-09-09 America/Manaus
 
 **Acceptance criteria**
 
@@ -2308,6 +2320,10 @@ Criar fonte de verdade para o acervo físico do estúdio, incluindo Paixão Clut
 - [ ] marcar itens publicáveis/destaque;
 - [ ] definir ordem/cover/copy curta;
 - [ ] disponibilidade operacional vem das reservas, não de flag manual isolada.
+
+**Blocker/Hand-off notes**
+
+- desbloqueada para planejamento após o merge de SCL-552; permanece pendente de implementação.
 
 ---
 
@@ -2323,7 +2339,7 @@ Criar fonte de verdade para o acervo físico do estúdio, incluindo Paixão Clut
 - Blocks: public launch gate
 - Files/Scope: public Paixão Clutch section/page
 - Migration: no
-- Updated at: 2026-09-07 America/Manaus
+- Updated at: 2026-09-09 America/Manaus
 
 **Acceptance criteria**
 
@@ -2333,6 +2349,10 @@ Criar fonte de verdade para o acervo físico do estúdio, incluindo Paixão Clut
 - [ ] integra a clutch como parte do styling dos ensaios;
 - [ ] não exige preço público;
 - [ ] SEO/analytics cobrem a página/CTA.
+
+**Blocker/Hand-off notes**
+
+- desbloqueada para planejamento de mídia pública após o merge de SCL-551; permanece pendente de SCL-556 e da implementação pública.
 
 ---
 

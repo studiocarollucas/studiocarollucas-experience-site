@@ -2,7 +2,7 @@ import "server-only";
 
 import { and, desc, eq, gte, inArray, lte, sql } from "drizzle-orm";
 import { db } from "@/db/client";
-import { inventoryReservations, profiles, type InventoryReservation } from "@/db/schema";
+import { inventoryItems, inventoryReservations, profiles, type InventoryReservation } from "@/db/schema";
 import { recordAuditEvent } from "@/domain/audit/service";
 import {
   createShootInventoryReservationSchema,
@@ -10,6 +10,13 @@ import {
 } from "./reservation-schema";
 
 const blockingStatuses = ["pending", "confirmed"] as const;
+
+export class InventoryItemUnavailableError extends Error {
+  constructor() {
+    super("item do acervo indisponível para reserva");
+    this.name = "InventoryItemUnavailableError";
+  }
+}
 
 export class InventoryReservationConflictError extends Error {
   constructor() {
@@ -45,6 +52,12 @@ export async function createShootInventoryReservation(
     // The lock is transaction-scoped, so concurrent reservations for this item
     // cannot both observe the same availability window before either inserts.
     await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${canonicalizeInventoryReservationLockId(parsed.inventoryItemId)}))`);
+
+    // UPDATEs in the catalog acquire this same row lock. Hold it until the
+    // reservation commits, and read the current values after any prior updater.
+    const [item] = await tx.select({ active: inventoryItems.active, status: inventoryItems.status })
+      .from(inventoryItems).where(eq(inventoryItems.id, parsed.inventoryItemId)).limit(1).for("update");
+    if (!item?.active || item.status !== "available") throw new InventoryItemUnavailableError();
 
     const [conflict] = await tx
       .select({ id: inventoryReservations.id })

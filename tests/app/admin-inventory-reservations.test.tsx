@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const shootId = "00000000-0000-4000-8000-000000000001";
@@ -10,6 +10,7 @@ const mocks = vi.hoisted(() => ({
   cancelReservation: vi.fn(),
   dbSelect: vi.fn(),
   revalidatePath: vi.fn(),
+  search: vi.fn(),
 }));
 
 vi.mock("@/lib/auth/session", () => ({ getCurrentUser: mocks.getCurrentUser }));
@@ -17,19 +18,130 @@ vi.mock("@/domain/inventory/reservations", () => ({
   createShootInventoryReservation: mocks.createReservation,
   cancelInventoryReservation: mocks.cancelReservation,
   InventoryReservationConflictError: class InventoryReservationConflictError extends Error {},
+  InventoryItemUnavailableError: class InventoryItemUnavailableError extends Error {},
 }));
 vi.mock("@/db/client", () => ({ db: { select: mocks.dbSelect } }));
 vi.mock("next/cache", () => ({ revalidatePath: mocks.revalidatePath }));
+vi.mock("@/domain/inventory/queries", () => ({ searchReservableInventoryItems: mocks.search }));
 
 import { createShootInventoryReservationAction } from "@/app/admin/(protected)/agenda/[id]/inventory-actions";
 import { InventoryReservations } from "@/components/admin/inventory-reservations";
-import { InventoryReservationConflictError } from "@/domain/inventory/reservations";
+import { InventoryReservationConflictError, InventoryItemUnavailableError } from "@/domain/inventory/reservations";
 import { getShootDetail } from "@/domain/shoots/queries";
 
 describe("shoot inventory reservations", () => {
+  it("returns actionable feedback if the selected catalog item became unavailable", async () => {
+    mocks.createReservation.mockRejectedValueOnce(new InventoryItemUnavailableError());
+    const result = await createShootInventoryReservationAction({ shootId, inventoryItemId: itemId, startsOn: "2030-05-10", endsOn: "2030-05-10" });
+    expect(result).toMatchObject({ ok: false, error: expect.stringMatching(/indisponível/), fieldErrors: { inventoryItemId: [expect.stringMatching(/Selecione/)] } });
+    expect(mocks.revalidatePath).not.toHaveBeenCalled();
+  });
+  it("selects the last search result on ArrowUp before any selection", async () => {
+    mocks.search.mockResolvedValue([
+      { id: itemId, code: "CL-01", name: "Primeiro", type: "clutch", status: "available" },
+      {
+        id: "00000000-0000-4000-8000-000000000003",
+        code: "CL-02",
+        name: "Último",
+        type: "clutch",
+        status: "available",
+      },
+    ]);
+    render(<InventoryReservations shootId={shootId} shootDate="2030-05-10" />);
+    const picker = screen.getByRole("combobox", { name: "Item do acervo" });
+    fireEvent.change(picker, { target: { value: "CL" } });
+    await screen.findByRole("option", { name: /Último/ });
+    fireEvent.keyDown(picker, { key: "ArrowUp" });
+    fireEvent.keyDown(picker, { key: "Enter" });
+    expect(picker).toHaveValue("CL-02 · Último");
+  });
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.getCurrentUser.mockResolvedValue({ id: "staff-1", role: "staff" });
+    mocks.search.mockResolvedValue([
+      { id: itemId, code: "CL-01", name: "Clutch dourada", type: "clutch", status: "available" },
+    ]);
+  });
+
+  it("uses searchable catalog selection and supports repeated additions without UUID entry", async () => {
+    mocks.createReservation.mockResolvedValue({ id: "res-new", inventoryItemId: itemId });
+    render(<InventoryReservations shootId={shootId} shootDate="2030-05-10" />);
+    const picker = screen.getByRole("combobox", { name: "Item do acervo" });
+    fireEvent.change(picker, { target: { value: "clutch" } });
+    fireEvent.click(
+      await screen.findByRole("option", { name: /CL-01.*Clutch dourada.*Disponível/ })
+    );
+    fireEvent.submit(screen.getByRole("button", { name: "Reservar item" }).closest("form")!);
+    await waitFor(() => expect(mocks.createReservation).toHaveBeenCalledTimes(1));
+    expect(mocks.createReservation).toHaveBeenCalledWith(
+      expect.objectContaining({ inventoryItemId: itemId, shootId }),
+      "staff-1"
+    );
+    expect(await screen.findByText(/Reserva adicionada/)).toBeInTheDocument();
+    expect(picker).toHaveValue("");
+    fireEvent.change(picker, { target: { value: "CL-01" } });
+    await screen.findByRole("option", { name: /Clutch dourada/ });
+    fireEvent.keyDown(picker, { key: "ArrowDown" });
+    fireEvent.keyDown(picker, { key: "Enter" });
+    fireEvent.submit(screen.getByRole("button", { name: "Reservar item" }).closest("form")!);
+    await waitFor(() => expect(mocks.createReservation).toHaveBeenCalledTimes(2));
+    expect(screen.queryByText(/Invalid UUID|Informe o ID/)).not.toBeInTheDocument();
+  });
+
+  it("returns a human instruction when no catalog item is selected", async () => {
+    const result = await createShootInventoryReservationAction({
+      shootId,
+      inventoryItemId: "bad",
+      startsOn: "2030-05-10",
+      endsOn: "2030-05-10",
+    });
+    expect(result).toMatchObject({
+      ok: false,
+      fieldErrors: { inventoryItemId: ["Selecione um item do acervo."] },
+    });
+  });
+
+  it("preserves the chosen item and dates across conflict feedback and requires an explicit override", async () => {
+    mocks.createReservation
+      .mockRejectedValueOnce(new InventoryReservationConflictError())
+      .mockResolvedValueOnce({ id: "res-override" });
+    render(<InventoryReservations shootId={shootId} shootDate="2030-05-10" />);
+    fireEvent.change(screen.getByRole("combobox", { name: "Item do acervo" }), {
+      target: { value: "Clutch" },
+    });
+    fireEvent.click(await screen.findByRole("option", { name: /Clutch dourada/ }));
+    fireEvent.change(screen.getByLabelText("Fim"), { target: { value: "2030-05-12" } });
+    fireEvent.submit(screen.getByRole("button", { name: "Reservar item" }).closest("form")!);
+    await screen.findByText(/O item já está reservado neste período/);
+    expect(screen.getByLabelText("Fim")).toHaveValue("2030-05-12");
+    expect(screen.getByRole("combobox", { name: "Item do acervo" })).toHaveValue(
+      "CL-01 · Clutch dourada"
+    );
+    fireEvent.click(screen.getByLabelText("Registrar exceção por conflito"));
+    fireEvent.change(screen.getByLabelText("Motivo da exceção"), {
+      target: { value: "Produção aprovou" },
+    });
+    fireEvent.submit(screen.getByRole("button", { name: "Reservar item" }).closest("form")!);
+    await waitFor(() => expect(mocks.createReservation).toHaveBeenCalledTimes(2));
+    expect(mocks.createReservation).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        inventoryItemId: itemId,
+        endsOn: "2030-05-12",
+        overrideConflict: true,
+        overrideReason: "Produção aprovou",
+      }),
+      "staff-1"
+    );
+  });
+
+  it("requires staff for searching catalog results", async () => {
+    mocks.getCurrentUser.mockResolvedValue({ id: "client-1", role: "client" });
+    const { searchInventoryItemsAction } =
+      await import("@/app/admin/(protected)/agenda/[id]/inventory-actions");
+    await expect(searchInventoryItemsAction({ query: "clutch", shootId })).resolves.toMatchObject({
+      ok: false,
+    });
+    expect(mocks.search).not.toHaveBeenCalled();
   });
 
   it("returns field-safe validation failures instead of database errors", async () => {
@@ -50,7 +162,7 @@ describe("shoot inventory reservations", () => {
         inventoryItemId: itemId,
         startsOn: "2030-05-10",
         endsOn: "2030-05-10",
-      }),
+      })
     ).resolves.toEqual({
       ok: false,
       error: expect.stringMatching(/Registrar exceção por conflito/),
@@ -89,11 +201,14 @@ describe("shoot inventory reservations", () => {
             overrideReason: null,
           },
         ]}
-      />,
+      />
     );
 
     expect(screen.getByRole("heading", { name: "Acervo reservado" })).toBeInTheDocument();
-    expect(screen.getAllByText((_, element) => element?.textContent?.includes("Clutch dourada") ?? false).length).toBeGreaterThan(0);
+    expect(
+      screen.getAllByText((_, element) => element?.textContent?.includes("Clutch dourada") ?? false)
+        .length
+    ).toBeGreaterThan(0);
     expect(screen.getByText("Cancelada")).toBeInTheDocument();
     expect(screen.getByText(/Aprovada pela produção/)).toBeInTheDocument();
     expect(screen.getByLabelText("Item do acervo")).toBeInTheDocument();
@@ -104,13 +219,19 @@ describe("shoot inventory reservations", () => {
     mocks.cancelReservation.mockResolvedValue({ id: "reservation-1" });
 
     await expect(
-      (await import("@/app/admin/(protected)/agenda/[id]/inventory-actions")).cancelShootInventoryReservationAction({
+      (
+        await import("@/app/admin/(protected)/agenda/[id]/inventory-actions")
+      ).cancelShootInventoryReservationAction({
         reservationId: "00000000-0000-4000-8000-000000000003",
         shootId,
-      }),
+      })
     ).resolves.toEqual({ ok: true, data: { id: "reservation-1" } });
 
-    expect(mocks.cancelReservation).toHaveBeenCalledWith("00000000-0000-4000-8000-000000000003", "staff-1", shootId);
+    expect(mocks.cancelReservation).toHaveBeenCalledWith(
+      "00000000-0000-4000-8000-000000000003",
+      "staff-1",
+      shootId
+    );
     expect(mocks.revalidatePath).toHaveBeenCalledWith(`/admin/agenda/${shootId}`);
   });
 
@@ -118,13 +239,19 @@ describe("shoot inventory reservations", () => {
     mocks.cancelReservation.mockRejectedValue(new Error("reserva inexistente ou não cancelável"));
 
     await expect(
-      (await import("@/app/admin/(protected)/agenda/[id]/inventory-actions")).cancelShootInventoryReservationAction({
+      (
+        await import("@/app/admin/(protected)/agenda/[id]/inventory-actions")
+      ).cancelShootInventoryReservationAction({
         reservationId: "00000000-0000-4000-8000-000000000003",
         shootId,
-      }),
+      })
     ).resolves.toMatchObject({ ok: false, error: expect.any(String) });
 
-    expect(mocks.cancelReservation).toHaveBeenCalledWith("00000000-0000-4000-8000-000000000003", "staff-1", shootId);
+    expect(mocks.cancelReservation).toHaveBeenCalledWith(
+      "00000000-0000-4000-8000-000000000003",
+      "staff-1",
+      shootId
+    );
   });
 
   it("projects inventory item fields into shoot reservations ordered by start date", async () => {
@@ -139,14 +266,27 @@ describe("shoot inventory reservations", () => {
       }),
     });
     const reservationOrderBy = vi.fn().mockResolvedValue([
-      { id: "reservation-1", itemName: "Clutch dourada", itemCode: "CL-01", itemType: "clutch", startsOn: "2030-05-10", endsOn: "2030-05-12", status: "confirmed", overrideReason: null },
+      {
+        id: "reservation-1",
+        itemName: "Clutch dourada",
+        itemCode: "CL-01",
+        itemType: "clutch",
+        startsOn: "2030-05-10",
+        endsOn: "2030-05-12",
+        status: "confirmed",
+        overrideReason: null,
+      },
     ]);
     mocks.dbSelect
-      .mockReturnValueOnce(chain([{ shoot, clientName: "Ana", clientId: "client-1", packageName: "Clássico" }]))
+      .mockReturnValueOnce(
+        chain([{ shoot, clientName: "Ana", clientId: "client-1", packageName: "Clássico" }])
+      )
       .mockReturnValueOnce(chain([]))
       .mockReturnValueOnce(chain([]))
       .mockReturnValueOnce(chain([]))
-      .mockReturnValueOnce({ from: () => ({ innerJoin: () => ({ where: () => ({ orderBy: reservationOrderBy }) }) }) });
+      .mockReturnValueOnce({
+        from: () => ({ innerJoin: () => ({ where: () => ({ orderBy: reservationOrderBy }) }) }),
+      });
 
     await expect(getShootDetail(shootId)).resolves.toMatchObject({
       inventoryReservations: [{ itemName: "Clutch dourada", status: "confirmed" }],

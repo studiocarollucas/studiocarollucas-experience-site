@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { boolean, check, date, index, numeric, pgEnum, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
+import { boolean, check, date, index, integer, numeric, pgEnum, pgTable, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
 import { profiles } from "./profiles";
 import { shoots } from "./shoots";
 
@@ -79,7 +79,35 @@ export const inventoryReservations = pgTable(
   ],
 );
 
+export const inventoryMedia = pgTable(
+  "inventory_media",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    inventoryItemId: uuid("inventory_item_id")
+      .notNull()
+      .references(() => inventoryItems.id, { onDelete: "cascade" }),
+    storagePath: text("storage_path").notNull().unique("inventory_media_storage_path_unique"),
+    sortOrder: integer("sort_order").notNull().default(0),
+    isCover: boolean("is_cover").notNull().default(false),
+    publishable: boolean("publishable").notNull().default(false),
+    deletionRequestedAt: timestamp("deletion_requested_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index("inventory_media_item_sort_idx").on(
+      table.inventoryItemId,
+      table.sortOrder,
+      table.createdAt,
+    ),
+    uniqueIndex("inventory_media_one_cover_per_item_idx")
+      .on(table.inventoryItemId)
+      .where(sql`${table.isCover} = true`),
+  ],
+);
+
 export type InventoryItem = typeof inventoryItems.$inferSelect;
 export type NewInventoryItem = typeof inventoryItems.$inferInsert;
 export type InventoryReservation = typeof inventoryReservations.$inferSelect;
 export type NewInventoryReservation = typeof inventoryReservations.$inferInsert;
+export type InventoryMedia = typeof inventoryMedia.$inferSelect;
+export type NewInventoryMedia = typeof inventoryMedia.$inferInsert;

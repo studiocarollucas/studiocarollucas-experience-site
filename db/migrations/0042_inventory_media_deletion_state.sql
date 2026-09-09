@@ -1,0 +1,1 @@
+ALTER TABLE "inventory_media" ADD COLUMN "deletion_requested_at" timestamp with time zone;
