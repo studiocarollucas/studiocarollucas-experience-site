@@ -2,6 +2,19 @@ import { db } from "@/db/client";
 import { shoots, productionJobs, preparationTasks, type Shoot, type ProductionJob } from "@/db/schema";
 import { createShootSchema, type CreateShootInput } from "./schema";
 
+type ConfirmedShootCreation = {
+  shoot: Shoot;
+  productionJob: ProductionJob;
+  preparationTaskCount: number;
+};
+
+type DatabaseTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
+
+type CreateConfirmedShootOptions = {
+  portalEnabled?: boolean;
+  onCreated?: (creation: ConfirmedShootCreation, tx: DatabaseTransaction) => Promise<unknown>;
+};
+
 /**
  * PRD §6.2 / §7.4.2 "Criação de ensaio confirmado" — the checklist every confirmed
  * shoot starts with. Kept as one pure function so the set is reviewable and testable
@@ -26,8 +39,8 @@ export function buildInitialPreparationTasks(): {
 
 export async function createConfirmedShoot(
   input: CreateShootInput,
-  opts: { portalEnabled?: boolean } = {},
-): Promise<{ shoot: Shoot; productionJob: ProductionJob; preparationTaskCount: number }> {
+  opts: CreateConfirmedShootOptions = {},
+): Promise<ConfirmedShootCreation> {
   const parsed = createShootSchema.parse(input);
   const starter = buildInitialPreparationTasks();
 
@@ -52,6 +65,8 @@ export async function createConfirmedShoot(
       })),
     );
 
-    return { shoot, productionJob, preparationTaskCount: starter.length };
+    const creation = { shoot, productionJob, preparationTaskCount: starter.length };
+    await opts.onCreated?.(creation, tx);
+    return creation;
   });
 }

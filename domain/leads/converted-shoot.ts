@@ -26,13 +26,14 @@ export async function createConfirmedShootFromLead(
   const conversion = await getLeadConversion(input.leadId);
   if (!conversion) throw new Error("Cliente ainda não foi definido para este Lead.");
 
-  const result = await createConfirmedShoot({ ...input.shoot, clientId: conversion.clientId });
-  await recordAuditEvent({
-    actorUserId: input.actorUserId,
-    action: "lead.shoot_created",
-    entityType: "lead",
-    entityId: input.leadId,
-    after: { shootId: result.shoot.id },
+  const result = await createConfirmedShoot({ ...input.shoot, clientId: conversion.clientId }, {
+    onCreated: async ({ shoot }, tx) => recordAuditEvent({
+      actorUserId: input.actorUserId,
+      action: "lead.shoot_created",
+      entityType: "lead",
+      entityId: input.leadId,
+      after: { shootId: shoot.id },
+    }, tx),
   });
 
   return { shoot: result.shoot };
