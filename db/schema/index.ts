@@ -3,6 +3,7 @@ export * from "./experience-families";
 export * from "./experience-packages";
 export * from "./clients";
 export * from "./leads";
+export * from "./lead-conversions";
 export * from "./shoots";
 export * from "./payments";
 export * from "./expenses";
