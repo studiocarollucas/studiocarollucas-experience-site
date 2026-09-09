@@ -20,6 +20,14 @@ ALTER TABLE "inventory_items" ENABLE ROW LEVEL SECURITY;
 --> statement-breakpoint
 REVOKE ALL ON TABLE "inventory_items" FROM anon, authenticated;
 --> statement-breakpoint
+REVOKE ALL ON TYPE public.inventory_item_type FROM public, anon, authenticated;
+--> statement-breakpoint
+REVOKE ALL ON TYPE public.inventory_item_status FROM public, anon, authenticated;
+--> statement-breakpoint
+GRANT USAGE ON TYPE public.inventory_item_type TO authenticated, service_role;
+--> statement-breakpoint
+GRANT USAGE ON TYPE public.inventory_item_status TO authenticated, service_role;
+--> statement-breakpoint
 GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE "inventory_items" TO authenticated;
 --> statement-breakpoint
 CREATE POLICY inventory_items_staff_access ON "inventory_items"
