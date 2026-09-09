@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import type { PublicQuizFamily, PublicQuizRecommendation } from "@/domain/quiz/catalog";
 import type { QuizAnswers } from "@/domain/quiz/recommendation";
-import { recommendQuizPackageAction } from "@/app/(site)/quiz/actions";
+import { captureQuizLeadAction, recommendQuizPackageAction } from "@/app/(site)/quiz/actions";
 import { QUIZ_STEPS } from "./quiz-copy";
 import { QuizResult } from "./quiz-result";
 import styles from "@/app/(site)/quiz/quiz.module.css";
@@ -48,7 +48,7 @@ export function QuizFlow({
     });
   }
 
-  if (result) return <QuizResult result={result} answers={answers as Pick<QuizAnswers, "production" | "looks" | "investment">} onRestart={() => { setAnswers({}); setResult(null); setStep(0); }} />;
+  if (result) return <QuizResult result={result} answers={answers as Pick<QuizAnswers, "production" | "looks" | "investment">} leadAnswers={answers as QuizAnswers} captureLead={captureQuizLeadAction} onRestart={() => { setAnswers({}); setResult(null); setStep(0); }} />;
 
   return (
     <section className={styles.flow} aria-live="polite">
