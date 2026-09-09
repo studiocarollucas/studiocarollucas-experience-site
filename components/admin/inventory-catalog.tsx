@@ -8,6 +8,7 @@ import { Select } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { DataTable } from "@/components/ui/data-table";
 import { EmptyState } from "@/components/ui/empty-state";
+import { ClearInventoryFilters } from "@/components/admin/clear-inventory-filters";
 
 export function InventoryCatalog({
   rows,
@@ -77,13 +78,7 @@ export function InventoryCatalog({
           <button type="submit" className="border border-ink px-5 py-3 font-sans text-sm">
             Filtrar
           </button>
-          <Link
-            href="/admin/inventario"
-            className="py-3 font-sans text-sm underline"
-            onClick={(event) => event.currentTarget.closest("form")?.reset()}
-          >
-            Limpar filtros
-          </Link>
+          <ClearInventoryFilters />
         </div>
       </form>
       <p className="font-sans text-sm text-muted">

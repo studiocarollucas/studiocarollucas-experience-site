@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -76,6 +78,21 @@ const item = {
 };
 
 describe("admin inventory catalog", () => {
+  it("keeps the interactive clear control behind a client-component boundary", () => {
+    const catalogSource = readFileSync(
+      resolve(process.cwd(), "components/admin/inventory-catalog.tsx"),
+      "utf8"
+    );
+    const clearControlSource = readFileSync(
+      resolve(process.cwd(), "components/admin/clear-inventory-filters.tsx"),
+      "utf8"
+    );
+
+    expect(catalogSource).toContain('from "@/components/admin/clear-inventory-filters"');
+    expect(catalogSource).not.toMatch(/onClick\s*=/);
+    expect(clearControlSource.startsWith('"use client";')).toBe(true);
+  });
+
   it("resets all filter controls when navigation clears the URL filters", () => {
     const props = { rows: [], total: 0, page: 1, pageSize: 25 };
     const { rerender } = render(
