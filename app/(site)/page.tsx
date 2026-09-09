@@ -9,6 +9,7 @@ export const metadata: Metadata = {
   title: "Stúdio Carol Lucas | Experiências fotográficas autorais",
   description:
     "Uma experiência com a sua identidade. Fotografias com a nossa assinatura. Ensaios de 15 anos, aniversário feminino, gestante e newborn no Stúdio Carol Lucas.",
+  alternates: { canonical: "/" },
 };
 
 function Arrow() {

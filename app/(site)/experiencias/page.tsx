@@ -10,6 +10,18 @@ export const metadata: Metadata = {
   title: "Experiências fotográficas | Stúdio Carol Lucas",
   description:
     "Conheça os ensaios de 15 anos, aniversário feminino, gestante e newborn. Escolha a experiência que combina com o seu momento.",
+  alternates: { canonical: "/experiencias" },
+  openGraph: {
+    title: "Experiências fotográficas | Stúdio Carol Lucas",
+    description:
+      "Conheça os ensaios de 15 anos, aniversário feminino, gestante e newborn. Escolha a experiência que combina com o seu momento.",
+    url: "/experiencias",
+  },
+  twitter: {
+    title: "Experiências fotográficas | Stúdio Carol Lucas",
+    description:
+      "Conheça os ensaios de 15 anos, aniversário feminino, gestante e newborn. Escolha a experiência que combina com o seu momento.",
+  },
 };
 
 export default function ExperiencesPage() {
