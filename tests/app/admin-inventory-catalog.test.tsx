@@ -98,6 +98,27 @@ describe("admin inventory catalog", () => {
       expect(screen.getByLabelText(label, { exact: true })).toHaveValue("");
   });
 
+  it("clears edited filters even when the clear link already targets the current URL", () => {
+    const props = { rows: [], total: 0, page: 1, pageSize: 25, filters: {} };
+    render(<InventoryCatalog {...props} />);
+
+    for (const [label, value] of [
+      ["Buscar por código ou nome", "vestido"],
+      ["Tipo", "outfit"],
+      ["Status", "maintenance"],
+      ["Cor", "azul"],
+      ["Tamanho", "M"],
+    ])
+      fireEvent.change(screen.getByLabelText(label, { exact: true }), { target: { value } });
+
+    const clear = screen.getByRole("link", { name: "Limpar filtros" });
+    expect(clear).toHaveAttribute("href", "/admin/inventario");
+    fireEvent.click(clear);
+
+    for (const label of ["Buscar por código ou nome", "Tipo", "Status", "Cor", "Tamanho"])
+      expect(screen.getByLabelText(label, { exact: true })).toHaveValue("");
+  });
+
   it("includes reservations ending today in Manaus after UTC midnight in detail", async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2030-05-11T02:30:00Z"));

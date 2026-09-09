@@ -77,7 +77,11 @@ export function InventoryCatalog({
           <button type="submit" className="border border-ink px-5 py-3 font-sans text-sm">
             Filtrar
           </button>
-          <Link href="/admin/inventario" className="py-3 font-sans text-sm underline">
+          <Link
+            href="/admin/inventario"
+            className="py-3 font-sans text-sm underline"
+            onClick={(event) => event.currentTarget.closest("form")?.reset()}
+          >
             Limpar filtros
           </Link>
         </div>
