@@ -1,5 +1,6 @@
 // @vitest-environment node
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { PgDialect } from "drizzle-orm/pg-core";
 
 const mocks = vi.hoisted(() => ({
   createSignedUrls: vi.fn(),
@@ -22,6 +23,16 @@ const context = {
   viewerAuthUserId: "auth-owner",
   shoot: null,
 };
+
+function expectPublishedGalleryScope(where: ReturnType<typeof vi.fn>, clientId: string) {
+  const predicate = where.mock.calls[0]?.[0];
+  expect(predicate).toBeDefined();
+
+  const query = new PgDialect().sqlToQuery(predicate);
+  expect(query.sql).toContain('"shoots"."client_id" = $1');
+  expect(query.sql).toContain('"galleries"."status" = $2');
+  expect(query.params).toEqual([clientId, "published"]);
+}
 
 describe("readClientGallery", () => {
   beforeEach(() => {
@@ -144,6 +155,34 @@ describe("readClientGalleryReveal", () => {
     mocks.select.mockReturnValue({ from: mocks.from });
 
     await expect(readClientGalleryReveal(context)).resolves.toBeNull();
+    expect(mocks.createSignedUrls).not.toHaveBeenCalled();
+  });
+
+  it("does not sign a Reveal cover for a foreign client", async () => {
+    const limit = vi.fn().mockResolvedValue([]);
+    const where = vi.fn(() => ({ limit }));
+    const innerJoin = vi.fn(() => ({ where }));
+    mocks.from.mockReturnValue({ innerJoin });
+    mocks.select.mockReturnValue({ from: mocks.from });
+
+    await expect(
+      readClientGalleryReveal({ ...context, client: { ...context.client, id: "client-foreign" } }),
+    ).resolves.toBeNull();
+
+    expectPublishedGalleryScope(where, "client-foreign");
+    expect(mocks.createSignedUrls).not.toHaveBeenCalled();
+  });
+
+  it("does not sign a Reveal cover when only a draft gallery is available", async () => {
+    const limit = vi.fn().mockResolvedValue([]);
+    const where = vi.fn(() => ({ limit }));
+    const innerJoin = vi.fn(() => ({ where }));
+    mocks.from.mockReturnValue({ innerJoin });
+    mocks.select.mockReturnValue({ from: mocks.from });
+
+    await expect(readClientGalleryReveal(context)).resolves.toBeNull();
+
+    expectPublishedGalleryScope(where, context.client.id);
     expect(mocks.createSignedUrls).not.toHaveBeenCalled();
   });
 

@@ -2041,7 +2041,7 @@ Fazer o quiz gerar qualificação comercial persistível somente com consentimen
 - [x] somente a cliente do Shoot publicado acessa;
 - [x] mobile-first e acessível;
 - [x] entra na galeria sem expor storage direto;
-- [x] estado de entrega alimenta pós-venda/review.
+- [ ] estado de entrega alimenta pós-venda/review (fora do escopo de SCL-503; pendente em SCL-704/SCL-705).
 
 **Blocker/Hand-off notes**
 
