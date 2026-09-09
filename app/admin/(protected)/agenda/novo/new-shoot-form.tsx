@@ -14,14 +14,18 @@ import { SubmitButton } from "@/components/admin/submit-button";
 export function NewShootForm({
   clients,
   packages,
+  leadId,
+  createAction = createShootAction,
 }: {
   clients: { id: string; name: string }[];
   packages: { id: string; name: string; familyName: string }[];
+  leadId?: string;
+  createAction?: (raw: unknown) => Promise<ActionResult<{ id: string }>>;
 }) {
   const router = useRouter();
   const [state, formAction] = useActionState(
     async (prev: ActionResult<{ id: string }> | null, fd: FormData) => {
-      const result = await toFormAction(createShootAction, {
+      const result = await toFormAction(createAction, {
         numbers: ["participantCount"],
         booleans: ["portalEnabled"],
       })(prev, fd);
@@ -36,18 +40,22 @@ export function NewShootForm({
     <form action={formAction} className="flex max-w-xl flex-col gap-5">
       <FormStatus state={state} />
 
-      <Field label="Cliente" htmlFor="clientId" error={err("clientId")}>
-        <Select id="clientId" name="clientId" required defaultValue="">
-          <option value="" disabled>
-            Selecione…
-          </option>
-          {clients.map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.name}
+      {leadId ? (
+        <input type="hidden" name="leadId" value={leadId} />
+      ) : (
+        <Field label="Cliente" htmlFor="clientId" error={err("clientId")}>
+          <Select id="clientId" name="clientId" required defaultValue="">
+            <option value="" disabled>
+              Selecione…
             </option>
-          ))}
-        </Select>
-      </Field>
+            {clients.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
+            ))}
+          </Select>
+        </Field>
+      )}
 
       <Field label="Experiência" htmlFor="experiencePackageId" error={err("experiencePackageId")}>
         <Select id="experiencePackageId" name="experiencePackageId" required defaultValue="">
