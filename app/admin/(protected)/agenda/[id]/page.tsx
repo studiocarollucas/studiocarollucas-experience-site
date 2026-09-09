@@ -13,6 +13,7 @@ import { StylingManager } from "@/components/admin/styling-manager";
 import { EditShootPanel } from "./edit-shoot-panel";
 import { ShootStatusControl } from "./shoot-status-control";
 import { ProductionFieldsForm } from "./production-fields-form";
+import { InventoryReservations } from "@/components/admin/inventory-reservations";
 import { formatBRL, formatShootDate, formatDateTime } from "@/lib/format";
 import type { Payment } from "@/db/schema";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
@@ -67,6 +68,7 @@ export default async function ShootDetailPage({ params }: { params: Params }) {
     balance,
     productionJob,
     preparationTasks,
+    inventoryReservations,
   } = detail;
 
   return (
@@ -208,6 +210,8 @@ export default async function ShootDetailPage({ params }: { params: Params }) {
           references={stylingReferences}
         />
       </DetailSection>
+
+      <InventoryReservations shootId={id} shootDate={shoot.shootDate} reservations={inventoryReservations} />
 
       <DetailSection title="Editar ensaio">
         <EditShootPanel

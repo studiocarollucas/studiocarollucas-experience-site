@@ -127,7 +127,7 @@ describe("inventory reservations", () => {
   });
 
   it("cancels without deleting and writes a cancellation audit event in the transaction", async () => {
-    await expect(cancelInventoryReservation(reservationId, actorUserId)).resolves.toMatchObject({ status: "cancelled" });
+    await expect(cancelInventoryReservation(reservationId, actorUserId, shootId)).resolves.toMatchObject({ status: "cancelled" });
 
     expect(mocks.transaction).toHaveBeenCalledOnce();
     expect(mocks.update).toHaveBeenCalledOnce();
@@ -143,6 +143,15 @@ describe("inventory reservations", () => {
       expect.objectContaining({ action: "inventory_reservation.cancelled", actorUserId, entityId: reservationId }),
       expect.objectContaining({ update: mocks.update }),
     );
+  });
+
+  it("refuses an already cancelled or wrong-shoot reservation without another audit event", async () => {
+    mocks.update.mockReturnValueOnce({
+      set: vi.fn().mockReturnValue({ where: vi.fn().mockImplementation(() => returning(undefined)) }),
+    });
+
+    await expect(cancelInventoryReservation(reservationId, actorUserId, shootId)).rejects.toThrow("não cancelável");
+    expect(mocks.recordAuditEvent).not.toHaveBeenCalled();
   });
 
   it("lists reservations for a shoot without creating a UI read model", async () => {

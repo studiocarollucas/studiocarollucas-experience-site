@@ -7,6 +7,8 @@ import {
   payments as paymentsTable,
   productionJobs,
   preparationTasks,
+  inventoryItems,
+  inventoryReservations,
   type Shoot,
   type Payment,
   type ProductionJob,
@@ -104,6 +106,16 @@ export type ShootDetail = {
   balance: string;
   productionJob: ProductionJob | null;
   preparationTasks: PreparationTask[];
+  inventoryReservations: Array<{
+    id: string;
+    itemName: string;
+    itemCode: string;
+    itemType: string;
+    startsOn: string;
+    endsOn: string;
+    status: string;
+    overrideReason: string | null;
+  }>;
 };
 
 export async function getShootDetail(id: string): Promise<ShootDetail | null> {
@@ -139,6 +151,22 @@ export async function getShootDetail(id: string): Promise<ShootDetail | null> {
     .where(eq(preparationTasks.shootId, id))
     .orderBy(preparationTasks.createdAt);
 
+  const reservations = await db
+    .select({
+      id: inventoryReservations.id,
+      itemName: inventoryItems.name,
+      itemCode: inventoryItems.code,
+      itemType: inventoryItems.type,
+      startsOn: inventoryReservations.startsOn,
+      endsOn: inventoryReservations.endsOn,
+      status: inventoryReservations.status,
+      overrideReason: inventoryReservations.overrideReason,
+    })
+    .from(inventoryReservations)
+    .innerJoin(inventoryItems, eq(inventoryReservations.inventoryItemId, inventoryItems.id))
+    .where(eq(inventoryReservations.shootId, id))
+    .orderBy(inventoryReservations.startsOn);
+
   return {
     shoot: row.shoot,
     clientName: row.clientName,
@@ -151,5 +179,6 @@ export async function getShootDetail(id: string): Promise<ShootDetail | null> {
     ),
     productionJob: job ?? null,
     preparationTasks: prep,
+    inventoryReservations: reservations,
   };
 }

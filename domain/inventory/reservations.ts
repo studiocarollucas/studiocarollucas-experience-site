@@ -83,7 +83,11 @@ export async function createShootInventoryReservation(
   });
 }
 
-export async function cancelInventoryReservation(id: string, actorUserId: string): Promise<InventoryReservation> {
+export async function cancelInventoryReservation(
+  id: string,
+  actorUserId: string,
+  shootId: string,
+): Promise<InventoryReservation> {
   return db.transaction(async (tx) => {
     const cancelledAt = new Date();
     const [reservation] = await tx
@@ -94,10 +98,16 @@ export async function cancelInventoryReservation(id: string, actorUserId: string
         cancelledByUserId: actorUserId,
         updatedAt: cancelledAt,
       })
-      .where(eq(inventoryReservations.id, id))
+      .where(
+        and(
+          eq(inventoryReservations.id, id),
+          eq(inventoryReservations.shootId, shootId),
+          inArray(inventoryReservations.status, blockingStatuses),
+        ),
+      )
       .returning();
 
-    if (!reservation) throw new Error("reserva inexistente");
+    if (!reservation) throw new Error("reserva inexistente ou não cancelável");
 
     await recordAuditEvent(
       {
