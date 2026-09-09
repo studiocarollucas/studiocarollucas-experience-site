@@ -105,8 +105,8 @@ Esta revisão preserva todas as tasks já concluídas e adiciona cobertura expl�
 | SCL-506 | Catálogo de produtos/upsells | P1 | gallery/commerce | BACKLOG | unassigned | SCL-500,SCL-503 |
 | SCL-507 | Pedido de upsell + Financeiro | P1 | gallery/finance | BACKLOG | unassigned | SCL-104,SCL-506 |
 | SCL-550 | Schema InventoryItem | P1 | inventory/db | BACKLOG | unassigned | SCL-005 |
-| SCL-551 | Mídia dos itens de acervo | P1 | inventory/storage | BACKLOG | unassigned | SCL-550 |
-| SCL-552 | CRUD Admin do Acervo | P1 | inventory/admin | BACKLOG | unassigned | SCL-550,SCL-551,SCL-200 |
+| SCL-551 | Mídia dos itens de acervo | P1 | inventory/storage | DONE | unassigned | SCL-550 |
+| SCL-552 | CRUD Admin do Acervo | P1 | inventory/admin | DONE | unassigned | SCL-550,SCL-551,SCL-200 |
 | SCL-553 | InventoryReservation + conflitos | P1 | inventory/db | DONE (742f545) | unassigned | SCL-103,SCL-550 |
 | SCL-554 | Seleção de figurinos/clutches pela cliente | P1 | inventory/client | BACKLOG | unassigned | SCL-305,SCL-553 |
 | SCL-555 | Styling ↔ itens reais reservados | P1 | inventory/client/admin | BACKLOG | unassigned | SCL-305,SCL-553 |
@@ -2172,7 +2172,7 @@ Criar fonte de verdade para o acervo físico do estúdio, incluindo Paixão Clut
 
 ### SCL-551 — Mídia dos itens de acervo
 
-- Status: MERGE_READY
+- Status: DONE
 - Priority: P1
 - Area: inventory/storage
 - Owner: agent:codex
@@ -2201,7 +2201,7 @@ Criar fonte de verdade para o acervo físico do estúdio, incluindo Paixão Clut
 
 ### SCL-552 — CRUD Admin do Acervo
 
-- Status: MERGE_READY
+- Status: DONE
 - Priority: P1
 - Area: inventory/admin
 - Owner: agent:codex
