@@ -87,9 +87,12 @@ async function releaseUploadReservation(
 }
 
 export async function uploadInventoryMedia(input: unknown) {
-  const { inventoryItemId, file } = uploadInventoryMediaSchema.parse(input);
+  const { inventoryItemId, file: metadata } = uploadInventoryMediaSchema.parse(input);
+  // Object schemas intentionally validate metadata; storage needs the original bytes.
+  const file = (input as { file: File }).file;
+  if (!(file instanceof File)) throw new Error("Selecione um arquivo de imagem.");
   const mediaId = crypto.randomUUID();
-  const extension = inventoryMediaExtensions[file.type];
+  const extension = inventoryMediaExtensions[metadata.type];
   const storagePath = inventoryMediaPath(inventoryItemId, mediaId, extension);
   const context = { inventoryItemId, mediaId, storagePath };
 
@@ -113,13 +116,13 @@ export async function uploadInventoryMedia(input: unknown) {
   let storage: InventoryMediaStorage | undefined;
   try {
     storage = await getInventoryMediaStorage();
-    const uploaded = await storage.upload(storagePath, file as File, { contentType: file.type, upsert: false });
+    const uploaded = await storage.upload(storagePath, file, { contentType: metadata.type, upsert: false });
     if (uploaded.error || !uploaded.data) {
       throw uploaded.error ?? new Error("inventory media storage upload returned no data");
     }
   } catch (error) {
     const cleanupFailures = storage
-      ? await releaseUploadReservation(storage, context, file as File, file.type)
+      ? await releaseUploadReservation(storage, context, file, metadata.type)
       : await (async () => {
           try {
             await db

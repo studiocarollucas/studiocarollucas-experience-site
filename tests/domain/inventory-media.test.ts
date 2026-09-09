@@ -86,6 +86,13 @@ beforeEach(() => {
 });
 
 describe("inventory media lifecycle", () => {
+  it("passes the uploaded File bytes to storage instead of only parsed metadata", async () => {
+    const file = imageFile();
+    await uploadInventoryMedia({ inventoryItemId: ITEM_ID, file });
+    expect(mocks.upload.mock.calls[0][1]).toBe(file);
+    await expect(mocks.upload.mock.calls[0][1].text()).resolves.toBe("image");
+  });
+
   it("makes the first uploaded image the item cover", async () => {
     const media = await uploadInventoryMedia({ inventoryItemId: ITEM_ID, file: imageFile() });
 
