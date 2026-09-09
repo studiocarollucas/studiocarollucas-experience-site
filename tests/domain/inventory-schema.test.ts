@@ -4,6 +4,11 @@ import {
   inventoryItemStatusValues,
   inventoryItemTypeValues,
 } from "@/domain/inventory/schema";
+import {
+  inventoryReservationPurposeValues,
+  inventoryReservations,
+  inventoryReservationStatusValues,
+} from "@/db/schema/inventory";
 
 describe("createInventoryItemSchema", () => {
   it("exports the four initial item types and validates a physical item", () => {
@@ -54,5 +59,30 @@ describe("createInventoryItemSchema", () => {
         internalPrice: "bad",
       }).success,
     ).toBe(false);
+  });
+});
+
+describe("inventory reservations schema", () => {
+  it("exports reservation purposes, statuses, and the auditable reservation fields", () => {
+    expect(inventoryReservationPurposeValues).toEqual(["shoot", "rental"]);
+    expect(inventoryReservationStatusValues).toEqual([
+      "pending",
+      "confirmed",
+      "cancelled",
+      "released",
+    ]);
+    expect(Object.keys(inventoryReservations)).toEqual(expect.arrayContaining([
+      "inventoryItemId",
+      "shootId",
+      "purpose",
+      "startsOn",
+      "endsOn",
+      "status",
+      "cancelledAt",
+      "cancelledByUserId",
+      "overrideReason",
+      "overriddenByUserId",
+      "overriddenAt",
+    ]));
   });
 });
