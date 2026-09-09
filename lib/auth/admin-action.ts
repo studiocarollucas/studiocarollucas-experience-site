@@ -12,6 +12,16 @@ export type { ActionResult } from "@/lib/auth/action-result";
 
 type Ctx = { user: CurrentUser };
 
+export class ActionableAdminActionError extends Error {
+  constructor(
+    message: string,
+    readonly fieldErrors?: Record<string, string[]>,
+  ) {
+    super(message);
+    this.name = "ActionableAdminActionError";
+  }
+}
+
 // Overload order matters: the schema form is declared first so an inline handler
 // arg is contextually typed from `z.output<TSchema>`, not from the no-input form's
 // `undefined` (which would make `defineAdminAction({ role, input }, (i) => ...)`
@@ -65,6 +75,9 @@ export function defineAdminAction<TSchema extends z.ZodType, TOut>(
       const data = await handler(input, { user: user as CurrentUser });
       return { ok: true, data };
     } catch (err) {
+      if (err instanceof ActionableAdminActionError) {
+        return { ok: false, error: err.message, fieldErrors: err.fieldErrors };
+      }
       logger.error("admin action failed", {
         role: config.role,
         message: err instanceof Error ? err.message : String(err),

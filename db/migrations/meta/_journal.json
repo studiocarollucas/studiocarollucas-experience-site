@@ -274,6 +274,20 @@
       "when": 1788962840142,
       "tag": "0038_inventory_foundation",
       "breakpoints": true
+    },
+    {
+      "idx": 39,
+      "version": "7",
+      "when": 1788968699579,
+      "tag": "0039_inventory_reservations",
+      "breakpoints": true
+    },
+    {
+      "idx": 40,
+      "version": "7",
+      "when": 1788970000000,
+      "tag": "0040_inventory_reservations_history_index",
+      "breakpoints": true
     }
   ]
 }
