@@ -45,6 +45,12 @@ describe("QuizResult", () => {
     expect(screen.getByRole("button", { name: /salvar meus dados/i })).toBeDisabled();
   });
 
+  it("limits the public email field to 254 characters", () => {
+    render(<QuizResult result={result} answers={{ production: "textura", looks: "3", investment: "up-to-700" }} onRestart={vi.fn()} />);
+
+    expect(screen.getByLabelText("E-mail")).toHaveAttribute("maxLength", "254");
+  });
+
   it("tracks WhatsApp context without passing contact fields", () => {
     render(<QuizResult result={result} answers={{ production: "textura", looks: "3", investment: "up-to-700" }} onRestart={vi.fn()} />);
 
