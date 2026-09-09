@@ -13,7 +13,11 @@ export function generateStaticParams() { return experiences.map(({slug})=>({slug
 export async function generateMetadata({params}: Props): Promise<Metadata> {
   const experience = findExperience((await params).slug);
   if (!experience) notFound();
-  return {title:`Ensaio ${experience.name} | Stúdio Carol Lucas`,description:experience.introduction};
+  return {
+    title: `Ensaio ${experience.name} | Stúdio Carol Lucas`,
+    description: experience.introduction,
+    alternates: { canonical: `/experiencias/${experience.slug}` },
+  };
 }
 
 export default async function ExperiencePage({params}: Props) {

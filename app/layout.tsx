@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { Cormorant_Garamond, Jost } from "next/font/google";
 import "./globals.css";
 
+const siteUrl = new URL(process.env.NEXT_PUBLIC_SITE_URL ?? "https://studiocarollucas.com.br");
+
 const cormorant = Cormorant_Garamond({
   subsets: ["latin"],
   weight: ["300", "400", "500"],
@@ -16,8 +18,28 @@ const jost = Jost({
 });
 
 export const metadata: Metadata = {
+  metadataBase: siteUrl,
   title: "Stúdio Carol Lucas",
-  description: "Experience + Studio OS",
+  description:
+    "Experiências fotográficas autorais para celebrar a sua história no Stúdio Carol Lucas.",
+  alternates: {
+    canonical: "/",
+  },
+  openGraph: {
+    type: "website",
+    locale: "pt_BR",
+    url: "/",
+    siteName: "Stúdio Carol Lucas",
+    title: "Stúdio Carol Lucas | Experiências fotográficas autorais",
+    description:
+      "Experiências fotográficas autorais para celebrar a sua história no Stúdio Carol Lucas.",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Stúdio Carol Lucas | Experiências fotográficas autorais",
+    description:
+      "Experiências fotográficas autorais para celebrar a sua história no Stúdio Carol Lucas.",
+  },
 };
 
 export default function RootLayout({

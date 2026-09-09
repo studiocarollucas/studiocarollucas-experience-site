@@ -9,6 +9,7 @@ export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
   title: "Quiz de curadoria | Stúdio Carol Lucas",
   description: "Descubra uma experiência fotográfica a partir do seu momento, estilo e investimento.",
+  alternates: { canonical: "/quiz" },
 };
 
 export default async function QuizPage() {
