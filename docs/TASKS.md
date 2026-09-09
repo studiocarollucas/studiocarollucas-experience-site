@@ -2219,10 +2219,10 @@ Criar fonte de verdade para o acervo físico do estúdio, incluindo Paixão Clut
 - Priority: P1
 - Area: inventory/db
 - Owner: unassigned
-- Branch: —
+- Branch: codex/inventory-reservations
 - PR: —
 - Depends on: SCL-103,SCL-550
-- Blocks: SCL-554,SCL-555,SCL-558 (unblocked; remain pending)
+- Blocks: SCL-554,SCL-555 (SCL-553 dependency satisfied; remain pending); SCL-558 remains DEFERRED pending SCL-557
 - Files/Scope: reservation schema/domain, shoot integration
 - Migration: yes
 - Updated at: 2026-09-07 America/Manaus
