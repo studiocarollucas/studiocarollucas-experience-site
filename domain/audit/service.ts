@@ -10,8 +10,10 @@ type RecordAuditEventInput = {
   after?: unknown;
 };
 
-export async function recordAuditEvent(input: RecordAuditEventInput): Promise<AuditLogEntry> {
-  const [row] = await db
+type AuditLogWriter = Pick<typeof db, "insert">;
+
+export async function recordAuditEvent(input: RecordAuditEventInput, writer: AuditLogWriter = db): Promise<AuditLogEntry> {
+  const [row] = await writer
     .insert(auditLog)
     .values({
       actorUserId: input.actorUserId,
