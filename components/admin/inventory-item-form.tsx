@@ -9,6 +9,7 @@ import {
   uploadInventoryMediaAction,
   removeInventoryMediaAction,
   setInventoryMediaCoverAction,
+  reorderInventoryMediaAction,
 } from "@/app/admin/(protected)/inventario/actions";
 import { type ActionResult, toFormAction } from "@/lib/auth/action-result";
 import type { InventoryListRow } from "@/domain/inventory/queries";
@@ -158,6 +159,35 @@ export function InventoryDeactivateForm({ id, active }: { id: string; active: bo
 
 type Media = { id: string; signedUrl: string; isCover: boolean };
 
+function MediaOrderControl({
+  itemId,
+  media,
+  index,
+}: {
+  itemId: string;
+  media: Media[];
+  index: number;
+}) {
+  const [state, action, pending] = useActionState(async () => {
+    const mediaIds = media.map((photo) => photo.id);
+    if (index > 0) [mediaIds[index - 1], mediaIds[index]] = [mediaIds[index], mediaIds[index - 1]];
+    return reorderInventoryMediaAction({ inventoryItemId: itemId, mediaIds });
+  }, null);
+  return (
+    <form action={action} className="grid gap-2">
+      <FormStatus state={state} />
+      <button
+        type="submit"
+        disabled={index === 0 || pending}
+        aria-label={`Mover foto ${index + 1} para antes`}
+        className="min-h-11 border border-ink px-4 py-3 font-sans text-sm disabled:opacity-50"
+      >
+        {pending ? "Salvando…" : "Mover para antes"}
+      </button>
+    </form>
+  );
+}
+
 function MediaControl({
   itemId,
   mediaId,
@@ -214,7 +244,7 @@ export function InventoryMediaManager({
         <p className="font-sans text-sm text-muted">Sem foto cadastrada.</p>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2">
-          {media.map((photo) => (
+          {media.map((photo, index) => (
             <div key={photo.id} className="space-y-3 border border-line p-3">
               {/* Signed private URLs must not be cached by the public image optimizer. */}
               {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -230,6 +260,12 @@ export function InventoryMediaManager({
                 <MediaControl itemId={itemId} mediaId={photo.id} cover />
               )}
               <MediaControl itemId={itemId} mediaId={photo.id} />
+              <MediaOrderControl
+                key={media.map((entry) => entry.id).join(",")}
+                itemId={itemId}
+                media={media}
+                index={index}
+              />
             </div>
           ))}
         </div>

@@ -22,4 +22,11 @@ export const setInventoryMediaCoverSchema = z.object({
 });
 
 export const removeInventoryMediaSchema = setInventoryMediaCoverSchema;
+export const reorderInventoryMediaSchema = z.object({
+  inventoryItemId: inventoryItemIdSchema,
+  mediaIds: z
+    .array(inventoryMediaIdSchema)
+    .min(1)
+    .refine((ids) => new Set(ids).size === ids.length, "Cada foto deve aparecer uma única vez."),
+});
 export const readInventoryMediaUrlsSchema = inventoryItemIdSchema;

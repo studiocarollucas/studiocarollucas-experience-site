@@ -29,6 +29,25 @@ import { InventoryReservationConflictError } from "@/domain/inventory/reservatio
 import { getShootDetail } from "@/domain/shoots/queries";
 
 describe("shoot inventory reservations", () => {
+  it("selects the last search result on ArrowUp before any selection", async () => {
+    mocks.search.mockResolvedValue([
+      { id: itemId, code: "CL-01", name: "Primeiro", type: "clutch", status: "available" },
+      {
+        id: "00000000-0000-4000-8000-000000000003",
+        code: "CL-02",
+        name: "Último",
+        type: "clutch",
+        status: "available",
+      },
+    ]);
+    render(<InventoryReservations shootId={shootId} shootDate="2030-05-10" />);
+    const picker = screen.getByRole("combobox", { name: "Item do acervo" });
+    fireEvent.change(picker, { target: { value: "CL" } });
+    await screen.findByRole("option", { name: /Último/ });
+    fireEvent.keyDown(picker, { key: "ArrowUp" });
+    fireEvent.keyDown(picker, { key: "Enter" });
+    expect(picker).toHaveValue("CL-02 · Último");
+  });
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.getCurrentUser.mockResolvedValue({ id: "staff-1", role: "staff" });
@@ -239,20 +258,18 @@ describe("shoot inventory reservations", () => {
         where: () => ({ limit: async () => value, orderBy: async () => value }),
       }),
     });
-    const reservationOrderBy = vi
-      .fn()
-      .mockResolvedValue([
-        {
-          id: "reservation-1",
-          itemName: "Clutch dourada",
-          itemCode: "CL-01",
-          itemType: "clutch",
-          startsOn: "2030-05-10",
-          endsOn: "2030-05-12",
-          status: "confirmed",
-          overrideReason: null,
-        },
-      ]);
+    const reservationOrderBy = vi.fn().mockResolvedValue([
+      {
+        id: "reservation-1",
+        itemName: "Clutch dourada",
+        itemCode: "CL-01",
+        itemType: "clutch",
+        startsOn: "2030-05-10",
+        endsOn: "2030-05-12",
+        status: "confirmed",
+        overrideReason: null,
+      },
+    ]);
     mocks.dbSelect
       .mockReturnValueOnce(
         chain([{ shoot, clientName: "Ana", clientId: "client-1", packageName: "Clássico" }])

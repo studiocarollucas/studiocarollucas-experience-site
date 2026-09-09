@@ -17,10 +17,12 @@ import {
   uploadInventoryMedia,
   setInventoryMediaCover,
   removeInventoryMedia,
+  reorderInventoryMedia,
 } from "@/domain/inventory/media";
 import {
   inventoryMediaFileSchema,
   setInventoryMediaCoverSchema,
+  reorderInventoryMediaSchema,
 } from "@/domain/inventory/media-schema";
 
 const itemId = z.string().uuid("Item do acervo inválido.");
@@ -142,8 +144,8 @@ export const uploadInventoryMediaAction = defineAdminAction(
       ),
     }),
   },
-  async (input) => {
-    const media = await uploadInventoryMedia(input);
+  async (input, ctx) => {
+    const media = await uploadInventoryMedia(input, ctx.user.id);
     revalidateInventory(input.inventoryItemId);
     return { id: media.id };
   }
@@ -151,8 +153,8 @@ export const uploadInventoryMediaAction = defineAdminAction(
 
 export const setInventoryMediaCoverAction = defineAdminAction(
   { role: "staff", input: setInventoryMediaCoverSchema },
-  async (input) => {
-    await setInventoryMediaCover(input);
+  async (input, ctx) => {
+    await setInventoryMediaCover(input, ctx.user.id);
     revalidateInventory(input.inventoryItemId);
     return { id: input.mediaId };
   }
@@ -160,9 +162,18 @@ export const setInventoryMediaCoverAction = defineAdminAction(
 
 export const removeInventoryMediaAction = defineAdminAction(
   { role: "staff", input: setInventoryMediaCoverSchema },
-  async (input) => {
-    await removeInventoryMedia(input);
+  async (input, ctx) => {
+    await removeInventoryMedia(input, ctx.user.id);
     revalidateInventory(input.inventoryItemId);
     return { id: input.mediaId };
+  }
+);
+
+export const reorderInventoryMediaAction = defineAdminAction(
+  { role: "staff", input: reorderInventoryMediaSchema },
+  async (input, ctx) => {
+    await reorderInventoryMedia(input, ctx.user.id);
+    revalidateInventory(input.inventoryItemId);
+    return { id: input.inventoryItemId };
   }
 );

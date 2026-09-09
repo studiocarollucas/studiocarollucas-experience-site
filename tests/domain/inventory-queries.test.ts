@@ -66,6 +66,22 @@ function render(condition: Parameters<PgDialect["sqlToQuery"]>[0]) {
 }
 
 describe("inventory catalog queries", () => {
+  it("includes reservations ending on the Manaus date after UTC midnight", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2030-05-11T02:30:00Z"));
+    try {
+      const reservations = reservationChain([]);
+      mocks.select
+        .mockReturnValueOnce(roleResult("staff"))
+        .mockReturnValueOnce({ from: () => ({ where: async () => [{ total: 1 }] }) })
+        .mockReturnValueOnce(chain([{ id: itemId }]))
+        .mockReturnValueOnce(reservations);
+      await listInventoryItems({}, actorUserId);
+      expect(render(reservations.where.mock.calls[0][0]).params).toContain("2030-05-10");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
   beforeEach(() => vi.resetAllMocks());
 
   it("normalizes searchable filters and bounds deterministic pagination", () => {
@@ -78,7 +94,7 @@ describe("inventory catalog queries", () => {
         size: " M ",
         page: "0",
         pageSize: "500",
-      }),
+      })
     ).toEqual({
       search: "dourada",
       type: "clutch",
@@ -91,7 +107,9 @@ describe("inventory catalog queries", () => {
   });
 
   it("lists code/name matches with type, status, color, and size filters plus future reservations", async () => {
-    const futureReservations = [{ id: "reservation-id", startsOn: "2030-05-10", endsOn: "2030-05-12", status: "confirmed" }];
+    const futureReservations = [
+      { id: "reservation-id", startsOn: "2030-05-10", endsOn: "2030-05-12", status: "confirmed" },
+    ];
     const total = { from: vi.fn(), where: vi.fn().mockResolvedValue([{ total: 1 }]) };
     total.from.mockReturnValue({ where: total.where });
     const items = chain([{ id: itemId, code: "CL-001", name: "Clutch dourada", type: "clutch" }]);
@@ -103,9 +121,22 @@ describe("inventory catalog queries", () => {
       .mockReturnValueOnce(reservations);
 
     await expect(
-      listInventoryItems({ search: "dourada", type: "clutch", status: "available", color: "gold", size: "M", page: 2, pageSize: 10 }, actorUserId),
+      listInventoryItems(
+        {
+          search: "dourada",
+          type: "clutch",
+          status: "available",
+          color: "gold",
+          size: "M",
+          page: 2,
+          pageSize: 10,
+        },
+        actorUserId
+      )
     ).resolves.toEqual({
-      rows: [{ id: itemId, code: "CL-001", name: "Clutch dourada", type: "clutch", futureReservations }],
+      rows: [
+        { id: itemId, code: "CL-001", name: "Clutch dourada", type: "clutch", futureReservations },
+      ],
       total: 1,
       page: 2,
       pageSize: 10,
@@ -118,21 +149,34 @@ describe("inventory catalog queries", () => {
     expect(itemPredicate.sql).toContain('"inventory_items"."status" = $4');
     expect(itemPredicate.sql).toContain('"inventory_items"."color" ilike $5');
     expect(itemPredicate.sql).toContain('"inventory_items"."size" ilike $6');
-    expect(itemPredicate.params).toEqual(["%dourada%", "%dourada%", "clutch", "available", "%gold%", "%M%"]);
+    expect(itemPredicate.params).toEqual([
+      "%dourada%",
+      "%dourada%",
+      "clutch",
+      "available",
+      "%gold%",
+      "%M%",
+    ]);
 
     const reservationPredicate = render(reservations.where.mock.calls[0]?.[0]);
-    expect(reservationPredicate.sql).toContain('"inventory_reservations"."inventory_item_id" in ($1)');
+    expect(reservationPredicate.sql).toContain(
+      '"inventory_reservations"."inventory_item_id" in ($1)'
+    );
     expect(reservationPredicate.sql).toContain('"inventory_reservations"."status" in ($2, $3)');
     expect(reservationPredicate.sql).toContain('"inventory_reservations"."ends_on" >= $4');
     expect(reservationPredicate.params.slice(0, 3)).toEqual([itemId, "pending", "confirmed"]);
   });
 
   it("searches active available items by code or name and never offers maintenance, retired, or inactive inventory", async () => {
-    const results = [{ id: itemId, code: "CL-001", name: "Clutch dourada", type: "clutch", status: "available" }];
+    const results = [
+      { id: itemId, code: "CL-001", name: "Clutch dourada", type: "clutch", status: "available" },
+    ];
     const search = searchChain(results);
     mocks.select.mockReturnValueOnce(roleResult("admin")).mockReturnValueOnce(search);
 
-    await expect(searchReservableInventoryItems("CL-001", shootId, actorUserId)).resolves.toEqual(results);
+    await expect(searchReservableInventoryItems("CL-001", shootId, actorUserId)).resolves.toEqual(
+      results
+    );
 
     const predicate = render(search.where.mock.calls[0]?.[0]);
     expect(predicate.sql).toContain('"inventory_items"."active" = $1');
@@ -144,7 +188,10 @@ describe("inventory catalog queries", () => {
 
   it.each([
     ["listInventoryItems", () => listInventoryItems({}, actorUserId)],
-    ["searchReservableInventoryItems", () => searchReservableInventoryItems("", shootId, actorUserId)],
+    [
+      "searchReservableInventoryItems",
+      () => searchReservableInventoryItems("", shootId, actorUserId),
+    ],
   ])("rejects a client actor before %s exposes catalog data", async (_operation, invoke) => {
     mocks.select.mockReturnValueOnce(roleResult("client"));
 

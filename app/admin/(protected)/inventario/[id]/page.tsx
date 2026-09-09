@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { and, asc, eq, gte, inArray } from "drizzle-orm";
 import { z } from "zod";
+import { studioDate } from "@/domain/portal/countdown";
 import { db } from "@/db/client";
 import { inventoryItems, inventoryReservations } from "@/db/schema";
 import { getCurrentUser } from "@/lib/auth/session";
@@ -33,7 +34,7 @@ export default async function InventoryDetailPage({ params }: { params: Promise<
         and(
           eq(inventoryReservations.inventoryItemId, id),
           inArray(inventoryReservations.status, ["pending", "confirmed"]),
-          gte(inventoryReservations.endsOn, new Date().toISOString().slice(0, 10))
+          gte(inventoryReservations.endsOn, studioDate())
         )
       )
       .orderBy(asc(inventoryReservations.startsOn)),

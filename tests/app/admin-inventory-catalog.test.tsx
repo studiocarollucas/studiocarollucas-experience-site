@@ -12,6 +12,7 @@ const mocks = vi.hoisted(() => ({
   upload: vi.fn(),
   cover: vi.fn(),
   remove: vi.fn(),
+  reorder: vi.fn(),
   media: vi.fn(),
   select: vi.fn(),
   revalidate: vi.fn(),
@@ -32,6 +33,7 @@ vi.mock("@/domain/inventory/media", () => ({
   uploadInventoryMedia: mocks.upload,
   setInventoryMediaCover: mocks.cover,
   removeInventoryMedia: mocks.remove,
+  reorderInventoryMedia: mocks.reorder,
   readInventoryMediaUrls: mocks.media,
 }));
 vi.mock("@/db/client", () => ({ db: { select: mocks.select } }));
@@ -50,9 +52,11 @@ vi.mock("next/navigation", () => ({
 import InventoryPage from "@/app/admin/(protected)/inventario/page";
 import InventoryDetailPage from "@/app/admin/(protected)/inventario/[id]/page";
 import * as actions from "@/app/admin/(protected)/inventario/actions";
-import { InventoryItemForm } from "@/components/admin/inventory-item-form";
+import { InventoryItemForm, InventoryMediaManager } from "@/components/admin/inventory-item-form";
 import { InventoryImport } from "@/components/admin/inventory-import";
 import { AdminNav } from "@/components/admin/admin-nav";
+import { PgDialect } from "drizzle-orm/pg-core";
+import { InventoryCatalog } from "@/components/admin/inventory-catalog";
 
 const id = "00000000-0000-4000-8000-000000000002";
 const item = {
@@ -72,6 +76,83 @@ const item = {
 };
 
 describe("admin inventory catalog", () => {
+  it("resets all filter controls when navigation clears the URL filters", () => {
+    const props = { rows: [], total: 0, page: 1, pageSize: 25 };
+    const { rerender } = render(
+      <InventoryCatalog
+        {...props}
+        filters={{
+          search: "blue",
+          type: "outfit",
+          status: "maintenance",
+          color: "blue",
+          size: "M",
+        }}
+      />
+    );
+    fireEvent.change(screen.getByLabelText("Buscar por código ou nome"), {
+      target: { value: "draft" },
+    });
+    rerender(<InventoryCatalog {...props} filters={{}} />);
+    for (const label of ["Buscar por código ou nome", "Tipo", "Status", "Cor", "Tamanho"])
+      expect(screen.getByLabelText(label, { exact: true })).toHaveValue("");
+  });
+
+  it("includes reservations ending today in Manaus after UTC midnight in detail", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2030-05-11T02:30:00Z"));
+    try {
+      const where = vi.fn<(condition: Parameters<PgDialect["sqlToQuery"]>[0]) => { orderBy: () => Promise<unknown[]> }>()
+        .mockReturnValue({ orderBy: async () => [] });
+      mocks.select
+        .mockReturnValueOnce({ from: () => ({ where: () => ({ limit: async () => [item] }) }) })
+        .mockReturnValueOnce({ from: () => ({ where }) });
+      await InventoryDetailPage({ params: Promise.resolve({ id }) });
+      expect(new PgDialect().sqlToQuery(where.mock.calls[0][0]).params).toContain("2030-05-10");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+  it("passes the authenticated actor through every media action", async () => {
+    const mediaId = "00000000-0000-4000-8000-000000000003";
+    const input = { inventoryItemId: id, mediaId };
+    const upload = {
+      inventoryItemId: id,
+      file: new File(["image"], "photo.png", { type: "image/png" }),
+    };
+    mocks.upload.mockResolvedValue({ id: mediaId });
+    await actions.uploadInventoryMediaAction(upload);
+    await actions.setInventoryMediaCoverAction(input);
+    await actions.removeInventoryMediaAction(input);
+    expect(mocks.upload).toHaveBeenCalledWith(upload, "staff-1");
+    expect(mocks.cover).toHaveBeenCalledWith(input, "staff-1");
+    expect(mocks.remove).toHaveBeenCalledWith(input, "staff-1");
+  });
+
+  it("moves a private photo earlier through the guarded reorder action", async () => {
+    const first = "00000000-0000-4000-8000-000000000003";
+    const last = "00000000-0000-4000-8000-000000000004";
+    render(
+      <InventoryMediaManager
+        itemId={id}
+        name="Vestido"
+        media={[
+          { id: first, isCover: true, signedUrl: "https://private.test/1?signed=1" },
+          { id: last, isCover: false, signedUrl: "https://private.test/2?signed=1" },
+        ]}
+      />
+    );
+    const button = screen.getByRole("button", { name: "Mover foto 2 para antes" });
+    fireEvent.submit(button.closest("form")!);
+    await waitFor(() =>
+      expect(mocks.reorder).toHaveBeenCalledWith(
+        { inventoryItemId: id, mediaIds: [last, first] },
+        "staff-1"
+      )
+    );
+    expect(mocks.revalidate).toHaveBeenCalledWith(`/admin/inventario/${id}`);
+    expect(screen.getByRole("button", { name: "Mover foto 1 para antes" })).toBeDisabled();
+  });
   beforeEach(() => {
     vi.resetAllMocks();
     mocks.user.mockResolvedValue({ id: "staff-1", role: "staff" });
@@ -155,6 +236,7 @@ describe("admin inventory catalog", () => {
       actions.uploadInventoryMediaAction,
       actions.setInventoryMediaCoverAction,
       actions.removeInventoryMediaAction,
+      actions.reorderInventoryMediaAction,
     ]) {
       await expect(action({})).resolves.toMatchObject({
         ok: false,
@@ -231,7 +313,7 @@ describe("admin inventory catalog", () => {
     await expect(
       actions.uploadInventoryMediaAction({ inventoryItemId: id, file })
     ).resolves.toMatchObject({ ok: true });
-    expect(mocks.upload).toHaveBeenCalledWith({ inventoryItemId: id, file });
+    expect(mocks.upload).toHaveBeenCalledWith({ inventoryItemId: id, file }, "staff-1");
     expect(mocks.upload.mock.calls[0][0].file).toBe(file);
   });
 

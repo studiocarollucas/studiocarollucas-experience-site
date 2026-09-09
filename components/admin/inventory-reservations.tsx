@@ -246,7 +246,9 @@ export function InventoryReservations({
                 setOpen(true);
                 setHighlight((index) =>
                   results.length
-                    ? (index + (event.key === "ArrowDown" ? 1 : -1) + results.length) %
+                    ? ((index < 0 && event.key === "ArrowUp" ? 0 : index) +
+                        (event.key === "ArrowDown" ? 1 : -1) +
+                        results.length) %
                       results.length
                     : -1
                 );

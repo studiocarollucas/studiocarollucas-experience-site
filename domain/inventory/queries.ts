@@ -1,13 +1,13 @@
 import "server-only";
 
-import { and, asc, count, desc, eq, gte, ilike, inArray, or, sql, type SQL } from "drizzle-orm";
+import { and, asc, count, eq, gte, ilike, inArray, or, sql, type SQL } from "drizzle-orm";
+import { studioDate } from "@/domain/portal/countdown";
 import { db } from "@/db/client";
 import { inventoryItems, inventoryReservations } from "@/db/schema";
 import { inventoryItemStatusValues, inventoryItemTypeValues } from "./schema";
 import { requireInventoryCatalogActor } from "./authorization";
 
 const blockingReservationStatuses = ["pending", "confirmed"] as const;
-const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
 export type InventoryListFilters = {
   search?: string;
@@ -50,8 +50,11 @@ export type InventoryListRow = {
   futureReservations: FutureInventoryReservation[];
 };
 
-export function normalizeInventoryListFilters(raw: InventoryListFilters): NormalizedInventoryListFilters {
-  const trimmed = (value: unknown) => (typeof value === "string" && value.trim() ? value.trim() : undefined);
+export function normalizeInventoryListFilters(
+  raw: InventoryListFilters
+): NormalizedInventoryListFilters {
+  const trimmed = (value: unknown) =>
+    typeof value === "string" && value.trim() ? value.trim() : undefined;
   const type = trimmed(raw.type);
   const status = trimmed(raw.status);
   const page = Math.max(1, Math.floor(Number(raw.page ?? 1)) || 1);
@@ -59,10 +62,10 @@ export function normalizeInventoryListFilters(raw: InventoryListFilters): Normal
   return {
     search: trimmed(raw.search),
     type: (inventoryItemTypeValues as readonly string[]).includes(type ?? "")
-      ? type as NormalizedInventoryListFilters["type"]
+      ? (type as NormalizedInventoryListFilters["type"])
       : undefined,
     status: (inventoryItemStatusValues as readonly string[]).includes(status ?? "")
-      ? status as NormalizedInventoryListFilters["status"]
+      ? (status as NormalizedInventoryListFilters["status"])
       : undefined,
     color: trimmed(raw.color),
     size: trimmed(raw.size),
@@ -81,10 +84,13 @@ function listPredicate(filters: NormalizedInventoryListFilters): SQL {
   if (filters.status) conditions.push(eq(inventoryItems.status, filters.status));
   if (filters.color) conditions.push(ilike(inventoryItems.color, `%${filters.color}%`));
   if (filters.size) conditions.push(ilike(inventoryItems.size, `%${filters.size}%`));
-  return conditions.length ? and(...conditions) as SQL : sql`true`;
+  return conditions.length ? (and(...conditions) as SQL) : sql`true`;
 }
 
-export async function listInventoryItems(filters: InventoryListFilters, actorUserId: string): Promise<{
+export async function listInventoryItems(
+  filters: InventoryListFilters,
+  actorUserId: string
+): Promise<{
   rows: InventoryListRow[];
   total: number;
   page: number;
@@ -128,8 +134,8 @@ export async function listInventoryItems(filters: InventoryListFilters, actorUse
           and(
             inArray(inventoryReservations.inventoryItemId, ids),
             inArray(inventoryReservations.status, blockingReservationStatuses),
-            gte(inventoryReservations.endsOn, new Date().toISOString().slice(0, 10)),
-          ),
+            gte(inventoryReservations.endsOn, studioDate())
+          )
         )
         .orderBy(asc(inventoryReservations.startsOn), asc(inventoryReservations.id))
     : [];
@@ -146,25 +152,37 @@ export async function listInventoryItems(filters: InventoryListFilters, actorUse
   }
 
   return {
-    rows: items.map((item) => ({ ...item, futureReservations: reservationsByItem.get(item.id) ?? [] })),
+    rows: items.map((item) => ({
+      ...item,
+      futureReservations: reservationsByItem.get(item.id) ?? [],
+    })),
     total: Number(total),
     page: normalized.page,
     pageSize: normalized.pageSize,
   };
 }
 
-export async function searchReservableInventoryItems(query: string, shootId: string, actorUserId: string): Promise<Array<{
-  id: string;
-  code: string;
-  name: string;
-  type: (typeof inventoryItemTypeValues)[number];
-  status: "available";
-}>> {
+export async function searchReservableInventoryItems(
+  query: string,
+  shootId: string,
+  actorUserId: string
+): Promise<
+  Array<{
+    id: string;
+    code: string;
+    name: string;
+    type: (typeof inventoryItemTypeValues)[number];
+    status: "available";
+  }>
+> {
   await requireInventoryCatalogActor(actorUserId);
   // The caller owns the shoot context; availability itself remains in InventoryReservation.
   void shootId;
   const search = query.trim();
-  const conditions: SQL[] = [eq(inventoryItems.active, true), eq(inventoryItems.status, "available")];
+  const conditions: SQL[] = [
+    eq(inventoryItems.active, true),
+    eq(inventoryItems.status, "available"),
+  ];
   if (search) {
     const like = `%${search}%`;
     conditions.push(or(ilike(inventoryItems.code, like), ilike(inventoryItems.name, like)) as SQL);
@@ -180,11 +198,13 @@ export async function searchReservableInventoryItems(query: string, shootId: str
     .from(inventoryItems)
     .where(and(...conditions))
     .orderBy(asc(inventoryItems.code), asc(inventoryItems.id))
-    .limit(25) as Promise<Array<{
+    .limit(25) as Promise<
+    Array<{
       id: string;
       code: string;
       name: string;
       type: (typeof inventoryItemTypeValues)[number];
       status: "available";
-    }>>;
+    }>
+  >;
 }

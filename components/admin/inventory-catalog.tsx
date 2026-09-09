@@ -33,6 +33,13 @@ export function InventoryCatalog({
   return (
     <div className="space-y-5">
       <form
+        key={JSON.stringify([
+          filters.search,
+          filters.type,
+          filters.status,
+          filters.color,
+          filters.size,
+        ])}
         method="get"
         action="/admin/inventario"
         className="grid gap-4 border border-line bg-white p-5 sm:grid-cols-2 lg:grid-cols-3"
