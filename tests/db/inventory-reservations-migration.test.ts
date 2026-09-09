@@ -4,6 +4,8 @@ import { describe, expect, it } from "vitest";
 
 const migrationPath = path.resolve("db/migrations/0039_inventory_reservations.sql");
 const historyIndexMigrationPath = path.resolve("db/migrations/0040_inventory_reservations_history_index.sql");
+const historyIndexSnapshotPath = path.resolve("db/migrations/meta/0040_snapshot.json");
+const journalPath = path.resolve("db/migrations/meta/_journal.json");
 const sql = fs.existsSync(migrationPath) ? fs.readFileSync(migrationPath, "utf8") : "";
 const normalizedSql = sql.toLowerCase();
 
@@ -20,10 +22,23 @@ describe("inventory reservations migration", () => {
     expect(fs.readFileSync(historyIndexMigrationPath, "utf8").toLowerCase()).toContain('create index "inventory_reservations_shoot_dates_idx" on "inventory_reservations" using btree ("shoot_id","starts_on");');
   });
 
+  it("records the history index in the matching Drizzle snapshot and journal entry", () => {
+    expect(fs.existsSync(historyIndexSnapshotPath)).toBe(true);
+
+    const snapshot = JSON.parse(fs.readFileSync(historyIndexSnapshotPath, "utf8"));
+    const journal = JSON.parse(fs.readFileSync(journalPath, "utf8"));
+    const index = snapshot.tables["public.inventory_reservations"].indexes.inventory_reservations_shoot_dates_idx;
+
+    expect(snapshot.prevId).toBe("7c82652e-0a76-4723-9eb1-e9e8b8f75ec4");
+    expect(index.columns.map((column: { expression: string }) => column.expression)).toEqual(["shoot_id", "starts_on"]);
+    expect(journal.entries).toContainEqual(expect.objectContaining({ idx: 40, tag: "0040_inventory_reservations_history_index" }));
+  });
+
   it("limits access to authenticated staff and protects enum access", () => {
     expect(normalizedSql).toContain('alter table "inventory_reservations" enable row level security;');
     expect(normalizedSql).toContain('revoke all on table "inventory_reservations" from anon, authenticated;');
-    expect(normalizedSql).toContain('grant select, insert, update, delete on table "inventory_reservations" to authenticated;');
+    expect(normalizedSql).toContain('grant select on table "inventory_reservations" to authenticated;');
+    expect(normalizedSql).not.toContain('grant select, insert, update, delete on table "inventory_reservations" to authenticated;');
     expect(normalizedSql).toContain("create policy inventory_reservations_staff_access");
     expect(normalizedSql).toContain("using (public.is_staff_or_admin())");
     expect(normalizedSql).toContain("with check (public.is_staff_or_admin())");

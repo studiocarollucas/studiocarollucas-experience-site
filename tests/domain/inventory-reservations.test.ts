@@ -30,7 +30,7 @@ import {
   listReservationsForShoot,
 } from "@/domain/inventory/reservations";
 
-const inventoryItemId = "00000000-0000-4000-8000-000000000001";
+const inventoryItemId = "a0b1c2d3-e4f5-4000-8000-000000000001";
 const shootId = "00000000-0000-4000-8000-000000000002";
 const actorUserId = "00000000-0000-4000-0000-000000000003";
 const reservationId = "00000000-0000-4000-8000-000000000004";
@@ -91,8 +91,12 @@ describe("inventory reservations", () => {
     );
   });
 
-  it("uses one advisory lock identity for uppercase and lowercase UUID input", async () => {
-    expect(canonicalizeInventoryReservationLockId(inventoryItemId.toUpperCase())).toBe(inventoryItemId);
+  it("uses one advisory lock argument for uppercase and lowercase UUID input containing letters", async () => {
+    const lowerCaseLockArgument = canonicalizeInventoryReservationLockId(inventoryItemId);
+    const upperCaseLockArgument = canonicalizeInventoryReservationLockId(inventoryItemId.toUpperCase());
+
+    expect(lowerCaseLockArgument).toBe(inventoryItemId);
+    expect(upperCaseLockArgument).toBe(lowerCaseLockArgument);
   });
 
   it("rejects an inclusive pending or confirmed overlap without an explicit override", async () => {

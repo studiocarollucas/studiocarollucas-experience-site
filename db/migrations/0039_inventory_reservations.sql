@@ -36,7 +36,7 @@ GRANT USAGE ON TYPE public.inventory_reservation_purpose TO authenticated, servi
 --> statement-breakpoint
 GRANT USAGE ON TYPE public.inventory_reservation_status TO authenticated, service_role;
 --> statement-breakpoint
-GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE "inventory_reservations" TO authenticated;
+GRANT SELECT ON TABLE "inventory_reservations" TO authenticated;
 --> statement-breakpoint
 CREATE POLICY inventory_reservations_staff_access ON "inventory_reservations"
   FOR ALL TO authenticated
