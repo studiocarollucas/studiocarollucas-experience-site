@@ -288,6 +288,13 @@
       "when": 1788970000000,
       "tag": "0040_inventory_reservations_history_index",
       "breakpoints": true
+    },
+    {
+      "idx": 41,
+      "version": "7",
+      "when": 1788979679987,
+      "tag": "0041_inventory_media",
+      "breakpoints": true
     }
   ]
 }
