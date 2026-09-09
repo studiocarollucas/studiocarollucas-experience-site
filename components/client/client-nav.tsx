@@ -9,6 +9,7 @@ const LINKS = [
   { href: "/minha-experiencia/checklist", label: "Checklist" },
   { href: "/minha-experiencia/ensaio", label: "Meu ensaio" },
   { href: "/minha-experiencia/styling", label: "Styling" },
+  { href: "/minha-experiencia/reveal", label: "Reveal" },
 ] as const;
 
 export function ClientNav() {
@@ -17,7 +18,7 @@ export function ClientNav() {
   return (
     <nav
       aria-label="Minha Experiência"
-      className="fixed inset-x-0 bottom-0 z-20 grid grid-cols-4 border-t border-line bg-cream px-2 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] md:static md:flex md:border-0 md:p-0"
+      className="fixed inset-x-0 bottom-0 z-20 grid grid-cols-5 border-t border-line bg-cream px-2 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] md:static md:flex md:border-0 md:p-0"
     >
       {LINKS.map((link) => {
         const active =
