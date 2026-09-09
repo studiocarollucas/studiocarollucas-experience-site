@@ -66,3 +66,15 @@ export async function readClientGallery(context: PortalContext) {
 
   return { ...gallery, assets: await signGalleryAssetUrls(gallery.assets) };
 }
+
+export async function readClientGalleryReveal(context: PortalContext) {
+  const gallery = await readClientGallery(context);
+  if (!gallery || gallery.assets.length === 0) return null;
+
+  return {
+    id: gallery.id,
+    title: "Suas fotos estão prontas",
+    message: "Um capítulo especial da sua experiência foi preparado para você.",
+    cover: { alt: "Capa da sua galeria", signedUrl: gallery.assets[0].signedUrl },
+  };
+}
