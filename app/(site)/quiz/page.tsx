@@ -10,6 +10,7 @@ export const metadata: Metadata = {
   title: "Quiz de curadoria | Stúdio Carol Lucas",
   description: "Descubra uma experiência fotográfica a partir do seu momento, estilo e investimento.",
   alternates: { canonical: "/quiz" },
+  robots: { index: false, follow: false },
 };
 
 export default async function QuizPage() {

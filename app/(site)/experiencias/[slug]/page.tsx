@@ -17,6 +17,15 @@ export async function generateMetadata({params}: Props): Promise<Metadata> {
     title: `Ensaio ${experience.name} | Stúdio Carol Lucas`,
     description: experience.introduction,
     alternates: { canonical: `/experiencias/${experience.slug}` },
+    openGraph: {
+      title: `Ensaio ${experience.name} | Stúdio Carol Lucas`,
+      description: experience.introduction,
+      url: `/experiencias/${experience.slug}`,
+    },
+    twitter: {
+      title: `Ensaio ${experience.name} | Stúdio Carol Lucas`,
+      description: experience.introduction,
+    },
   };
 }
 
