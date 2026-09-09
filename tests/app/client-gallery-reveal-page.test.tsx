@@ -14,7 +14,10 @@ vi.mock("@/domain/gallery/portal", () => ({
   readClientGalleryReveal: mocks.readClientGalleryReveal,
 }));
 
+vi.mock("next/navigation", () => ({ usePathname: () => "/minha-experiencia/reveal" }));
+
 import ClientGalleryRevealPage from "@/app/(client)/minha-experiencia/reveal/page";
+import { ClientNav } from "@/components/client/client-nav";
 
 describe("ClientGalleryRevealPage", () => {
   it("presents the published gallery reveal with its signed cover", async () => {
@@ -34,13 +37,19 @@ describe("ClientGalleryRevealPage", () => {
       },
     });
 
-    render(await ClientGalleryRevealPage());
+    render(
+      <>
+        {await ClientGalleryRevealPage()}
+        <ClientNav />
+      </>,
+    );
 
     expect(screen.getByRole("heading", { name: "Suas fotos estão prontas" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Abrir minha galeria" })).toHaveAttribute(
       "href",
       "/minha-experiencia/galeria",
     );
+    expect(screen.getByRole("link", { name: "Reveal" })).toHaveAttribute("href", "/minha-experiencia/reveal");
     expect(screen.getByRole("img", { name: "Capa da sua galeria" })).toHaveAttribute(
       "src",
       expect.stringContaining("signed="),

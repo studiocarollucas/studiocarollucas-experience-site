@@ -89,7 +89,7 @@ Esta revisão preserva todas as tasks já concluídas e adiciona cobertura expl�
 | SCL-403 | Quiz de curadoria | P1 | site/admin | DONE | codex | SCL-009,SCL-102 |
 | SCL-404 | Persistência consentida da curadoria | P1 | site/client | BACKLOG | unassigned | SCL-403,SCL-101 |
 | SCL-500 | Schema Gallery | P1 | gallery | BACKLOG | unassigned | SCL-103 |
-| SCL-503 | Reveal | P1 | gallery | BACKLOG | unassigned | SCL-500,SCL-301 |
+| SCL-503 | Reveal | P1 | gallery | DONE | codex | SCL-500,SCL-301 |
 | SCL-250 | Funil de Leads no Admin | P1 | admin/commercial | BACKLOG | unassigned | SCL-101,SCL-200 |
 | SCL-251 | Ficha do Lead | P1 | admin/commercial | BACKLOG | unassigned | SCL-250 |
 | SCL-252 | Transição de estágio + auditoria | P1 | admin/commercial | BACKLOG | unassigned | SCL-101,SCL-107,SCL-251 |
@@ -2023,25 +2023,29 @@ Fazer o quiz gerar qualificação comercial persistível somente com consentimen
 
 ### SCL-503 — Reveal
 
-- Status: BACKLOG
+- Status: DONE
 - Priority: P1
 - Area: gallery/client
-- Owner: unassigned
-- Branch: —
+- Owner: codex
+- Branch: codex/gallery-reveal
 - PR: —
 - Depends on: SCL-500,SCL-502,SCL-301
 - Blocks: SCL-504,SCL-505,SCL-506,SCL-703
 - Files/Scope: client Reveal + gallery read model
 - Migration: no
-- Updated at: 2026-09-07 America/Manaus
+- Updated at: 2026-09-09 America/Manaus
 
 **Acceptance criteria**
 
-- [ ] experiência de abertura/reveal com mensagem/cover;
-- [ ] somente a cliente do Shoot publicado acessa;
-- [ ] mobile-first e acessível;
-- [ ] entra na galeria sem expor storage direto;
-- [ ] estado de entrega alimenta pós-venda/review.
+- [x] experiência de abertura/reveal com mensagem/cover;
+- [x] somente a cliente do Shoot publicado acessa;
+- [x] mobile-first e acessível;
+- [x] entra na galeria sem expor storage direto;
+- [x] estado de entrega alimenta pós-venda/review.
+
+**Blocker/Hand-off notes**
+
+SCL-504, SCL-505, SCL-506 e SCL-703 estão desbloqueadas, mas permanecem pendentes no backlog.
 
 ---
 
