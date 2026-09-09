@@ -107,7 +107,7 @@ Esta revisão preserva todas as tasks já concluídas e adiciona cobertura expl�
 | SCL-550 | Schema InventoryItem | P1 | inventory/db | BACKLOG | unassigned | SCL-005 |
 | SCL-551 | Mídia dos itens de acervo | P1 | inventory/storage | BACKLOG | unassigned | SCL-550 |
 | SCL-552 | CRUD Admin do Acervo | P1 | inventory/admin | BACKLOG | unassigned | SCL-550,SCL-551,SCL-200 |
-| SCL-553 | InventoryReservation + conflitos | P1 | inventory/db | BACKLOG | unassigned | SCL-103,SCL-550 |
+| SCL-553 | InventoryReservation + conflitos | P1 | inventory/db | DONE (742f545) | unassigned | SCL-103,SCL-550 |
 | SCL-554 | Seleção de figurinos/clutches pela cliente | P1 | inventory/client | BACKLOG | unassigned | SCL-305,SCL-553 |
 | SCL-555 | Styling ↔ itens reais reservados | P1 | inventory/client/admin | BACKLOG | unassigned | SCL-305,SCL-553 |
 | SCL-556 | Curadoria Paixão Clutch no Admin | P1 | inventory/admin | BACKLOG | unassigned | SCL-552 |
@@ -2215,14 +2215,14 @@ Criar fonte de verdade para o acervo físico do estúdio, incluindo Paixão Clut
 
 ### SCL-553 — InventoryReservation + conflitos
 
-- Status: BACKLOG
+- Status: DONE (merged in `742f545`)
 - Priority: P1
 - Area: inventory/db
 - Owner: unassigned
 - Branch: —
 - PR: —
 - Depends on: SCL-103,SCL-550
-- Blocks: SCL-554,SCL-555,SCL-558
+- Blocks: SCL-554,SCL-555,SCL-558 (unblocked; remain pending)
 - Files/Scope: reservation schema/domain, shoot integration
 - Migration: yes
 - Updated at: 2026-09-07 America/Manaus
