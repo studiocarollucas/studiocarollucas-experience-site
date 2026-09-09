@@ -2,7 +2,7 @@ import "server-only";
 
 import { and, desc, eq, gte, inArray, lte, sql } from "drizzle-orm";
 import { db } from "@/db/client";
-import { inventoryReservations, type InventoryReservation } from "@/db/schema";
+import { inventoryReservations, profiles, type InventoryReservation } from "@/db/schema";
 import { recordAuditEvent } from "@/domain/audit/service";
 import {
   createShootInventoryReservationSchema,
@@ -11,16 +11,40 @@ import {
 
 const blockingStatuses = ["pending", "confirmed"] as const;
 
+export class InventoryReservationConflictError extends Error {
+  constructor() {
+    super("conflito de reserva");
+    this.name = "InventoryReservationConflictError";
+  }
+}
+
+export function canonicalizeInventoryReservationLockId(id: string): string {
+  return id.toLowerCase();
+}
+
+async function requireInventoryReservationActor(actorUserId: string): Promise<void> {
+  const [actor] = await db
+    .select({ role: profiles.role })
+    .from(profiles)
+    .where(eq(profiles.id, actorUserId))
+    .limit(1);
+
+  if (!actor || (actor.role !== "staff" && actor.role !== "admin")) {
+    throw new Error("ator não autorizado para reservas de acervo");
+  }
+}
+
 export async function createShootInventoryReservation(
   input: CreateShootInventoryReservationInput,
   actorUserId: string,
 ): Promise<InventoryReservation> {
   const parsed = createShootInventoryReservationSchema.parse(input);
+  await requireInventoryReservationActor(actorUserId);
 
   return db.transaction(async (tx) => {
     // The lock is transaction-scoped, so concurrent reservations for this item
     // cannot both observe the same availability window before either inserts.
-    await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${parsed.inventoryItemId}))`);
+    await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${canonicalizeInventoryReservationLockId(parsed.inventoryItemId)}))`);
 
     const [conflict] = await tx
       .select({ id: inventoryReservations.id })
@@ -36,7 +60,7 @@ export async function createShootInventoryReservation(
       .limit(1);
 
     if (conflict && !parsed.overrideConflict) {
-      throw new Error("conflito de reserva");
+      throw new InventoryReservationConflictError();
     }
 
     const isApprovedOverride = Boolean(conflict && parsed.overrideConflict);
@@ -88,6 +112,8 @@ export async function cancelInventoryReservation(
   actorUserId: string,
   shootId: string,
 ): Promise<InventoryReservation> {
+  await requireInventoryReservationActor(actorUserId);
+
   return db.transaction(async (tx) => {
     const cancelledAt = new Date();
     const [reservation] = await tx

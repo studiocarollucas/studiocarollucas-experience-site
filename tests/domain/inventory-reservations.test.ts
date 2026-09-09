@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({
   execute: vi.fn(),
   select: vi.fn(),
+  transactionSelect: vi.fn(),
   insert: vi.fn(),
   update: vi.fn(),
   transaction: vi.fn(),
@@ -24,6 +25,7 @@ vi.mock("@/domain/audit/service", () => ({ recordAuditEvent: mocks.recordAuditEv
 
 import {
   cancelInventoryReservation,
+  canonicalizeInventoryReservationLockId,
   createShootInventoryReservation,
   listReservationsForShoot,
 } from "@/domain/inventory/reservations";
@@ -48,9 +50,17 @@ describe("inventory reservations", () => {
   beforeEach(() => {
     vi.resetAllMocks();
     mocks.transaction.mockImplementation(async (operation) =>
-      operation({ execute: mocks.execute, select: mocks.select, insert: mocks.insert, update: mocks.update }),
+      operation({ execute: mocks.execute, select: mocks.transactionSelect, insert: mocks.insert, update: mocks.update }),
     );
     mocks.select.mockReturnValue({
+      from: vi.fn().mockReturnValue({
+        where: vi.fn().mockReturnValue({
+          limit: vi.fn().mockResolvedValue([{ role: "staff" }]),
+          orderBy: vi.fn().mockResolvedValue([]),
+        }),
+      }),
+    });
+    mocks.transactionSelect.mockReturnValue({
       from: vi.fn().mockReturnValue({
         where: vi.fn().mockReturnValue({
           limit: vi.fn().mockResolvedValue([]),
@@ -81,8 +91,12 @@ describe("inventory reservations", () => {
     );
   });
 
+  it("uses one advisory lock identity for uppercase and lowercase UUID input", async () => {
+    expect(canonicalizeInventoryReservationLockId(inventoryItemId.toUpperCase())).toBe(inventoryItemId);
+  });
+
   it("rejects an inclusive pending or confirmed overlap without an explicit override", async () => {
-    mocks.select.mockReturnValueOnce({
+    mocks.transactionSelect.mockReturnValueOnce({
       from: vi.fn().mockReturnValue({
         where: vi.fn().mockReturnValue({ limit: vi.fn().mockResolvedValue([{ id: reservationId, status: "pending" }]) }),
       }),
@@ -94,7 +108,7 @@ describe("inventory reservations", () => {
   });
 
   it("requires a justification before an overlapping reservation can be overridden", async () => {
-    mocks.select.mockReturnValueOnce({
+    mocks.transactionSelect.mockReturnValueOnce({
       from: vi.fn().mockReturnValue({
         where: vi.fn().mockReturnValue({ limit: vi.fn().mockResolvedValue([{ id: reservationId, status: "confirmed" }]) }),
       }),
@@ -104,7 +118,7 @@ describe("inventory reservations", () => {
   });
 
   it("records the approver and reason for an explicitly approved conflict", async () => {
-    mocks.select.mockReturnValueOnce({
+    mocks.transactionSelect.mockReturnValueOnce({
       from: vi.fn().mockReturnValue({
         where: vi.fn().mockReturnValue({ limit: vi.fn().mockResolvedValue([{ id: reservationId, status: "confirmed" }]) }),
       }),
@@ -143,6 +157,30 @@ describe("inventory reservations", () => {
       expect.objectContaining({ action: "inventory_reservation.cancelled", actorUserId, entityId: reservationId }),
       expect.objectContaining({ update: mocks.update }),
     );
+  });
+
+  it.each(["client", undefined])("rejects a %s or missing actor before a reservation mutation", async (role) => {
+    mocks.select.mockReturnValueOnce({
+      from: vi.fn().mockReturnValue({
+        where: vi.fn().mockReturnValue({ limit: vi.fn().mockResolvedValue(role ? [{ role }] : []) }),
+      }),
+    });
+
+    await expect(createShootInventoryReservation(baseInput, actorUserId)).rejects.toThrow("não autorizado");
+    expect(mocks.transaction).not.toHaveBeenCalled();
+    expect(mocks.insert).not.toHaveBeenCalled();
+  });
+
+  it.each(["client", undefined])("rejects a %s or missing actor before a cancellation mutation", async (role) => {
+    mocks.select.mockReturnValueOnce({
+      from: vi.fn().mockReturnValue({
+        where: vi.fn().mockReturnValue({ limit: vi.fn().mockResolvedValue(role ? [{ role }] : []) }),
+      }),
+    });
+
+    await expect(cancelInventoryReservation(reservationId, actorUserId, shootId)).rejects.toThrow("não autorizado");
+    expect(mocks.transaction).not.toHaveBeenCalled();
+    expect(mocks.update).not.toHaveBeenCalled();
   });
 
   it("refuses an already cancelled or wrong-shoot reservation without another audit event", async () => {

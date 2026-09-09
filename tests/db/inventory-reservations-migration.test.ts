@@ -3,6 +3,7 @@ import path from "node:path";
 import { describe, expect, it } from "vitest";
 
 const migrationPath = path.resolve("db/migrations/0039_inventory_reservations.sql");
+const historyIndexMigrationPath = path.resolve("db/migrations/0040_inventory_reservations_history_index.sql");
 const sql = fs.existsSync(migrationPath) ? fs.readFileSync(migrationPath, "utf8") : "";
 const normalizedSql = sql.toLowerCase();
 
@@ -13,6 +14,10 @@ describe("inventory reservations migration", () => {
     expect(normalizedSql).toContain('create type "public"."inventory_reservation_status" as enum(\'pending\', \'confirmed\', \'cancelled\', \'released\')');
     expect(normalizedSql).toContain('constraint "inventory_reservations_dates_valid" check ("inventory_reservations"."ends_on" >= "inventory_reservations"."starts_on")');
     expect(normalizedSql).toContain('create index "inventory_reservations_blocking_item_dates_idx" on "inventory_reservations" using btree ("inventory_item_id","starts_on","ends_on") where "inventory_reservations"."status" in (\'pending\', \'confirmed\');');
+  });
+
+  it("indexes reservation history by shoot and start date", () => {
+    expect(fs.readFileSync(historyIndexMigrationPath, "utf8").toLowerCase()).toContain('create index "inventory_reservations_shoot_dates_idx" on "inventory_reservations" using btree ("shoot_id","starts_on");');
   });
 
   it("limits access to authenticated staff and protects enum access", () => {

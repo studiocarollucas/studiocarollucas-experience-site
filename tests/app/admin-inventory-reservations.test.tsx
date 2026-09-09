@@ -16,12 +16,14 @@ vi.mock("@/lib/auth/session", () => ({ getCurrentUser: mocks.getCurrentUser }));
 vi.mock("@/domain/inventory/reservations", () => ({
   createShootInventoryReservation: mocks.createReservation,
   cancelInventoryReservation: mocks.cancelReservation,
+  InventoryReservationConflictError: class InventoryReservationConflictError extends Error {},
 }));
 vi.mock("@/db/client", () => ({ db: { select: mocks.dbSelect } }));
 vi.mock("next/cache", () => ({ revalidatePath: mocks.revalidatePath }));
 
 import { createShootInventoryReservationAction } from "@/app/admin/(protected)/agenda/[id]/inventory-actions";
 import { InventoryReservations } from "@/components/admin/inventory-reservations";
+import { InventoryReservationConflictError } from "@/domain/inventory/reservations";
 import { getShootDetail } from "@/domain/shoots/queries";
 
 describe("shoot inventory reservations", () => {
@@ -37,6 +39,27 @@ describe("shoot inventory reservations", () => {
       fieldErrors: { inventoryItemId: expect.any(Array) },
     });
     expect(mocks.createReservation).not.toHaveBeenCalled();
+  });
+
+  it("returns actionable conflict guidance so staff can submit an explicit exception", async () => {
+    mocks.createReservation.mockRejectedValue(new InventoryReservationConflictError());
+
+    await expect(
+      createShootInventoryReservationAction({
+        shootId,
+        inventoryItemId: itemId,
+        startsOn: "2030-05-10",
+        endsOn: "2030-05-10",
+      }),
+    ).resolves.toEqual({
+      ok: false,
+      error: expect.stringMatching(/Registrar exceção por conflito/),
+      fieldErrors: {
+        overrideConflict: [expect.any(String)],
+        overrideReason: [expect.any(String)],
+      },
+    });
+    expect(mocks.revalidatePath).not.toHaveBeenCalled();
   });
 
   it("renders confirmed, cancelled, and exception reservation history", () => {

@@ -75,6 +75,7 @@ export const inventoryReservations = pgTable(
     index("inventory_reservations_blocking_item_dates_idx")
       .on(table.inventoryItemId, table.startsOn, table.endsOn)
       .where(sql`${table.status} in ('pending', 'confirmed')`),
+    index("inventory_reservations_shoot_dates_idx").on(table.shootId, table.startsOn),
   ],
 );
 
