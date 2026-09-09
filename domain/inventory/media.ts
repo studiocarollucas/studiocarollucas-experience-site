@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, asc, eq, sql } from "drizzle-orm";
+import { and, asc, eq, isNull, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { inventoryMedia } from "@/db/schema";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
@@ -242,7 +242,7 @@ export async function setInventoryMediaCover(input: unknown, actorUserId: string
       .select({ id: inventoryMedia.id })
       .from(inventoryMedia)
       .where(
-        and(eq(inventoryMedia.id, mediaId), eq(inventoryMedia.inventoryItemId, inventoryItemId))
+        and(eq(inventoryMedia.id, mediaId), eq(inventoryMedia.inventoryItemId, inventoryItemId), isNull(inventoryMedia.deletionRequestedAt))
       )
       .limit(1);
     if (!target) throw new Error("Mídia do inventário não encontrada.");
@@ -275,6 +275,20 @@ export async function setInventoryMediaCover(input: unknown, actorUserId: string
 export async function removeInventoryMedia(input: unknown, actorUserId: string): Promise<void> {
   const { inventoryItemId, mediaId } = removeInventoryMediaSchema.parse(input);
   await requireInventoryCatalogActor(actorUserId);
+  // Persist the intent first. A process crash or storage/DB outage after this
+  // commit leaves a hidden, retryable tombstone with the original object path.
+  await db.transaction(async (tx) => {
+    await lockItemMedia(tx, inventoryItemId);
+    const [media] = await tx.select().from(inventoryMedia).where(
+      and(eq(inventoryMedia.id, mediaId), eq(inventoryMedia.inventoryItemId, inventoryItemId))
+    ).limit(1);
+    if (!media || media.deletionRequestedAt) return;
+    const deletionRequestedAt = new Date();
+    await tx.update(inventoryMedia).set({ deletionRequestedAt, isCover: false }).where(eq(inventoryMedia.id, mediaId));
+    await recordAuditEvent({ actorUserId, action: "inventory_media.deletion_requested", entityType: "inventory_media",
+      entityId: mediaId, before: media, after: { ...media, deletionRequestedAt, isCover: false } }, tx);
+  });
+
   await db.transaction(async (tx) => {
     await lockItemMedia(tx, inventoryItemId);
     const [media] = await tx
@@ -284,7 +298,8 @@ export async function removeInventoryMedia(input: unknown, actorUserId: string):
         and(eq(inventoryMedia.id, mediaId), eq(inventoryMedia.inventoryItemId, inventoryItemId))
       )
       .limit(1);
-    if (!media) throw new Error("Mídia do inventário não encontrada.");
+    // Another retry may already have completed while this call waited for lock.
+    if (!media) return;
 
     try {
       const storage = await getInventoryMediaStorage();
@@ -321,7 +336,7 @@ export async function reorderInventoryMedia(input: unknown, actorUserId: string)
     const media = await tx
       .select({ id: inventoryMedia.id, sortOrder: inventoryMedia.sortOrder })
       .from(inventoryMedia)
-      .where(eq(inventoryMedia.inventoryItemId, inventoryItemId));
+      .where(and(eq(inventoryMedia.inventoryItemId, inventoryItemId), isNull(inventoryMedia.deletionRequestedAt)));
     const members = new Set(media.map((photo) => photo.id));
     if (mediaIds.length !== media.length || mediaIds.some((id) => !members.has(id)))
       throw new Error("A lista de fotos mudou. Atualize a página e tente novamente.");
@@ -352,7 +367,7 @@ export async function readInventoryMediaUrls(inventoryItemId: string) {
   const media = await db
     .select()
     .from(inventoryMedia)
-    .where(eq(inventoryMedia.inventoryItemId, id))
+    .where(and(eq(inventoryMedia.inventoryItemId, id), isNull(inventoryMedia.deletionRequestedAt)))
     .orderBy(asc(inventoryMedia.sortOrder), asc(inventoryMedia.createdAt));
   if (media.length === 0) return [];
 

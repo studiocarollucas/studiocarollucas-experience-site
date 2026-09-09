@@ -30,6 +30,9 @@ vi.mock("@/domain/inventory/catalog", () => ({
 vi.mock("@/domain/inventory/import", () => ({
   previewInventoryImport: mocks.preview,
   commitInventoryImport: mocks.commit,
+  InventoryImportConfigurationError: class InventoryImportConfigurationError extends Error {
+    constructor() { super("Importação indisponível: configure INVENTORY_IMPORT_TOKEN_SECRET."); }
+  },
 }));
 vi.mock("@/domain/inventory/media", () => ({
   uploadInventoryMedia: mocks.upload,
@@ -59,6 +62,7 @@ import { InventoryImport } from "@/components/admin/inventory-import";
 import { AdminNav } from "@/components/admin/admin-nav";
 import { PgDialect } from "drizzle-orm/pg-core";
 import { InventoryCatalog } from "@/components/admin/inventory-catalog";
+import { InventoryImportConfigurationError } from "@/domain/inventory/import";
 
 const id = "00000000-0000-4000-8000-000000000002";
 const item = {
@@ -78,6 +82,11 @@ const item = {
 };
 
 describe("admin inventory catalog", () => {
+  it("distinguishes missing import configuration from a malformed spreadsheet", async () => {
+    mocks.preview.mockRejectedValueOnce(new InventoryImportConfigurationError());
+    const result = await actions.previewInventoryImportAction({ file: new File(["xlsx"], "acervo.xlsx") });
+    expect(result).toMatchObject({ ok: false, error: expect.stringMatching(/INVENTORY_IMPORT_TOKEN_SECRET/) });
+  });
   it("keeps the interactive clear control behind a client-component boundary", () => {
     const catalogSource = readFileSync(
       resolve(process.cwd(), "components/admin/inventory-catalog.tsx"),

@@ -1,5 +1,5 @@
 // @vitest-environment node
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as XLSX from "xlsx";
 
 const mocks = vi.hoisted(() => ({
@@ -43,12 +43,61 @@ function spreadsheet(rows: Record<string, unknown>[]) {
 describe("inventory spreadsheet import", () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    vi.stubEnv("INVENTORY_IMPORT_TOKEN_SECRET", "test-only-stable-secret-at-least-32-characters");
     mocks.select.mockReturnValue(codeResult([]));
     mocks.transaction.mockImplementation(async (operation) =>
       operation({ select: mocks.transactionSelect, insert: mocks.insert }),
     );
     mocks.transactionSelect.mockReturnValue(codeResult([]));
     mocks.recordAuditEvent.mockResolvedValue({ id: "audit-id" });
+  });
+  afterEach(() => { vi.unstubAllEnvs(); vi.useRealTimers(); });
+
+  it("uses a patched official SheetJS distribution", () => {
+    const [major, minor, patch] = XLSX.version.split(".").map(Number);
+    expect(major > 0 || minor > 20 || (minor === 20 && patch >= 2)).toBe(true);
+  });
+
+  it("confirms a preview after the server module restarts", async () => {
+    const preview = await previewInventoryImport(spreadsheet([{ codigo: "OK", nome: "Vestido", tipo: "outfit" }]));
+    vi.resetModules();
+    const freshServer = await import("@/domain/inventory/import");
+    mocks.select.mockReturnValue(roleResult("staff"));
+    mocks.insert.mockReturnValue({ values: () => ({ returning: async () => [{ id: "new", code: "OK" }] }) });
+    await expect(freshServer.commitInventoryImport(preview.previewToken, [2], actorUserId)).resolves.toEqual({ created: 1 });
+  });
+
+  it("reports actual worksheet row numbers across blank rows", async () => {
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet([
+      ["codigo", "nome", "tipo"], ["A", "Vestido", "outfit"], [], [], ["B", "", "clutch"],
+    ]), "Acervo");
+    const preview = await previewInventoryImport(new File([XLSX.write(workbook, { type: "array", bookType: "xlsx" })], "test.xlsx"));
+    expect(preview.rows.map((row) => row.rowNumber)).toEqual([2, 5]);
+    expect(preview.rows[1].errors).toContain("nome é obrigatório");
+  });
+
+  it("fails clearly without a stable signing secret", async () => {
+    vi.stubEnv("INVENTORY_IMPORT_TOKEN_SECRET", "");
+    await expect(previewInventoryImport(spreadsheet([]))).rejects.toThrow(/INVENTORY_IMPORT_TOKEN_SECRET/);
+  });
+
+  it("rejects altered and expired tokens before a transaction", async () => {
+    const preview = await previewInventoryImport(spreadsheet([{ codigo: "OK", nome: "Vestido", tipo: "outfit" }]));
+    mocks.select.mockReturnValue(roleResult("staff"));
+    await expect(commitInventoryImport(`${preview.previewToken}x`, [2], actorUserId)).rejects.toThrow(/inválida/);
+    vi.useFakeTimers();
+    vi.setSystemTime(Date.now() + 16 * 60 * 1000);
+    await expect(commitInventoryImport(preview.previewToken, [2], actorUserId)).rejects.toThrow(/expirada/);
+    expect(mocks.transaction).not.toHaveBeenCalled();
+  });
+
+  it("bounds preview rows and signed payload size", async () => {
+    await expect(previewInventoryImport(spreadsheet(Array.from({ length: 501 }, (_, i) => ({ codigo: `A${i}`, nome: "Vestido", tipo: "outfit" }))))).rejects.toThrow(/limite/i);
+    await expect(previewInventoryImport(spreadsheet(Array.from({ length: 100 }, (_, i) => ({ codigo: `B${i}`, nome: "Vestido", tipo: "outfit", descricao: "x".repeat(10000) }))))).rejects.toThrow(/limite/i);
+    mocks.select.mockReturnValue(roleResult("staff"));
+    await expect(commitInventoryImport("x".repeat(800000), [2], actorUserId)).rejects.toThrow(/inválida/);
+    expect(mocks.transaction).not.toHaveBeenCalled();
   });
 
   it("creates a workbook with the exact import columns, an Acervo sheet, and instructions", () => {

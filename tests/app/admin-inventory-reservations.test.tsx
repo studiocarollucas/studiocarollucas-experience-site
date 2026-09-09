@@ -18,6 +18,7 @@ vi.mock("@/domain/inventory/reservations", () => ({
   createShootInventoryReservation: mocks.createReservation,
   cancelInventoryReservation: mocks.cancelReservation,
   InventoryReservationConflictError: class InventoryReservationConflictError extends Error {},
+  InventoryItemUnavailableError: class InventoryItemUnavailableError extends Error {},
 }));
 vi.mock("@/db/client", () => ({ db: { select: mocks.dbSelect } }));
 vi.mock("next/cache", () => ({ revalidatePath: mocks.revalidatePath }));
@@ -25,10 +26,16 @@ vi.mock("@/domain/inventory/queries", () => ({ searchReservableInventoryItems: m
 
 import { createShootInventoryReservationAction } from "@/app/admin/(protected)/agenda/[id]/inventory-actions";
 import { InventoryReservations } from "@/components/admin/inventory-reservations";
-import { InventoryReservationConflictError } from "@/domain/inventory/reservations";
+import { InventoryReservationConflictError, InventoryItemUnavailableError } from "@/domain/inventory/reservations";
 import { getShootDetail } from "@/domain/shoots/queries";
 
 describe("shoot inventory reservations", () => {
+  it("returns actionable feedback if the selected catalog item became unavailable", async () => {
+    mocks.createReservation.mockRejectedValueOnce(new InventoryItemUnavailableError());
+    const result = await createShootInventoryReservationAction({ shootId, inventoryItemId: itemId, startsOn: "2030-05-10", endsOn: "2030-05-10" });
+    expect(result).toMatchObject({ ok: false, error: expect.stringMatching(/indisponível/), fieldErrors: { inventoryItemId: [expect.stringMatching(/Selecione/)] } });
+    expect(mocks.revalidatePath).not.toHaveBeenCalled();
+  });
   it("selects the last search result on ArrowUp before any selection", async () => {
     mocks.search.mockResolvedValue([
       { id: itemId, code: "CL-01", name: "Primeiro", type: "clutch", status: "available" },

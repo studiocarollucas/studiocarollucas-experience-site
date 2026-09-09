@@ -1,6 +1,6 @@
 import "server-only";
 
-import { createHmac, randomUUID, timingSafeEqual } from "node:crypto";
+import { createHmac, timingSafeEqual } from "node:crypto";
 import { inArray } from "drizzle-orm";
 import * as XLSX from "xlsx";
 import { db } from "@/db/client";
@@ -39,33 +39,59 @@ type StoredPreview = {
   rows: InventoryImportPreviewRow[];
 };
 
-const previewStore = new Map<string, StoredPreview>();
 const previewLifetimeMs = 15 * 60 * 1000;
-const previewTokenSecret = process.env.INVENTORY_IMPORT_TOKEN_SECRET ?? randomUUID();
+const maxPreviewBytes = 512 * 1024;
+const maxTokenLength = Math.ceil(maxPreviewBytes / 3) * 4 + 44;
+const maxImportRows = 500;
 
-function signPreview(id: string, expiresAt: number): string {
-  return createHmac("sha256", previewTokenSecret).update(`${id}.${expiresAt}`).digest("base64url");
+export class InventoryImportConfigurationError extends Error {
+  constructor() {
+    super("Importação indisponível: configure INVENTORY_IMPORT_TOKEN_SECRET com pelo menos 32 bytes em todas as instâncias.");
+    this.name = "InventoryImportConfigurationError";
+  }
 }
 
-function createPreviewToken(id: string, expiresAt: number): string {
-  return `${id}.${expiresAt}.${signPreview(id, expiresAt)}`;
+function previewSecret(): string {
+  const secret = process.env.INVENTORY_IMPORT_TOKEN_SECRET;
+  if (!secret || Buffer.byteLength(secret) < 32) {
+    throw new InventoryImportConfigurationError();
+  }
+  return secret;
+}
+
+function signPreview(payload: string): string {
+  return createHmac("sha256", previewSecret()).update(`inventory-import:v1:${payload}`).digest("base64url");
+}
+
+function createPreviewToken(preview: StoredPreview): string {
+  const bytes = Buffer.from(JSON.stringify({ version: 1, ...preview }));
+  if (bytes.length > maxPreviewBytes) throw new Error("a prévia excede o limite de 512 KiB; divida o arquivo");
+  const payload = bytes.toString("base64url");
+  return `${payload}.${signPreview(payload)}`;
 }
 
 function readPreviewToken(token: string): StoredPreview {
-  const [id, expiresAtText, signature, ...rest] = token.split(".");
-  const expiresAt = Number(expiresAtText);
-  if (!id || !signature || rest.length || !Number.isSafeInteger(expiresAt) || expiresAt <= Date.now()) {
+  if (typeof token !== "string" || token.length > maxTokenLength) {
     throw new Error("prévia de importação expirada ou inválida");
   }
-  const expected = signPreview(id, expiresAt);
+  const [payload, signature, ...rest] = token.split(".");
+  if (!payload || !signature || rest.length || !/^[A-Za-z0-9_-]+$/.test(payload)) {
+    throw new Error("prévia de importação expirada ou inválida");
+  }
+  const expected = signPreview(payload);
   const signatureBuffer = Buffer.from(signature);
   const expectedBuffer = Buffer.from(expected);
   if (signatureBuffer.length !== expectedBuffer.length || !timingSafeEqual(signatureBuffer, expectedBuffer)) {
     throw new Error("prévia de importação expirada ou inválida");
   }
-  const preview = previewStore.get(id);
-  if (!preview || preview.expiresAt !== expiresAt) throw new Error("prévia de importação expirada ou inválida");
-  return preview;
+  try {
+    const preview = JSON.parse(Buffer.from(payload, "base64url").toString("utf8"));
+    if (preview.version !== 1 || !Number.isSafeInteger(preview.expiresAt) || preview.expiresAt <= Date.now() ||
+        !Array.isArray(preview.rows) || preview.rows.length > maxImportRows) throw new Error();
+    return preview;
+  } catch {
+    throw new Error("prévia de importação expirada ou inválida");
+  }
 }
 
 function stringValue(value: unknown): string {
@@ -121,12 +147,17 @@ async function findExistingCodes(codes: string[]): Promise<Map<string, Inventory
 }
 
 export async function previewInventoryImport(file: File): Promise<InventoryImportPreview> {
-  const workbook = XLSX.read(await file.arrayBuffer(), { type: "array" });
+  previewSecret();
+  if (file.size > 4 * 1024 * 1024) throw new Error("o arquivo excede o limite de 4 MiB");
+  const workbook = XLSX.read(await file.arrayBuffer(), { type: "array", sheetRows: 10002 });
   const worksheet = workbook.Sheets.Acervo;
   if (!worksheet) throw new Error("a planilha deve conter a aba Acervo");
+  const range = worksheet["!fullref"] ?? worksheet["!ref"];
+  if (range && XLSX.utils.decode_range(range).e.r > 10000) throw new Error("a planilha excede o limite de 10000 linhas");
   const sourceRows = XLSX.utils.sheet_to_json<Record<string, unknown>>(worksheet, { defval: "", raw: false });
-  const rows = sourceRows.map((source, index) => ({
-    rowNumber: index + 2,
+  if (sourceRows.length > maxImportRows) throw new Error("o arquivo excede o limite de 500 itens");
+  const rows = sourceRows.map((source) => ({
+    rowNumber: Number(source.__rowNum__) + 1,
     input: normalizeRow(Object.fromEntries(inventoryImportColumns.map((column) => [column, source[column]]))),
     errors: [] as string[],
   }));
@@ -148,10 +179,8 @@ export async function previewInventoryImport(file: File): Promise<InventoryImpor
       ...(existing ? { existingItemId: existing.id, errors: [...row.errors, "código já cadastrado"] } : {}),
     };
   });
-  const id = randomUUID();
   const expiresAt = Date.now() + previewLifetimeMs;
-  previewStore.set(id, { expiresAt, rows: previewRows });
-  return { previewToken: createPreviewToken(id, expiresAt), rows: previewRows };
+  return { previewToken: createPreviewToken({ expiresAt, rows: previewRows }), rows: previewRows };
 }
 
 export async function commitInventoryImport(

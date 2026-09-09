@@ -90,6 +90,7 @@ export const inventoryMedia = pgTable(
     sortOrder: integer("sort_order").notNull().default(0),
     isCover: boolean("is_cover").notNull().default(false),
     publishable: boolean("publishable").notNull().default(false),
+    deletionRequestedAt: timestamp("deletion_requested_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [

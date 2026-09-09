@@ -1,5 +1,6 @@
 // @vitest-environment node
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { PgDialect } from "drizzle-orm/pg-core";
 
 const mocks = vi.hoisted(() => ({
   audit: vi.fn(),
@@ -97,6 +98,9 @@ beforeEach(() => {
     })
   );
   configureUploadFixture();
+  mocks.updateWhere.mockResolvedValue([]);
+  mocks.updateSet.mockReturnValue({ where: mocks.updateWhere });
+  mocks.update.mockReturnValue({ set: mocks.updateSet });
 });
 
 describe("inventory media lifecycle", () => {
@@ -217,7 +221,7 @@ describe("inventory media lifecycle", () => {
     expect(transactionUpdateWhere).toHaveBeenCalledTimes(2);
   });
 
-  it("removes the private object before its metadata", async () => {
+  it("commits a deletion request before removing the private object and metadata", async () => {
     const media = {
       id: MEDIA_ID,
       inventoryItemId: ITEM_ID,
@@ -245,9 +249,40 @@ describe("inventory media lifecycle", () => {
     );
 
     expect(mocks.remove).toHaveBeenCalledWith([media.storagePath]);
+    expect(mocks.updateSet).toHaveBeenCalledWith(expect.objectContaining({ deletionRequestedAt: expect.any(Date), isCover: false }));
+    expect(mocks.update.mock.invocationCallOrder[0]).toBeLessThan(mocks.remove.mock.invocationCallOrder[0]);
     expect(mocks.delete.mock.invocationCallOrder[0]).toBeGreaterThan(
       mocks.remove.mock.invocationCallOrder[0]
     );
+  });
+
+  it.each(["audit", "delete", "commit"])("keeps durable deletion state when %s fails after physical removal and completes on retry", async (failure) => {
+    let persisted: Record<string, unknown> | null = { id: MEDIA_ID, inventoryItemId: ITEM_ID, storagePath: `inventory-media/${ITEM_ID}/${MEDIA_ID}.png`, deletionRequestedAt: null, isCover: true };
+    let objectExists = true;
+    let fail = true;
+    mocks.remove.mockImplementation(async () => { objectExists = false; return { data: [], error: null }; });
+    mocks.audit.mockImplementation(async (event) => {
+      if (fail && failure === "audit" && event.action === "inventory_media.removed") throw new Error("audit unavailable");
+    });
+    mocks.transaction.mockImplementation(async (operation) => {
+      let row = persisted ? { ...persisted } : null;
+      const result = await operation({
+        execute: async () => {},
+        select: () => ({ from: () => ({ where: () => ({ limit: async () => row ? [row] : [] }) }) }),
+        update: () => ({ set: (patch: Record<string, unknown>) => ({ where: async () => { row = { ...row, ...patch }; } }) }),
+        delete: () => ({ where: async () => { if (fail && failure === "delete") throw new Error("delete unavailable"); row = null; } }),
+      });
+      if (fail && failure === "commit" && !objectExists) throw new Error("commit unavailable");
+      persisted = row;
+      return result;
+    });
+    await expect(removeInventoryMedia({ inventoryItemId: ITEM_ID, mediaId: MEDIA_ID }, "staff-1")).rejects.toThrow();
+    expect(objectExists).toBe(false);
+    expect(persisted).toMatchObject({ deletionRequestedAt: expect.any(Date), isCover: false });
+    fail = false;
+    await removeInventoryMedia({ inventoryItemId: ITEM_ID, mediaId: MEDIA_ID }, "staff-1");
+    expect(persisted).toBeNull();
+    expect(mocks.remove).toHaveBeenCalledTimes(2);
   });
 
   it("compensates reserved metadata when an upload fails", async () => {
@@ -335,6 +370,7 @@ describe("inventory media lifecycle", () => {
         signedUrl: expect.any(String),
       },
     ]);
+    expect(new PgDialect().sqlToQuery(mocks.selectWhere.mock.calls[0][0]).sql).toContain('"deletion_requested_at" is null');
     expect(mocks.createSignedUrls).toHaveBeenCalledWith(
       media.map((item) => item.storagePath),
       60 * 10

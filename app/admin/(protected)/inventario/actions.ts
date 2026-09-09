@@ -12,7 +12,7 @@ import {
   createInventoryItemSchema,
   updateInventoryItemSchema,
 } from "@/domain/inventory/catalog-schema";
-import { previewInventoryImport, commitInventoryImport } from "@/domain/inventory/import";
+import { previewInventoryImport, commitInventoryImport, InventoryImportConfigurationError } from "@/domain/inventory/import";
 import {
   uploadInventoryMedia,
   setInventoryMediaCover,
@@ -91,7 +91,10 @@ export const previewInventoryImportAction = defineAdminAction(
   async ({ file }) => {
     try {
       return await previewInventoryImport(file);
-    } catch {
+    } catch (error) {
+      if (error instanceof InventoryImportConfigurationError) {
+        throw new ActionableAdminActionError(error.message);
+      }
       throw new ActionableAdminActionError(
         "Não foi possível ler a planilha. Use o modelo XLSX com a aba Acervo e tente novamente.",
         { file: ["Confira o formato e a aba Acervo."] }
@@ -115,6 +118,9 @@ export const commitInventoryImportAction = defineAdminAction(
     try {
       result = await commitInventoryImport(previewToken, selectedRowNumbers, ctx.user.id);
     } catch (error) {
+      if (error instanceof InventoryImportConfigurationError) {
+        throw new ActionableAdminActionError(error.message);
+      }
       if (
         error instanceof Error &&
         [

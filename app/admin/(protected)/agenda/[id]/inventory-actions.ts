@@ -9,6 +9,7 @@ import {
   cancelInventoryReservation,
   createShootInventoryReservation,
   InventoryReservationConflictError,
+  InventoryItemUnavailableError,
 } from "@/domain/inventory/reservations";
 
 export const createShootInventoryReservationAction = defineAdminAction(
@@ -25,6 +26,12 @@ export const createShootInventoryReservationAction = defineAdminAction(
     try {
       reservation = await createShootInventoryReservation(input, ctx.user.id);
     } catch (err) {
+      if (err instanceof InventoryItemUnavailableError) {
+        throw new ActionableAdminActionError(
+          "Este item está indisponível para reserva. Atualize a busca e selecione outro item.",
+          { inventoryItemId: ["Selecione um item ativo e disponível."] }
+        );
+      }
       if (err instanceof InventoryReservationConflictError) {
         throw new ActionableAdminActionError(
           'O item já está reservado neste período. Marque "Registrar exceção por conflito" e informe o motivo para continuar.',

@@ -9,6 +9,7 @@ const mocks = vi.hoisted(() => ({
   update: vi.fn(),
   transaction: vi.fn(),
   recordAuditEvent: vi.fn(),
+  itemFor: vi.fn(),
 }));
 
 vi.mock("@/db/client", () => ({
@@ -29,6 +30,7 @@ import {
   createShootInventoryReservation,
   listReservationsForShoot,
 } from "@/domain/inventory/reservations";
+import { inventoryItems } from "@/db/schema";
 
 const inventoryItemId = "a0b1c2d3-e4f5-4000-8000-000000000001";
 const shootId = "00000000-0000-4000-8000-000000000002";
@@ -50,8 +52,11 @@ describe("inventory reservations", () => {
   beforeEach(() => {
     vi.resetAllMocks();
     mocks.transaction.mockImplementation(async (operation) =>
-      operation({ execute: mocks.execute, select: mocks.transactionSelect, insert: mocks.insert, update: mocks.update }),
+      operation({ execute: mocks.execute, select: (...args: unknown[]) => ({ from: (table: unknown) => table === inventoryItems
+        ? { where: () => ({ limit: () => ({ for: mocks.itemFor }) }) }
+        : mocks.transactionSelect(...args).from(table) }), insert: mocks.insert, update: mocks.update }),
     );
+    mocks.itemFor.mockResolvedValue([{ id: inventoryItemId, active: true, status: "available" }]);
     mocks.select.mockReturnValue({
       from: vi.fn().mockReturnValue({
         where: vi.fn().mockReturnValue({
@@ -75,11 +80,26 @@ describe("inventory reservations", () => {
     mocks.recordAuditEvent.mockResolvedValue({ id: "00000000-0000-4000-8000-000000000005" });
   });
 
+  it.each([
+    [{ active: false, status: "available" }],
+    [{ active: true, status: "maintenance" }],
+    [{ active: true, status: "retired" }],
+    [],
+  ])("rejects a now ineligible catalog item under a row lock: %j", async (...items) => {
+    mocks.itemFor.mockResolvedValue(items);
+    await expect(createShootInventoryReservation({ ...baseInput, overrideConflict: true, overrideReason: "Produção aprovou" }, actorUserId)).rejects.toThrow(/item.*indisponível/i);
+    expect(mocks.itemFor).toHaveBeenCalledWith("update");
+    expect(mocks.insert).not.toHaveBeenCalled();
+    expect(mocks.recordAuditEvent).not.toHaveBeenCalled();
+  });
+
   it("confirms a non-conflicting shoot reservation and writes its audit event in the transaction", async () => {
     await expect(createShootInventoryReservation(baseInput, actorUserId)).resolves.toMatchObject({ status: "confirmed" });
 
     expect(mocks.transaction).toHaveBeenCalledOnce();
     expect(mocks.execute).toHaveBeenCalledOnce();
+    expect(mocks.itemFor).toHaveBeenCalledWith("update");
+    expect(mocks.itemFor.mock.invocationCallOrder[0]).toBeLessThan(mocks.insert.mock.invocationCallOrder[0]);
     expect(mocks.recordAuditEvent).toHaveBeenCalledWith(
       expect.objectContaining({
         actorUserId,
