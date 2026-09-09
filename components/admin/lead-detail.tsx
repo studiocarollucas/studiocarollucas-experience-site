@@ -3,6 +3,8 @@
 import { useActionState } from "react";
 import { transitionLeadStatusAction } from "@/app/admin/(protected)/leads/[id]/actions";
 import { Badge } from "@/components/ui/badge";
+import { LeadConversion } from "@/components/admin/lead-conversion";
+import type { ClientCandidate } from "@/domain/leads/conversion";
 import type { LeadDetail as LeadDetailData } from "@/domain/leads/detail";
 import { canTransitionLeadStatus } from "@/domain/leads/status";
 import { leadStatusValues } from "@/domain/leads/schema";
@@ -13,7 +15,15 @@ function formatTimestamp(value: string | Date) {
   return formatDateTime(value instanceof Date ? value.toISOString() : value);
 }
 
-export function LeadDetail({ lead }: { lead: LeadDetailData }) {
+export function LeadDetail({
+  lead,
+  candidates = [],
+  packages = [],
+}: {
+  lead: LeadDetailData;
+  candidates?: ClientCandidate[];
+  packages?: { id: string; name: string; familyName: string }[];
+}) {
   const nextStatuses = leadStatusValues.filter((status) => canTransitionLeadStatus(lead.status, status));
   const [state, formAction] = useActionState(toFormAction(transitionLeadStatusAction), null as ActionResult<{ id: string }> | null);
 
@@ -37,6 +47,8 @@ export function LeadDetail({ lead }: { lead: LeadDetailData }) {
       </section>
 
       {lead.lostReason ? <p className="font-sans text-sm text-muted">Motivo da perda: {lead.lostReason}</p> : null}
+
+      {lead.status === "ganho" ? <LeadConversion leadId={lead.id} candidates={candidates} packages={packages} /> : null}
 
       {nextStatuses.length ? (
         <section className="border border-line p-5">
