@@ -39,7 +39,7 @@ Inativar o item, mudá-lo para status indisponível/manutenção, ou removê-lo 
 
 ## Regras operacionais
 
-Reservas continuam sendo a fonte única para conflitos e disponibilidade. A curadoria não cria reservas nem altera suas regras. Uma vitrine pública poderá mostrar preço de aluguel e estado de disponibilidade, mas uma transação de aluguel, pagamento, caução, dano ou extravio fica explicitamente fora deste escopo e será tratada por SCL-558.
+Reservas continuam sendo a fonte única para conflitos e disponibilidade. A curadoria não cria reservas nem altera suas regras. Para reservas com finalidade `rental`, a equipe informa manualmente a data de início e a data prevista de devolução; a devolução não pode anteceder o início e todo o intervalo bloqueia disponibilidade. Uma vitrine pública poderá mostrar preço de aluguel e estado de disponibilidade, mas checkout, pagamento, caução, dano, extravio e a baixa de devolução efetiva ficam explicitamente fora deste escopo e serão tratados por SCL-558.
 
 ## Testes e aceitação
 
@@ -49,8 +49,9 @@ Reservas continuam sendo a fonte única para conflitos e disponibilidade. A cura
 - preço de reposição não alcança projeções públicas;
 - reordenação é transacional e limitada aos itens publicados da curadoria;
 - disponibilidade apresentada deriva de reservas, incluindo conflito e item indisponível;
+- uma reserva de aluguel exige data prevista de devolução válida e bloqueia o intervalo completo;
 - toda mutação sensível gera auditoria.
 
 ## Fora do escopo
 
-Não haverá página pública, checkout, contrato de locação, pagamento, depósito/caução, cobrança por dano, registro de sinistro ou mídia pública automática nesta entrega.
+Não haverá página pública, checkout, contrato de locação, pagamento, depósito/caução, cobrança por dano, registro de sinistro, baixa de devolução efetiva ou mídia pública automática nesta entrega.
