@@ -23,7 +23,7 @@ import {
 
 type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
-async function lockClutch(tx: Transaction, itemId: string) {
+async function lockItem(tx: Transaction, itemId: string) {
   await lockCuration(tx);
   const [item] = await tx
     .select()
@@ -32,6 +32,11 @@ async function lockClutch(tx: Transaction, itemId: string) {
     .limit(1)
     .for("update");
   if (!item) throw new Error("Item de acervo inexistente.");
+  return item;
+}
+
+async function lockClutch(tx: Transaction, itemId: string) {
+  const item = await lockItem(tx, itemId);
   if (item.type !== "clutch") throw new Error("Somente clutches podem ter imagem pública.");
   return item;
 }
@@ -52,7 +57,7 @@ export class PublicInventoryMediaError extends Error {
 // audit, DB commit, or process crash keeps a path that staff can retry removing.
 async function cleanupMedia(itemId: string, actorUserId: string, pendingId?: string) {
   await db.transaction(async (tx) => {
-    await lockClutch(tx, itemId);
+    await lockItem(tx, itemId);
     const targets = await tx
       .select()
       .from(inventoryPublicMedia)
@@ -241,7 +246,7 @@ export async function removeInventoryPublicMedia(
   const { itemId } = removeInventoryPublicMediaSchema.parse(input);
   await requireInventoryCatalogActor(actorUserId);
   await db.transaction(async (tx) => {
-    const before = await lockClutch(tx, itemId);
+    const before = await lockItem(tx, itemId);
     await tx
       .update(inventoryItems)
       .set({

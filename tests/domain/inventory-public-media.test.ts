@@ -219,7 +219,7 @@ describe("public clutch media lifecycle", () => {
     expect(rows.inventory_public_media).toHaveLength(1);
     expect(mocks.remove).toHaveBeenCalledWith([first.storagePath]);
   });
-  it("despublishes before storage removal and keeps deletion retryable on failure", async () => {
+  it("cleans up retryable public media after the item changes type", async () => {
     await clutch.uploadInventoryPublicMedia({ itemId, file: jpeg() }, actorId);
     rows.inventory_items[0].paixaoClutchPublished = true;
     mocks.remove.mockImplementationOnce(async () => {
@@ -231,6 +231,7 @@ describe("public clutch media lifecycle", () => {
     });
     await expect(clutch.removeInventoryPublicMedia({ itemId }, actorId)).rejects.toThrow();
     expect(rows.inventory_public_media[0].state).toBe("deleting");
+    rows.inventory_items[0].type = "outfit";
     await clutch.removeInventoryPublicMedia({ itemId }, actorId);
     expect(rows.inventory_public_media).toEqual([]);
     expect(mocks.audit).toHaveBeenCalledWith(
