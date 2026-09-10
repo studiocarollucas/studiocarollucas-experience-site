@@ -2323,7 +2323,9 @@ Criar fonte de verdade para o acervo físico do estúdio, incluindo Paixão Clut
 
 **Blocker/Hand-off notes**
 
-- desbloqueada para planejamento após o merge de SCL-552; permanece pendente de implementação.
+- implementação concluída nesta branch, mas permanece `BACKLOG` até a validação integrada concluir;
+- em 2026-09-10, testes direcionados (56), typecheck e lint passaram; o build foi bloqueado pelo ambiente ao buscar as fontes Google Cormorant Garamond e Jost;
+- não promover para `MERGE_READY` enquanto `npm run build` não concluir com sucesso.
 
 ---
 
