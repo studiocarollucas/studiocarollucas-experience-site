@@ -5,20 +5,12 @@ const money = z
   .regex(/^\d+(\.\d{1,2})?$/, "informe um valor decimal não negativo")
   .refine((value) => Number(value) <= 99999999.99, "O valor máximo é 99999999.99.");
 
-// Canonical, same-origin static asset reference, separate from inventory-media.
-// No URL signing, private object lookup, decoding or automatic media promotion.
-export const paixaoClutchPublicImagePathSchema = z.string().max(200).regex(
-  /^\/images\/paixao-clutch\/[a-z0-9][a-z0-9_-]*\.(?:jpg|jpeg|png|webp)$/,
-  "Use /images/paixao-clutch/nome-do-arquivo.jpg (ou png/webp), de uma imagem pública própria.",
-);
-
 export const updatePaixaoClutchSchema = z.object({
   itemId: z.string().uuid(),
   eligible: z.boolean(),
   rentalPrice: money.optional(),
   replacementValue: money.optional(),
   copy: z.string().trim().max(280).optional(),
-  publicImagePath: paixaoClutchPublicImagePathSchema.optional(),
   published: z.boolean(),
   featured: z.boolean(),
 }).strict();
@@ -39,3 +31,11 @@ export type PaixaoClutchAdminFilters = {
   published?: boolean;
   featured?: boolean;
 };
+
+export const publicInventoryMediaFileSchema = z.object({
+  type: z.enum(["image/jpeg", "image/png", "image/webp"]),
+  size: z.number().positive().max(4 * 1024 * 1024, "A imagem pública deve ter até 4 MB."),
+});
+export const uploadInventoryPublicMediaSchema = z.object({ itemId: z.string().uuid(), file: publicInventoryMediaFileSchema }).strict();
+export const promoteInventoryMediaSchema = z.object({ itemId: z.string().uuid(), mediaId: z.string().uuid() }).strict();
+export const removeInventoryPublicMediaSchema = z.object({ itemId: z.string().uuid() }).strict();

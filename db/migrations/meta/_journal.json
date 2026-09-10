@@ -316,6 +316,13 @@
       "when": 1789061492672,
       "tag": "0044_paixao_clutch_eligibility",
       "breakpoints": true
+    },
+    {
+      "idx": 45,
+      "version": "7",
+      "when": 1789074248878,
+      "tag": "0045_paixao_clutch_public_media",
+      "breakpoints": true
     }
   ]
 }
