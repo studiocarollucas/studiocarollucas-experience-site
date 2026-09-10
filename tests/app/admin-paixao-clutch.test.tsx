@@ -248,4 +248,18 @@ describe("Paixão Clutch admin curation", () => {
     expect(screen.getByLabelText("Publicar na Paixão Clutch")).not.toBeChecked();
     expect(screen.getByLabelText("Copy curta")).toHaveValue("Texto ainda não salvo");
   });
+
+  it("keeps removal feedback and retry available when a published-only RSC refresh drops a failed item", async () => {
+    mocks.remove.mockRejectedValueOnce(new Error("cleanup down"));
+    const { rerender } = render(<PaixaoClutchCatalog items={[{ ...catalogClutch, published: true }]} filters={{ published: true }} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Remover imagem pública" }));
+    await waitFor(() => expect(mocks.remove).toHaveBeenCalledWith({ itemId: id }, "staff-1"));
+
+    rerender(<PaixaoClutchCatalog items={[]} filters={{ published: true }} />);
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("Não foi possível concluir a operação. Tente novamente.");
+    fireEvent.click(screen.getByRole("button", { name: "Remover imagem pública" }));
+    await waitFor(() => expect(mocks.remove).toHaveBeenCalledTimes(2));
+  });
 });

@@ -37,7 +37,11 @@ const statusLabels = {
   retired: "Retirada do acervo",
 } as const;
 
-function PublicMediaEditor({ item, onRemove }: { item: PaixaoClutchCatalogItem; onRemove: () => void }) {
+function PublicMediaEditor({ item, onRemove, onRemoveFailure }: {
+  item: PaixaoClutchCatalogItem;
+  onRemove: () => void;
+  onRemoveFailure: () => void;
+}) {
   const [publicPath, setPublicPath] = useState(item.publicImagePath);
   const [serverPublicPath, setServerPublicPath] = useState(item.publicImagePath);
   const [file, setFile] = useState<File | null>(null);
@@ -51,7 +55,10 @@ function PublicMediaEditor({ item, onRemove }: { item: PaixaoClutchCatalogItem; 
     setPublicPath(item.publicImagePath);
   }
 
-  function changeMedia(change: () => Promise<ActionResult<{ publicPath: string | null }>>) {
+  function changeMedia(
+    change: () => Promise<ActionResult<{ publicPath: string | null }>>,
+    onFailure?: () => void,
+  ) {
     startTransition(async () => {
       setState(null);
       try {
@@ -60,9 +67,12 @@ function PublicMediaEditor({ item, onRemove }: { item: PaixaoClutchCatalogItem; 
         if (result.ok) {
           setPublicPath(result.data.publicPath);
           if (!result.data.publicPath) onRemove();
+        } else {
+          onFailure?.();
         }
       } catch {
         setState({ ok: false, error: "Não foi possível concluir a operação. Tente novamente." });
+        onFailure?.();
       }
     });
   }
@@ -111,7 +121,7 @@ function PublicMediaEditor({ item, onRemove }: { item: PaixaoClutchCatalogItem; 
           }
         })}>Usar foto interna</button>
         <button type="button" disabled={pending} className={buttonClass}
-          onClick={() => changeMedia(() => removeInventoryPublicMediaAction({ itemId: item.id }))}>Remover imagem pública</button>
+          onClick={() => changeMedia(() => removeInventoryPublicMediaAction({ itemId: item.id }), onRemoveFailure)}>Remover imagem pública</button>
       </div>
       <p className="font-sans text-xs text-muted">Remover a imagem também despublica a clutch. Se uma remoção falhar, use o botão novamente.</p>
       {pending ? <p role="status" className="font-sans text-sm">Processando imagem…</p> : null}
@@ -132,7 +142,11 @@ function PublicMediaEditor({ item, onRemove }: { item: PaixaoClutchCatalogItem; 
   );
 }
 
-function ClutchEditor({ item }: { item: PaixaoClutchCatalogItem }) {
+function ClutchEditor({ item, onRemoveFailure, onRemoveSuccess }: {
+  item: PaixaoClutchCatalogItem;
+  onRemoveFailure: () => void;
+  onRemoveSuccess: () => void;
+}) {
   const [values, setValues] = useState({
     rentalPrice: item.rentalPrice ?? "",
     replacementValue: item.replacementValue ?? "",
@@ -187,7 +201,10 @@ function ClutchEditor({ item }: { item: PaixaoClutchCatalogItem }) {
           </ul>
         </div>
       ) : null}
-      <PublicMediaEditor item={item} onRemove={() => setPublished(false)} />
+      <PublicMediaEditor item={item} onRemove={() => {
+        setPublished(false);
+        onRemoveSuccess();
+      }} onRemoveFailure={onRemoveFailure} />
       <form action={action} className="grid gap-4">
         <FormStatus state={state} />
         {state?.ok ? (
@@ -319,6 +336,11 @@ export function PaixaoClutchCatalog({
   publishedItems?: PaixaoClutchCatalogItem[];
   filters?: PaixaoClutchAdminFilters;
 }) {
+  const [failedRemovalItem, setFailedRemovalItem] = useState<PaixaoClutchCatalogItem | null>(null);
+  const visibleItems = failedRemovalItem && !items.some((item) => item.id === failedRemovalItem.id)
+    ? [failedRemovalItem, ...items]
+    : items;
+
   return (
     <div className="space-y-5">
       <PublishedOrder
@@ -370,12 +392,17 @@ export function PaixaoClutchCatalog({
         </div>
       </form>
       <p className="font-sans text-sm text-muted">
-        {items.length} {items.length === 1 ? "clutch encontrada" : "clutches encontradas"}
+        {visibleItems.length} {visibleItems.length === 1 ? "clutch encontrada" : "clutches encontradas"}
       </p>
-      {items.length ? (
+      {visibleItems.length ? (
         <div className="grid gap-5">
-          {items.map((item) => (
-            <ClutchEditor key={item.id} item={item} />
+          {visibleItems.map((item) => (
+            <ClutchEditor
+              key={item.id}
+              item={item}
+              onRemoveFailure={() => setFailedRemovalItem(item)}
+              onRemoveSuccess={() => setFailedRemovalItem((current) => current?.id === item.id ? null : current)}
+            />
           ))}
         </div>
       ) : (
