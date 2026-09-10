@@ -8,6 +8,8 @@ const mocks = vi.hoisted(() => ({
   update: vi.fn(),
   transaction: vi.fn(),
   recordAuditEvent: vi.fn(),
+  execute: vi.fn(),
+  lock: vi.fn(),
 }));
 
 vi.mock("@/db/client", () => ({
@@ -48,6 +50,10 @@ function returning(row: unknown) {
   return { returning: vi.fn().mockResolvedValue(row === undefined ? [] : [row]) };
 }
 
+function lockedRows(rows: unknown[]) {
+  return Object.assign(Promise.resolve(rows), { for: mocks.lock.mockResolvedValue(rows) });
+}
+
 function roleResult(role: string | undefined) {
   return {
     from: vi.fn().mockReturnValue({
@@ -60,7 +66,7 @@ describe("inventory catalog mutations", () => {
   beforeEach(() => {
     vi.resetAllMocks();
     mocks.transaction.mockImplementation(async (operation) =>
-      operation({ select: mocks.transactionSelect, insert: mocks.insert, update: mocks.update }),
+      operation({ select: mocks.transactionSelect, insert: mocks.insert, update: mocks.update, execute: mocks.execute }),
     );
     mocks.select
       .mockReturnValueOnce(roleResult("staff"))
@@ -119,7 +125,7 @@ describe("inventory catalog mutations", () => {
     mocks.transactionSelect
       .mockReturnValueOnce({
         from: vi.fn().mockReturnValue({
-          where: vi.fn().mockReturnValue({ limit: vi.fn().mockResolvedValue([item]) }),
+          where: vi.fn().mockReturnValue({ limit: () => lockedRows([item]) }),
         }),
       });
     mocks.select.mockReturnValueOnce(roleResult("staff"));
@@ -144,7 +150,7 @@ describe("inventory catalog mutations", () => {
     mocks.transactionSelect
       .mockReturnValueOnce({
         from: vi.fn().mockReturnValue({
-          where: vi.fn().mockReturnValue({ limit: vi.fn().mockResolvedValue([item]) }),
+          where: vi.fn().mockReturnValue({ limit: () => lockedRows([item]) }),
         }),
       });
     mocks.select.mockReturnValueOnce(roleResult("staff"));
@@ -170,7 +176,7 @@ describe("inventory catalog mutations", () => {
     mocks.transactionSelect
       .mockReturnValueOnce({
         from: vi.fn().mockReturnValue({
-          where: vi.fn().mockReturnValue({ limit: vi.fn().mockResolvedValue([item]) }),
+          where: vi.fn().mockReturnValue({ limit: () => lockedRows([item]) }),
         }),
       })
       .mockReturnValueOnce({
@@ -186,6 +192,21 @@ describe("inventory catalog mutations", () => {
     expect(mocks.transactionSelect).toHaveBeenCalledTimes(2);
     expect(mocks.update).not.toHaveBeenCalled();
     expect(mocks.recordAuditEvent).not.toHaveBeenCalled();
+  });
+
+  it.each(["maintenance", "retired", "inactive", "deactivate"])("atomically unpublishes a published clutch for %s and audits the transition", async (operation) => {
+    const before = { ...item, paixaoClutchEligible: true, paixaoClutchPublished: true };
+    const patch = operation === "maintenance" || operation === "retired" ? { status: operation } : { active: false };
+    const after = { ...before, ...patch, paixaoClutchPublished: false };
+    mocks.transactionSelect.mockReturnValue({ from: () => ({ where: () => ({ limit: () => lockedRows([before]) }) }) });
+    mocks.update.mockReturnValueOnce({ set: vi.fn().mockReturnValue({ where: () => returning(after) }) });
+    if (operation === "deactivate") await deactivateInventoryItem(itemId, actorUserId);
+    else await updateInventoryItem(itemId, patch as Parameters<typeof updateInventoryItem>[1], actorUserId);
+    expect(mocks.update.mock.results[0].value.set).toHaveBeenCalledWith(expect.objectContaining({ ...patch, paixaoClutchPublished: false }));
+    expect(mocks.recordAuditEvent).toHaveBeenCalledWith(expect.objectContaining({ before, after }), expect.objectContaining({ update: mocks.update }));
+    expect(mocks.execute).toHaveBeenCalledOnce();
+    expect(mocks.lock).toHaveBeenCalledWith("update");
+    expect(mocks.execute.mock.invocationCallOrder[0]).toBeLessThan(mocks.lock.mock.invocationCallOrder[0]);
   });
 
   it.each(["client", undefined])("rejects a %s or missing actor before catalog mutation", async (role) => {

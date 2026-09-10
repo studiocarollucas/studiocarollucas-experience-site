@@ -45,9 +45,55 @@ export const inventoryItems = pgTable("inventory_items", {
   status: inventoryItemStatusEnum("status").notNull().default("available"),
   active: boolean("active").notNull().default(true),
   internalPrice: numeric("internal_price", { precision: 10, scale: 2 }),
+  rentalPrice: numeric("rental_price", { precision: 10, scale: 2 }),
+  replacementValue: numeric("replacement_value", { precision: 10, scale: 2 }),
+  paixaoClutchCopy: text("paixao_clutch_copy"),
+  paixaoClutchEligible: boolean("paixao_clutch_eligible").notNull().default(false),
+  paixaoClutchPublicImagePath: text("paixao_clutch_public_image_path"),
+  paixaoClutchPublished: boolean("paixao_clutch_published").notNull().default(false),
+  paixaoClutchFeatured: boolean("paixao_clutch_featured").notNull().default(false),
+  paixaoClutchSortOrder: integer("paixao_clutch_sort_order").notNull().default(0),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
-});
+}, (table) => [
+  check(
+    "inventory_items_rental_price_nonnegative",
+    sql`${table.rentalPrice} is null or ${table.rentalPrice} >= 0`,
+  ),
+  check(
+    "inventory_items_replacement_value_nonnegative",
+    sql`${table.replacementValue} is null or ${table.replacementValue} >= 0`,
+  ),
+  check(
+    "inventory_items_paixao_clutch_sort_order_nonnegative",
+    sql`${table.paixaoClutchSortOrder} >= 0`,
+  ),
+  check(
+    "inventory_items_paixao_clutch_only",
+    sql`${table.type} = 'clutch' or (
+      ${table.rentalPrice} is null
+      and ${table.replacementValue} is null
+      and ${table.paixaoClutchCopy} is null
+      and ${table.paixaoClutchPublicImagePath} is null
+      and ${table.paixaoClutchPublished} = false
+      and ${table.paixaoClutchEligible} = false
+      and ${table.paixaoClutchFeatured} = false
+      and ${table.paixaoClutchSortOrder} = 0
+    )`,
+  ),
+  check(
+    "inventory_items_paixao_clutch_publication_valid",
+    sql`${table.paixaoClutchPublished} = false or (
+      ${table.type} = 'clutch'
+      and ${table.paixaoClutchEligible} = true
+      and ${table.active} = true
+      and ${table.status} = 'available'
+      and ${table.rentalPrice} is not null
+      and nullif(btrim(${table.paixaoClutchCopy}), '') is not null
+      and nullif(btrim(${table.paixaoClutchPublicImagePath}), '') is not null
+    )`,
+  ),
+]);
 
 export const inventoryReservations = pgTable(
   "inventory_reservations",

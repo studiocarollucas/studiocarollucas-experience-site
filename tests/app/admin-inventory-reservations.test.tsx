@@ -32,7 +32,7 @@ import { getShootDetail } from "@/domain/shoots/queries";
 describe("shoot inventory reservations", () => {
   it("returns actionable feedback if the selected catalog item became unavailable", async () => {
     mocks.createReservation.mockRejectedValueOnce(new InventoryItemUnavailableError());
-    const result = await createShootInventoryReservationAction({ shootId, inventoryItemId: itemId, startsOn: "2030-05-10", endsOn: "2030-05-10" });
+    const result = await createShootInventoryReservationAction({ shootId, inventoryItemId: itemId, purpose: "shoot", startsOn: "2030-05-10", endsOn: "2030-05-10" });
     expect(result).toMatchObject({ ok: false, error: expect.stringMatching(/indisponível/), fieldErrors: { inventoryItemId: [expect.stringMatching(/Selecione/)] } });
     expect(mocks.revalidatePath).not.toHaveBeenCalled();
   });
@@ -88,10 +88,32 @@ describe("shoot inventory reservations", () => {
     expect(screen.queryByText(/Invalid UUID|Informe o ID/)).not.toBeInTheDocument();
   });
 
+  it("labels the manual interval end as the planned return date for rentals", () => {
+    render(<InventoryReservations shootId={shootId} shootDate="2030-05-10" />);
+
+    expect(screen.getByLabelText("Fim")).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText("Finalidade"), { target: { value: "rental" } });
+    expect(screen.getByLabelText(/Data prevista de devolução/i)).toBeInTheDocument();
+    expect(screen.getByText(/Informe a data prevista de devolução/i)).toBeInTheDocument();
+  });
+
+  it("requires a purpose when creating a reservation through the action", async () => {
+    await expect(
+      createShootInventoryReservationAction({
+        shootId,
+        inventoryItemId: itemId,
+        startsOn: "2030-05-10",
+        endsOn: "2030-05-10",
+      }),
+    ).resolves.toMatchObject({ ok: false, fieldErrors: { purpose: expect.any(Array) } });
+    expect(mocks.createReservation).not.toHaveBeenCalled();
+  });
+
   it("returns a human instruction when no catalog item is selected", async () => {
     const result = await createShootInventoryReservationAction({
       shootId,
       inventoryItemId: "bad",
+      purpose: "shoot",
       startsOn: "2030-05-10",
       endsOn: "2030-05-10",
     });
@@ -160,6 +182,7 @@ describe("shoot inventory reservations", () => {
       createShootInventoryReservationAction({
         shootId,
         inventoryItemId: itemId,
+        purpose: "shoot",
         startsOn: "2030-05-10",
         endsOn: "2030-05-10",
       })
@@ -233,6 +256,7 @@ describe("shoot inventory reservations", () => {
       shootId
     );
     expect(mocks.revalidatePath).toHaveBeenCalledWith(`/admin/agenda/${shootId}`);
+    expect(mocks.revalidatePath).toHaveBeenCalledWith("/admin/paixao-clutch");
   });
 
   it("does not cancel a reservation that is not part of this shoot", async () => {

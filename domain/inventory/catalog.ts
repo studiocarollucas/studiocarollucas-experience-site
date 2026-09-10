@@ -7,11 +7,12 @@ import { recordAuditEvent } from "@/domain/audit/service";
 import { createInventoryItemSchema, updateInventoryItemSchema, type UpdateInventoryItemInput } from "./catalog-schema";
 import type { CreateInventoryItemInput } from "./schema";
 import { requireInventoryCatalogActor } from "./authorization";
+import { lockCuration } from "./curation-lock";
 
 type InventoryReader = Pick<typeof db, "select">;
 
 async function findItem(reader: InventoryReader, id: string): Promise<InventoryItem | undefined> {
-  const [item] = await reader.select().from(inventoryItems).where(eq(inventoryItems.id, id)).limit(1);
+  const [item] = await reader.select().from(inventoryItems).where(eq(inventoryItems.id, id)).limit(1).for("update");
   return item;
 }
 
@@ -61,12 +62,18 @@ export async function updateInventoryItem(
   await requireInventoryCatalogActor(actorUserId);
 
   return db.transaction(async (tx) => {
+    await lockCuration(tx);
     const before = await findItem(tx, id);
     if (!before) throw new Error("item de acervo inexistente");
     if (patch.code && patch.code !== before.code) await assertCodeAvailable(tx, patch.code, id);
     const [item] = await tx
       .update(inventoryItems)
-      .set({ ...patch, updatedAt: new Date() })
+      .set({
+        ...patch,
+        ...((patch.active ?? before.active) === false || (patch.status ?? before.status) !== "available"
+          ? { paixaoClutchPublished: false } : {}),
+        updatedAt: new Date(),
+      })
       .where(eq(inventoryItems.id, id))
       .returning();
     if (!item) throw new Error("item de acervo inexistente");
@@ -89,11 +96,12 @@ export async function deactivateInventoryItem(id: string, actorUserId: string): 
   await requireInventoryCatalogActor(actorUserId);
 
   return db.transaction(async (tx) => {
+    await lockCuration(tx);
     const before = await findItem(tx, id);
     if (!before) throw new Error("item de acervo inexistente");
     const [item] = await tx
       .update(inventoryItems)
-      .set({ active: false, updatedAt: new Date() })
+      .set({ active: false, paixaoClutchPublished: false, updatedAt: new Date() })
       .where(eq(inventoryItems.id, id))
       .returning();
     if (!item) throw new Error("item de acervo inexistente");

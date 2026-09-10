@@ -46,6 +46,7 @@ export const createShootInventoryReservationAction = defineAdminAction(
     revalidatePath(`/admin/agenda/${input.shootId}`);
     revalidatePath("/admin/inventario");
     revalidatePath(`/admin/inventario/${input.inventoryItemId}`);
+    revalidatePath("/admin/paixao-clutch");
     return { id: reservation.id };
   }
 );
@@ -64,6 +65,7 @@ export const cancelShootInventoryReservationAction = defineAdminAction(
     revalidatePath(`/admin/agenda/${input.shootId}`);
     revalidatePath("/admin/inventario");
     revalidatePath("/admin/inventario/[id]", "page");
+    revalidatePath("/admin/paixao-clutch");
     return { id: reservation.id };
   }
 );

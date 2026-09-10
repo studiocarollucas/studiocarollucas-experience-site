@@ -30,6 +30,7 @@ const fileSchema = z.custom<File>((value) => value instanceof File, "Selecione u
 
 function revalidateInventory(id?: string) {
   revalidatePath("/admin/inventario");
+  revalidatePath("/admin/paixao-clutch");
   if (id) revalidatePath(`/admin/inventario/${id}`);
   else revalidatePath("/admin/inventario/[id]", "page");
   revalidatePath("/admin/agenda/[id]", "page");
