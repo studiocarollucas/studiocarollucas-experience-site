@@ -1,6 +1,9 @@
 "use client";
 
 import { useActionState, useState, type ChangeEvent } from "react";
+import Link from "next/link";
+import { studioDate } from "@/domain/portal/countdown";
+import type { FutureInventoryReservation } from "@/domain/inventory/queries";
 import { updatePaixaoClutchAction, reorderPaixaoClutchAction } from "@/app/admin/(protected)/paixao-clutch/actions";
 import type { PaixaoClutchAdminFilters } from "@/domain/inventory/clutch-schema";
 import { type ActionResult, toFormAction } from "@/lib/auth/action-result";
@@ -16,6 +19,8 @@ export type PaixaoClutchCatalogItem = {
   code: string;
   name: string;
   active: boolean;
+  eligible: boolean;
+  futureReservations: FutureInventoryReservation[];
   status: "available" | "maintenance" | "retired";
   rentalPrice: string | null;
   replacementValue: string | null;
@@ -40,10 +45,11 @@ function ClutchEditor({ item }: { item: PaixaoClutchCatalogItem }) {
     publicImagePath: item.publicImagePath ?? "",
   });
   const [published, setPublished] = useState(item.published);
+  const [eligible, setEligible] = useState(item.eligible);
   const [featured, setFeatured] = useState(item.featured);
   const [state, action] = useActionState(
     toFormAction(updatePaixaoClutchAction, {
-      booleans: ["published", "featured"],
+      booleans: ["published", "featured", "eligible"],
     }),
     null
   );
@@ -53,7 +59,12 @@ function ClutchEditor({ item }: { item: PaixaoClutchCatalogItem }) {
       setValues((current) => ({ ...current, [key]: event.target.value })),
   });
   const error = (name: string) => (state && !state.ok ? state.fieldErrors?.[name]?.[0] : undefined);
-  const operationalStatus = !item.active ? "Item inativo" : statusLabels[item.status];
+  const today = studioDate();
+  const reservedNow = item.futureReservations.some((reservation) =>
+    reservation.startsOn <= today && reservation.endsOn >= today);
+  const operationalStatus = !item.active ? "Item inativo"
+    : item.status !== "available" ? statusLabels[item.status]
+    : reservedNow ? "Reservada no momento" : statusLabels.available;
 
   return (
     <article className="border border-line bg-white p-5">
@@ -61,11 +72,22 @@ function ClutchEditor({ item }: { item: PaixaoClutchCatalogItem }) {
         <div>
           <h2 className="font-serif text-xl text-ink">{item.name}</h2>
           <p className="font-sans text-xs text-muted">{item.code}</p>
+          <Link href={`/admin/inventario/${item.id}`} className="inline-flex min-h-11 items-center font-sans text-sm underline">Abrir ficha do item</Link>
         </div>
         <p className="font-sans text-xs uppercase tracking-[0.14em] text-muted">
           {operationalStatus}
         </p>
       </div>
+      {item.futureReservations.length ? (
+        <div className="mb-5 font-sans text-sm">
+          <p>Reservas em curso e futuras</p>
+          <ul className="mt-1 space-y-1 text-muted">
+            {item.futureReservations.map((reservation) => (
+              <li key={reservation.id}>{reservation.startsOn} a {reservation.endsOn} · {reservation.status === "confirmed" ? "Confirmada" : "Pendente"}</li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
       <form action={action} className="grid gap-4">
         <FormStatus state={state} />
         {state?.ok ? (
@@ -125,10 +147,18 @@ function ClutchEditor({ item }: { item: PaixaoClutchCatalogItem }) {
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="flex flex-col justify-end gap-3 pb-1">
             <label className="flex min-h-11 items-center gap-2 font-sans text-sm">
+              <input name="eligible" type="checkbox" checked={eligible} onChange={(event) => {
+                setEligible(event.target.checked);
+                if (!event.target.checked) setPublished(false);
+              }} />
+              Habilitar na Paixão Clutch
+            </label>
+            <label className="flex min-h-11 items-center gap-2 font-sans text-sm">
               <input
                 name="published"
                 type="checkbox"
                 checked={published}
+                disabled={!eligible}
                 onChange={(event) => setPublished(event.target.checked)}
               />
               Publicar na Paixão Clutch

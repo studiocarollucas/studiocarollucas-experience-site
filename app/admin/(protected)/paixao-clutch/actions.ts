@@ -10,6 +10,8 @@ export const updatePaixaoClutchAction = defineAdminAction(
   async (input, ctx) => {
     const item = await updatePaixaoClutch(input, ctx.user.id);
     revalidatePath("/admin/paixao-clutch");
+    revalidatePath("/admin/inventario");
+    revalidatePath(`/admin/inventario/${item.id}`);
     return { id: item.id };
   }
 );

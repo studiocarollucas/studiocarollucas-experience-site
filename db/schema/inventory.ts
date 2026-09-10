@@ -48,6 +48,7 @@ export const inventoryItems = pgTable("inventory_items", {
   rentalPrice: numeric("rental_price", { precision: 10, scale: 2 }),
   replacementValue: numeric("replacement_value", { precision: 10, scale: 2 }),
   paixaoClutchCopy: text("paixao_clutch_copy"),
+  paixaoClutchEligible: boolean("paixao_clutch_eligible").notNull().default(false),
   paixaoClutchPublicImagePath: text("paixao_clutch_public_image_path"),
   paixaoClutchPublished: boolean("paixao_clutch_published").notNull().default(false),
   paixaoClutchFeatured: boolean("paixao_clutch_featured").notNull().default(false),
@@ -75,6 +76,7 @@ export const inventoryItems = pgTable("inventory_items", {
       and ${table.paixaoClutchCopy} is null
       and ${table.paixaoClutchPublicImagePath} is null
       and ${table.paixaoClutchPublished} = false
+      and ${table.paixaoClutchEligible} = false
       and ${table.paixaoClutchFeatured} = false
       and ${table.paixaoClutchSortOrder} = 0
     )`,
@@ -83,6 +85,7 @@ export const inventoryItems = pgTable("inventory_items", {
     "inventory_items_paixao_clutch_publication_valid",
     sql`${table.paixaoClutchPublished} = false or (
       ${table.type} = 'clutch'
+      and ${table.paixaoClutchEligible} = true
       and ${table.active} = true
       and ${table.status} = 'available'
       and ${table.rentalPrice} is not null

@@ -2,7 +2,8 @@ import { z } from "zod";
 
 const money = z
   .string()
-  .regex(/^\d+(\.\d{1,2})?$/, "informe um valor decimal não negativo");
+  .regex(/^\d+(\.\d{1,2})?$/, "informe um valor decimal não negativo")
+  .refine((value) => Number(value) <= 99999999.99, "O valor máximo é 99999999.99.");
 
 // Canonical, same-origin static asset reference, separate from inventory-media.
 // No URL signing, private object lookup, decoding or automatic media promotion.
@@ -13,6 +14,7 @@ export const paixaoClutchPublicImagePathSchema = z.string().max(200).regex(
 
 export const updatePaixaoClutchSchema = z.object({
   itemId: z.string().uuid(),
+  eligible: z.boolean(),
   rentalPrice: money.optional(),
   replacementValue: money.optional(),
   copy: z.string().trim().max(280).optional(),

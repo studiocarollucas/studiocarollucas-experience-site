@@ -23,6 +23,8 @@ function toCatalogItem(
     code: item.code,
     name: item.name,
     active: item.active,
+    eligible: item.paixaoClutchEligible,
+    futureReservations: item.futureReservations,
     status: item.status,
     rentalPrice: item.rentalPrice,
     replacementValue: item.replacementValue,

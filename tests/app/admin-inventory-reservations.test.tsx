@@ -256,6 +256,7 @@ describe("shoot inventory reservations", () => {
       shootId
     );
     expect(mocks.revalidatePath).toHaveBeenCalledWith(`/admin/agenda/${shootId}`);
+    expect(mocks.revalidatePath).toHaveBeenCalledWith("/admin/paixao-clutch");
   });
 
   it("does not cancel a reservation that is not part of this shoot", async () => {

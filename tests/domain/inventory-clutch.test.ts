@@ -38,6 +38,7 @@ const baseInput = {
   publicImagePath: "/images/paixao-clutch/dourada.webp",
   published: true,
   featured: true,
+  eligible: true,
 };
 const clutch = {
   id: itemId,
@@ -46,6 +47,7 @@ const clutch = {
   type: "clutch",
   status: "available",
   active: true,
+  paixaoClutchEligible: true,
   rentalPrice: null,
   replacementValue: null,
   paixaoClutchCopy: null,
@@ -99,6 +101,39 @@ describe("Paixão Clutch curation", () => {
     expect(updatePaixaoClutchSchema.safeParse(baseInput).success).toBe(true);
     expect(updatePaixaoClutchSchema.safeParse({ ...baseInput, rentalPrice: "-1" }).success).toBe(false);
     expect(updatePaixaoClutchSchema.safeParse({ ...baseInput, sortOrder: -1 }).success).toBe(false);
+  });
+
+  it.each(["rentalPrice", "replacementValue"] as const)("bounds %s to numeric(10,2)", (field) => {
+    expect(updatePaixaoClutchSchema.safeParse({ ...baseInput, [field]: "99999999.99" }).success).toBe(true);
+    expect(updatePaixaoClutchSchema.safeParse({ ...baseInput, [field]: "100000000.00" }).success).toBe(false);
+  });
+
+  it("clears replacement value using SQL NULL while preserving publication", async () => {
+    mocks.itemFor.mockResolvedValueOnce([{ ...clutch, replacementValue: "600.00", paixaoClutchPublished: true }]);
+    await updatePaixaoClutch({ ...baseInput, replacementValue: undefined }, actorUserId);
+    expect(mocks.update.mock.results[0].value.set).toHaveBeenCalledWith(expect.objectContaining({ replacementValue: null, paixaoClutchPublished: true }));
+  });
+
+  it("clears omitted editorial and commercial fields on an unpublished item using SQL NULL", async () => {
+    mocks.itemFor.mockResolvedValueOnce([{ ...clutch, rentalPrice: baseInput.rentalPrice, replacementValue: baseInput.replacementValue, paixaoClutchCopy: baseInput.copy, paixaoClutchPublicImagePath: baseInput.publicImagePath }]);
+    await updatePaixaoClutch({ itemId, eligible: true, published: false, featured: false }, actorUserId);
+    expect(mocks.update.mock.results[0].value.set).toHaveBeenCalledWith(expect.objectContaining({
+      rentalPrice: null, replacementValue: null, paixaoClutchCopy: null, paixaoClutchPublicImagePath: null,
+    }));
+  });
+
+  it("requires editorial eligibility to publish", async () => {
+    await expect(updatePaixaoClutch({ ...baseInput, eligible: false }, actorUserId)).rejects.toThrow(/eleg/i);
+    expect(mocks.update).not.toHaveBeenCalled();
+  });
+
+  it("removes editorial eligibility independently of physical activity and audits it", async () => {
+    const removed = { ...clutch, paixaoClutchEligible: false, paixaoClutchPublished: false };
+    mocks.update.mockReturnValueOnce({ set: vi.fn().mockReturnValue({ where: () => returning(removed) }) });
+    await updatePaixaoClutch({ ...baseInput, eligible: false, published: false }, actorUserId);
+    expect(mocks.update.mock.results[0].value.set).toHaveBeenCalledWith(expect.objectContaining({ paixaoClutchEligible: false, paixaoClutchPublished: false }));
+    expect(mocks.update.mock.results[0].value.set.mock.calls[0][0]).not.toHaveProperty("active");
+    expect(mocks.recordAuditEvent).toHaveBeenCalledWith(expect.objectContaining({ before: clutch, after: removed }), expect.anything());
   });
 
   it("locks an eligible clutch, updates its curation, and audits before and after in the transaction", async () => {
@@ -243,6 +278,21 @@ describe("Paixão Clutch curation", () => {
         }),
       });
 
-    await expect(listPaixaoClutchForAdmin({ published: true }, actorUserId)).resolves.toEqual(rows);
+    mocks.select.mockReturnValueOnce({ from: () => ({ where: () => ({ orderBy: async () => [] }) }) });
+    await expect(listPaixaoClutchForAdmin({ published: true }, actorUserId)).resolves.toEqual(rows.map((row) => ({ ...row, futureReservations: [] })));
+  });
+
+  it("includes ongoing and future blocking reservations using the shared reservation projection", async () => {
+    const reservation = { id: "r1", inventoryItemId: itemId, startsOn: "2000-01-01", endsOn: "2099-01-01", status: "confirmed" };
+    const where = vi.fn().mockReturnValue({ orderBy: async () => [reservation] });
+    mocks.select.mockReturnValueOnce(roleResult("staff"))
+      .mockReturnValueOnce({ from: () => ({ where: () => ({ orderBy: async () => [clutch] }) }) })
+      .mockReturnValueOnce({ from: () => ({ where }) });
+    const [row] = await listPaixaoClutchForAdmin({}, actorUserId);
+    expect(row.futureReservations).toEqual([{ id: "r1", startsOn: "2000-01-01", endsOn: "2099-01-01", status: "confirmed" }]);
+    const predicate = new PgDialect().sqlToQuery(where.mock.calls[0][0]);
+    expect(predicate.sql).toContain('"inventory_reservations"."ends_on" >=');
+    expect(predicate.params.slice(0, 3)).toEqual([itemId, "pending", "confirmed"]);
+    expect(predicate.sql).not.toContain('"starts_on" >=');
   });
 });

@@ -8,6 +8,17 @@ const journalPath = path.resolve("db/migrations/meta/_journal.json");
 const sql = fs.existsSync(migrationPath) ? fs.readFileSync(migrationPath, "utf8").toLowerCase() : "";
 
 describe("Paixão Clutch curation migration", () => {
+  it("adds independent eligibility with safe defaults and requires it for publication", () => {
+    const migration = path.resolve("db/migrations/0044_paixao_clutch_eligibility.sql");
+    expect(fs.existsSync(migration)).toBe(true);
+    const eligibilitySql = fs.readFileSync(migration, "utf8").toLowerCase();
+    expect(eligibilitySql).toContain('"paixao_clutch_eligible" boolean default false not null');
+    expect(eligibilitySql).toContain('"inventory_items"."paixao_clutch_eligible" = true');
+    expect(eligibilitySql).toContain('"inventory_items"."paixao_clutch_eligible" = false');
+    const snapshot = JSON.parse(fs.readFileSync(path.resolve("db/migrations/meta/0044_snapshot.json"), "utf8"));
+    expect(snapshot.tables["public.inventory_items"].columns.paixao_clutch_eligible.default).toBe(false);
+    expect(JSON.parse(fs.readFileSync(journalPath, "utf8")).entries).toContainEqual(expect.objectContaining({ idx: 44, tag: "0044_paixao_clutch_eligibility" }));
+  });
   it("adds the editorial and commercial fields to inventory items", () => {
     expect(fs.existsSync(migrationPath)).toBe(true);
     for (const column of [

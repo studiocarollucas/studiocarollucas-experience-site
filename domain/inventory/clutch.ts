@@ -1,10 +1,12 @@
 import "server-only";
 
-import { and, asc, eq, sql, type SQL } from "drizzle-orm";
+import { and, asc, eq, type SQL } from "drizzle-orm";
 import { db } from "@/db/client";
 import { inventoryItems, type InventoryItem } from "@/db/schema";
 import { recordAuditEvent } from "@/domain/audit/service";
 import { requireInventoryCatalogActor } from "./authorization";
+import { lockCuration } from "./curation-lock";
+import { withFutureInventoryReservations, type FutureInventoryReservation } from "./queries";
 import {
   type PaixaoClutchAdminFilters,
   type UpdatePaixaoClutchInput,
@@ -13,17 +15,10 @@ import {
   type ReorderPaixaoClutchInput,
 } from "./clutch-schema";
 
-type CurationTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
-
-async function lockCuration(tx: CurationTransaction) {
-  // Publication and ordering share this lock so the collection cannot gain or
-  // lose members between the membership check and the final ordered write.
-  await tx.execute(sql`select pg_advisory_xact_lock(hashtextextended('paixao-clutch-curation', 0))`);
-}
-
 function assertPublishable(item: InventoryItem, input: ReturnType<typeof updatePaixaoClutchSchema.parse>): void {
   if (item.type !== "clutch") throw new Error("somente clutches podem participar da curadoria Paixão Clutch");
   if (!input.published) return;
+  if (!input.eligible) throw new Error("publicação exige elegibilidade para Paixão Clutch");
   if (!item.active || item.status !== "available") {
     throw new Error("item indisponível não pode ser publicado na Paixão Clutch");
   }
@@ -53,10 +48,12 @@ export async function updatePaixaoClutch(
     const [item] = await tx
       .update(inventoryItems)
       .set({
-        rentalPrice: parsed.rentalPrice,
-        replacementValue: parsed.replacementValue,
-        paixaoClutchCopy: parsed.copy,
-        paixaoClutchPublicImagePath: parsed.publicImagePath,
+        // This is a complete editorial form, so an omitted optional value clears it.
+        rentalPrice: parsed.rentalPrice ?? null,
+        replacementValue: parsed.replacementValue ?? null,
+        paixaoClutchCopy: parsed.copy || null,
+        paixaoClutchPublicImagePath: parsed.publicImagePath ?? null,
+        paixaoClutchEligible: parsed.eligible,
         paixaoClutchPublished: parsed.published,
         paixaoClutchFeatured: parsed.featured,
         updatedAt: new Date(),
@@ -127,9 +124,9 @@ function curationPredicate(filters: PaixaoClutchAdminFilters): SQL {
 export async function listPaixaoClutchForAdmin(
   filters: PaixaoClutchAdminFilters,
   actorUserId: string,
-): Promise<InventoryItem[]> {
+): Promise<Array<InventoryItem & { futureReservations: FutureInventoryReservation[] }>> {
   await requireInventoryCatalogActor(actorUserId);
-  return db
+  const items = await db
     .select()
     .from(inventoryItems)
     .where(curationPredicate(filters))
@@ -138,4 +135,5 @@ export async function listPaixaoClutchForAdmin(
       asc(inventoryItems.code),
       asc(inventoryItems.id),
     );
+  return withFutureInventoryReservations(items);
 }

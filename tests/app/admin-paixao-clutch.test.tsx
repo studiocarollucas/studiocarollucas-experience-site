@@ -36,6 +36,8 @@ const clutch = {
   type: "clutch" as const,
   status: "available" as const,
   active: true,
+  paixaoClutchEligible: true,
+  futureReservations: [],
   rentalPrice: "120.00",
   replacementValue: "600.00",
   paixaoClutchCopy: "Um brilho discreto para a produção.",
@@ -47,6 +49,7 @@ const clutch = {
 
 const catalogClutch = {
   ...clutch,
+  eligible: clutch.paixaoClutchEligible,
   copy: clutch.paixaoClutchCopy,
   publicImagePath: clutch.paixaoClutchPublicImagePath,
   published: clutch.paixaoClutchPublished,
@@ -67,6 +70,8 @@ describe("Paixão Clutch admin curation", () => {
 
     expect(screen.getByRole("heading", { name: "Paixão Clutch" })).toBeInTheDocument();
     expect(screen.getByText("Disponível para operação")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Abrir ficha do item" })).toHaveAttribute("href", `/admin/inventario/${id}`);
+    expect(screen.getByLabelText("Habilitar na Paixão Clutch")).toBeChecked();
     expect(screen.getByLabelText("Preço de aluguel")).toHaveValue("120.00");
     expect(screen.getByLabelText("Valor de reposição")).toHaveValue("600.00");
     expect(screen.getByLabelText("Referência da imagem pública")).toHaveValue(
@@ -74,6 +79,31 @@ describe("Paixão Clutch admin curation", () => {
     );
     expect(screen.queryByText(/valor de reposição.*públic/i)).not.toBeInTheDocument();
     expect(mocks.list).toHaveBeenCalledWith({ published: false }, "staff-1");
+  });
+
+  it("removes eligibility and publication together without changing operational activity", async () => {
+    render(<PaixaoClutchCatalog items={[{ ...catalogClutch, published: true }]} />);
+    fireEvent.click(screen.getByLabelText("Habilitar na Paixão Clutch"));
+    expect(screen.getByLabelText("Publicar na Paixão Clutch")).not.toBeChecked();
+    expect(screen.getByLabelText("Publicar na Paixão Clutch")).toBeDisabled();
+    fireEvent.submit(screen.getByRole("button", { name: "Salvar curadoria" }).closest("form")!);
+    await waitFor(() => expect(mocks.update).toHaveBeenCalledWith(expect.objectContaining({ eligible: false, published: false }), "staff-1"));
+    expect(mocks.revalidate).toHaveBeenCalledWith(`/admin/inventario/${id}`);
+  });
+
+  it.each(["pending", "confirmed"] as const)("derives current unavailability from a %s reservation", async (status) => {
+    mocks.list.mockResolvedValue([{ ...clutch, futureReservations: [{ id: "r1", startsOn: "2000-01-01", endsOn: "2099-01-01", status }] }]);
+    render(await PaixaoClutchPage({ searchParams: Promise.resolve({}) }));
+    expect(screen.getByText("Reservada no momento")).toBeInTheDocument();
+    expect(screen.queryByText("Disponível para operação")).not.toBeInTheDocument();
+    expect(screen.getByText(new RegExp(status === "confirmed" ? "Confirmada" : "Pendente"))).toBeInTheDocument();
+  });
+
+  it("shows future reservations without marking the item unavailable today", async () => {
+    mocks.list.mockResolvedValue([{ ...clutch, futureReservations: [{ id: "r1", startsOn: "2099-01-01", endsOn: "2099-01-02", status: "confirmed" }] }]);
+    render(await PaixaoClutchPage({ searchParams: Promise.resolve({}) }));
+    expect(screen.getByText("Disponível para operação")).toBeInTheDocument();
+    expect(screen.getByText(/2099-01-01 a 2099-01-02/)).toBeInTheDocument();
   });
 
   it("keeps client interaction behind the catalog boundary and submits curated fields", async () => {

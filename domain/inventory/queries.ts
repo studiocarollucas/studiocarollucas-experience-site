@@ -119,6 +119,19 @@ export async function listInventoryItems(
     .limit(normalized.pageSize)
     .offset((normalized.page - 1) * normalized.pageSize);
 
+  return {
+    rows: await withFutureInventoryReservations(items),
+    total: Number(total),
+    page: normalized.page,
+    pageSize: normalized.pageSize,
+  };
+}
+
+// Internal projection for inventory rows already loaded by an authorized query.
+// Both catalog views use the same blocking statuses and studio-date cutoff.
+export async function withFutureInventoryReservations<T extends { id: string }>(
+  items: T[],
+): Promise<Array<T & { futureReservations: FutureInventoryReservation[] }>> {
   const ids = items.map((item) => item.id);
   const reservationRows = ids.length
     ? await db
@@ -151,15 +164,10 @@ export async function listInventoryItems(
     reservationsByItem.set(reservation.inventoryItemId, list);
   }
 
-  return {
-    rows: items.map((item) => ({
-      ...item,
-      futureReservations: reservationsByItem.get(item.id) ?? [],
-    })),
-    total: Number(total),
-    page: normalized.page,
-    pageSize: normalized.pageSize,
-  };
+  return items.map((item) => ({
+    ...item,
+    futureReservations: reservationsByItem.get(item.id) ?? [],
+  }));
 }
 
 export async function searchReservableInventoryItems(

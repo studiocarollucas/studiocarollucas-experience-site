@@ -321,6 +321,7 @@ describe("admin inventory catalog", () => {
       ok: true,
     });
     expect(mocks.deactivate).toHaveBeenCalledWith(id, "staff-1");
+    expect(mocks.revalidate).toHaveBeenCalledWith("/admin/paixao-clutch");
   });
 
   it("previews errors and commits only checked valid rows", async () => {
