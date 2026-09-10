@@ -2302,7 +2302,7 @@ Criar fonte de verdade para o acervo físico do estúdio, incluindo Paixão Clut
 
 ### SCL-556 — Curadoria Paixão Clutch no Admin
 
-- Status: BACKLOG
+- Status: DONE
 - Priority: P1
 - Area: inventory/admin
 - Owner: unassigned
