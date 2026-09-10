@@ -8,6 +8,10 @@ const mocks = vi.hoisted(() => ({
   update: vi.fn(),
   reorder: vi.fn(),
   revalidate: vi.fn(),
+  upload: vi.fn(),
+  promote: vi.fn(),
+  remove: vi.fn(),
+  photos: vi.fn(),
 }));
 
 vi.mock("@/lib/auth/session", () => ({ getCurrentUser: mocks.user }));
@@ -15,7 +19,12 @@ vi.mock("@/domain/inventory/clutch", () => ({
   listPaixaoClutchForAdmin: mocks.list,
   updatePaixaoClutch: mocks.update,
   reorderPaixaoClutch: mocks.reorder,
+  uploadInventoryPublicMedia: mocks.upload,
+  promoteInventoryMedia: mocks.promote,
+  removeInventoryPublicMedia: mocks.remove,
 }));
+vi.mock("@/domain/inventory/media", () => ({ readInventoryMediaUrls: mocks.photos }));
+vi.mock("@/domain/inventory/public-media", () => ({ PublicInventoryMediaError: class extends Error {} }));
 vi.mock("next/cache", () => ({ revalidatePath: mocks.revalidate }));
 vi.mock("next/navigation", () => ({
   redirect: (path: string) => {
@@ -25,7 +34,7 @@ vi.mock("next/navigation", () => ({
 }));
 
 import PaixaoClutchPage from "@/app/admin/(protected)/paixao-clutch/page";
-import { updatePaixaoClutchAction, reorderPaixaoClutchAction } from "@/app/admin/(protected)/paixao-clutch/actions";
+import { updatePaixaoClutchAction, reorderPaixaoClutchAction, uploadInventoryPublicMediaAction, promoteInventoryMediaAction, removeInventoryPublicMediaAction, readPaixaoClutchPrivateMediaAction } from "@/app/admin/(protected)/paixao-clutch/actions";
 import { PaixaoClutchCatalog } from "@/components/admin/paixao-clutch-catalog";
 import { AdminNav } from "@/components/admin/admin-nav";
 
@@ -63,6 +72,9 @@ describe("Paixão Clutch admin curation", () => {
     mocks.user.mockResolvedValue({ id: "staff-1", email: "staff@example.test", role: "staff" });
     mocks.list.mockResolvedValue([clutch]);
     mocks.update.mockResolvedValue(clutch);
+    mocks.photos.mockResolvedValue([{ id: "00000000-0000-4000-8000-000000000005", inventoryItemId: id, signedUrl: "https://storage.test/private.jpg?token=secret" }]);
+    mocks.upload.mockResolvedValue({ id: "public-1", publicPath: "/api/public/inventory-media/new.jpg" });
+    mocks.promote.mockResolvedValue({ id: "public-2", publicPath: "/api/public/inventory-media/copied.jpg" });
   });
 
   it("shows only the protected clutch curation controls and operational availability", async () => {
@@ -74,9 +86,10 @@ describe("Paixão Clutch admin curation", () => {
     expect(screen.getByLabelText("Habilitar na Paixão Clutch")).toBeChecked();
     expect(screen.getByLabelText("Preço de aluguel")).toHaveValue("120.00");
     expect(screen.getByLabelText("Valor de reposição")).toHaveValue("600.00");
-    expect(screen.getByLabelText("Referência da imagem pública")).toHaveValue(
-      "/images/paixao-clutch/dourada.jpg"
-    );
+    expect(screen.queryByLabelText("Referência da imagem pública")).not.toBeInTheDocument();
+    expect(screen.getByLabelText("Enviar imagem pública")).toHaveAttribute("type", "file");
+    expect(screen.getByRole("img", { name: "Imagem pública de Clutch dourada" })).toHaveAttribute("src", "/images/paixao-clutch/dourada.jpg");
+    expect(screen.getByRole("button", { name: "Usar foto interna" })).toBeInTheDocument();
     expect(screen.queryByText(/valor de reposição.*públic/i)).not.toBeInTheDocument();
     expect(mocks.list).toHaveBeenCalledWith({ published: false }, "staff-1");
   });
@@ -119,13 +132,13 @@ describe("Paixão Clutch admin curation", () => {
           itemId: id,
           rentalPrice: "120.00",
           replacementValue: "600.00",
-          publicImagePath: "/images/paixao-clutch/dourada.jpg",
           published: true,
           featured: false,
         }),
         "staff-1"
       )
     );
+    expect(mocks.update.mock.calls[0][0]).not.toHaveProperty("publicImagePath");
   });
 
   it("rejects curation mutations for a client with a safe permission message", async () => {
@@ -163,7 +176,7 @@ describe("Paixão Clutch admin curation", () => {
   it("rejects a signed private image URL at the action boundary", async () => {
     await expect(updatePaixaoClutchAction({ itemId: id, published: true, featured: false,
       publicImagePath: "https://storage.test/storage/v1/object/sign/inventory-media/a.jpg?token=secret",
-    })).resolves.toMatchObject({ ok: false, fieldErrors: { publicImagePath: expect.any(Array) } });
+    })).resolves.toMatchObject({ ok: false });
     expect(mocks.update).not.toHaveBeenCalled();
   });
 
@@ -173,5 +186,66 @@ describe("Paixão Clutch admin curation", () => {
       "href",
       "/admin/paixao-clutch"
     );
+  });
+
+  it("loads signed photos on demand and copies the chosen same-item photo", async () => {
+    render(<PaixaoClutchCatalog items={[catalogClutch]} />);
+    expect(mocks.photos).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "Usar foto interna" }));
+    expect(await screen.findByRole("img", { name: "Foto interna 1 de Clutch dourada" })).toHaveAttribute("src", "https://storage.test/private.jpg?token=secret");
+    expect(mocks.photos).toHaveBeenCalledWith(id);
+    await waitFor(() => expect(screen.getByRole("button", { name: "Tornar pública a foto 1" })).toBeEnabled());
+    fireEvent.click(screen.getByRole("button", { name: "Tornar pública a foto 1" }));
+    await waitFor(() => expect(mocks.promote).toHaveBeenCalledWith({ itemId: id, mediaId: "00000000-0000-4000-8000-000000000005" }, "staff-1"));
+    await waitFor(() => expect(screen.getByRole("img", { name: "Imagem pública de Clutch dourada" })).toHaveAttribute("src", "/api/public/inventory-media/copied.jpg"));
+  });
+
+  it("uploads actual file bytes and replaces the public preview", async () => {
+    render(<PaixaoClutchCatalog items={[catalogClutch]} />);
+    const file = new File(["image bytes"], "clutch.png", { type: "image/png" });
+    fireEvent.change(screen.getByLabelText("Enviar imagem pública"), { target: { files: [file] } });
+    fireEvent.submit(screen.getByRole("button", { name: "Substituir imagem pública" }).closest("form")!);
+    await waitFor(() => expect(mocks.upload).toHaveBeenCalledWith({ itemId: id, file }, "staff-1"));
+    expect(mocks.upload.mock.calls[0][0].file).toBe(file);
+    await waitFor(() => expect(screen.getByRole("img", { name: "Imagem pública de Clutch dourada" })).toHaveAttribute("src", "/api/public/inventory-media/new.jpg"));
+    expect(mocks.revalidate).toHaveBeenCalledWith("/paixao-clutch");
+    expect(screen.getByRole("button", { name: "Substituir imagem pública" })).toBeDisabled();
+  });
+
+  it("removes the public preview and unchecks publication", async () => {
+    render(<PaixaoClutchCatalog items={[{ ...catalogClutch, published: true }]} />);
+    fireEvent.click(screen.getByRole("button", { name: "Remover imagem pública" }));
+    await waitFor(() => expect(mocks.remove).toHaveBeenCalledWith({ itemId: id }, "staff-1"));
+    await waitFor(() => expect(screen.queryByRole("img", { name: "Imagem pública de Clutch dourada" })).not.toBeInTheDocument());
+    expect(screen.getByLabelText("Publicar na Paixão Clutch")).not.toBeChecked();
+  });
+
+  it("shows an upload error without losing the current image", async () => {
+    render(<PaixaoClutchCatalog items={[catalogClutch]} />);
+    fireEvent.change(screen.getByLabelText("Enviar imagem pública"), { target: { files: [new File(["bad"], "image.svg", { type: "image/svg+xml" })] } });
+    fireEvent.submit(screen.getByRole("button", { name: "Substituir imagem pública" }).closest("form")!);
+    expect(await screen.findByRole("alert")).toHaveTextContent(/JPEG, PNG ou WebP.*4 MB/);
+    expect(mocks.upload).not.toHaveBeenCalled();
+    expect(screen.getByRole("img", { name: "Imagem pública de Clutch dourada" })).toHaveAttribute("src", "/images/paixao-clutch/dourada.jpg");
+  });
+
+  it("denies all media actions and signed previews to a client", async () => {
+    mocks.user.mockResolvedValue({ id: "client-1", role: "client" });
+    for (const action of [uploadInventoryPublicMediaAction, promoteInventoryMediaAction, removeInventoryPublicMediaAction, readPaixaoClutchPrivateMediaAction]) {
+      await expect(action({ itemId: id })).resolves.toMatchObject({ ok: false, error: expect.stringMatching(/permissão/) });
+    }
+    expect(mocks.upload).not.toHaveBeenCalled();
+    expect(mocks.promote).not.toHaveBeenCalled();
+    expect(mocks.remove).not.toHaveBeenCalled();
+    expect(mocks.photos).not.toHaveBeenCalled();
+  });
+
+  it("reconciles a server-confirmed unpublication without losing unsaved copy", () => {
+    const { rerender } = render(<PaixaoClutchCatalog items={[{ ...catalogClutch, published: true }]} />);
+    fireEvent.change(screen.getByLabelText("Copy curta"), { target: { value: "Texto ainda não salvo" } });
+    rerender(<PaixaoClutchCatalog items={[{ ...catalogClutch, publicImagePath: null, published: false }]} />);
+    expect(screen.queryByRole("img", { name: "Imagem pública de Clutch dourada" })).not.toBeInTheDocument();
+    expect(screen.getByLabelText("Publicar na Paixão Clutch")).not.toBeChecked();
+    expect(screen.getByLabelText("Copy curta")).toHaveValue("Texto ainda não salvo");
   });
 });
