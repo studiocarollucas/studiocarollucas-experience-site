@@ -12,6 +12,7 @@ import { DetailSection } from "@/components/admin/detail-section";
 import { Badge } from "@/components/ui/badge";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { FormStatus } from "@/components/admin/form-status";
 import { SubmitButton } from "@/components/admin/submit-button";
@@ -81,6 +82,7 @@ export function InventoryReservations({
   const [highlight, setHighlight] = useState(-1);
   const [startsOn, setStartsOn] = useState(shootDate);
   const [endsOn, setEndsOn] = useState(shootDate);
+  const [purpose, setPurpose] = useState<"shoot" | "rental">("shoot");
   const [override, setOverride] = useState(false);
   const [reason, setReason] = useState("");
   const sequence = useRef(0);
@@ -144,6 +146,7 @@ export function InventoryReservations({
         setQuery("");
         setResults([]);
         setOpen(false);
+        setPurpose("shoot");
         setOverride(false);
         setReason("");
       }
@@ -209,6 +212,18 @@ export function InventoryReservations({
         ) : null}
         <input type="hidden" name="shootId" value={shootId} />
         <input type="hidden" name="inventoryItemId" value={selected?.id ?? ""} />
+        <Field label="Finalidade" htmlFor="purpose" error={fieldError("purpose")}>
+          <Select
+            id="purpose"
+            name="purpose"
+            value={purpose}
+            onChange={(event) => setPurpose(event.target.value as "shoot" | "rental")}
+            required
+          >
+            <option value="shoot">Ensaio</option>
+            <option value="rental">Aluguel</option>
+          </Select>
+        </Field>
         <Field
           label="Item do acervo"
           htmlFor="inventoryItemSearch"
@@ -304,7 +319,16 @@ export function InventoryReservations({
               required
             />
           </Field>
-          <Field label="Fim" htmlFor="endsOn" error={fieldError("endsOn")}>
+          <Field
+            label={purpose === "rental" ? "Data prevista de devolução" : "Fim"}
+            htmlFor="endsOn"
+            hint={
+              purpose === "rental"
+                ? "Informe a data prevista de devolução."
+                : undefined
+            }
+            error={fieldError("endsOn")}
+          >
             <Input
               id="endsOn"
               name="endsOn"

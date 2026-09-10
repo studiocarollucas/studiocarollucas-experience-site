@@ -82,7 +82,7 @@ export async function createShootInventoryReservation(
       .values({
         inventoryItemId: parsed.inventoryItemId,
         shootId: parsed.shootId,
-        purpose: "shoot",
+        purpose: parsed.purpose,
         startsOn: parsed.startsOn,
         endsOn: parsed.endsOn,
         status: "confirmed",
@@ -107,6 +107,7 @@ export async function createShootInventoryReservation(
         after: {
           inventoryItemId: reservation.inventoryItemId,
           shootId: reservation.shootId,
+          purpose: reservation.purpose,
           startsOn: reservation.startsOn,
           endsOn: reservation.endsOn,
           status: reservation.status,

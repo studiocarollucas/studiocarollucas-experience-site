@@ -4,6 +4,7 @@ export const createShootInventoryReservationSchema = z
   .object({
     inventoryItemId: z.string().uuid(),
     shootId: z.string().uuid(),
+    purpose: z.enum(["shoot", "rental"]),
     startsOn: z.string().date(),
     endsOn: z.string().date(),
     overrideConflict: z.boolean().default(false),

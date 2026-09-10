@@ -30,6 +30,7 @@ import {
   createShootInventoryReservation,
   listReservationsForShoot,
 } from "@/domain/inventory/reservations";
+import { createShootInventoryReservationSchema } from "@/domain/inventory/reservation-schema";
 import { inventoryItems } from "@/db/schema";
 
 const inventoryItemId = "a0b1c2d3-e4f5-4000-8000-000000000001";
@@ -40,6 +41,7 @@ const reservationId = "00000000-0000-4000-8000-000000000004";
 const baseInput = {
   inventoryItemId,
   shootId,
+  purpose: "shoot" as const,
   startsOn: "2030-05-10",
   endsOn: "2030-05-12",
 };
@@ -73,7 +75,11 @@ describe("inventory reservations", () => {
         }),
       }),
     });
-    mocks.insert.mockReturnValue({ values: vi.fn().mockImplementation(() => returning({ id: reservationId, status: "confirmed" })) });
+    mocks.insert.mockReturnValue({
+      values: vi.fn().mockImplementation((values) =>
+        returning({ id: reservationId, status: "confirmed", ...values }),
+      ),
+    });
     mocks.update.mockReturnValue({
       set: vi.fn().mockReturnValue({ where: vi.fn().mockImplementation(() => returning({ id: reservationId, status: "cancelled" })) }),
     });
@@ -108,6 +114,39 @@ describe("inventory reservations", () => {
         entityId: reservationId,
       }),
       expect.objectContaining({ insert: mocks.insert }),
+    );
+  });
+
+  it("requires an explicit valid rental purpose and records the planned return in the interval", async () => {
+    expect(
+      createShootInventoryReservationSchema.safeParse({
+        ...baseInput,
+        purpose: "rental",
+        startsOn: "2030-05-12",
+        endsOn: "2030-05-11",
+      }).success,
+    ).toBe(false);
+    const { purpose: _purpose, ...inputWithoutPurpose } = baseInput;
+    expect(createShootInventoryReservationSchema.safeParse(inputWithoutPurpose).success).toBe(false);
+
+    await expect(
+      createShootInventoryReservation(
+        { ...baseInput, purpose: "rental", endsOn: "2030-05-15" },
+        actorUserId,
+      ),
+    ).resolves.toMatchObject({ status: "confirmed" });
+
+    const values = mocks.insert.mock.results[0]?.value.values;
+    expect(values).toHaveBeenCalledWith(
+      expect.objectContaining({
+        purpose: "rental",
+        startsOn: "2030-05-10",
+        endsOn: "2030-05-15",
+      }),
+    );
+    expect(mocks.recordAuditEvent).toHaveBeenCalledWith(
+      expect.objectContaining({ after: expect.objectContaining({ purpose: "rental" }) }),
+      expect.anything(),
     );
   });
 
