@@ -6,6 +6,7 @@ const mocks = vi.hoisted(() => ({
   user: vi.fn(),
   list: vi.fn(),
   update: vi.fn(),
+  reorder: vi.fn(),
   revalidate: vi.fn(),
 }));
 
@@ -13,6 +14,7 @@ vi.mock("@/lib/auth/session", () => ({ getCurrentUser: mocks.user }));
 vi.mock("@/domain/inventory/clutch", () => ({
   listPaixaoClutchForAdmin: mocks.list,
   updatePaixaoClutch: mocks.update,
+  reorderPaixaoClutch: mocks.reorder,
 }));
 vi.mock("next/cache", () => ({ revalidatePath: mocks.revalidate }));
 vi.mock("next/navigation", () => ({
@@ -23,7 +25,7 @@ vi.mock("next/navigation", () => ({
 }));
 
 import PaixaoClutchPage from "@/app/admin/(protected)/paixao-clutch/page";
-import { updatePaixaoClutchAction } from "@/app/admin/(protected)/paixao-clutch/actions";
+import { updatePaixaoClutchAction, reorderPaixaoClutchAction } from "@/app/admin/(protected)/paixao-clutch/actions";
 import { PaixaoClutchCatalog } from "@/components/admin/paixao-clutch-catalog";
 import { AdminNav } from "@/components/admin/admin-nav";
 
@@ -37,7 +39,7 @@ const clutch = {
   rentalPrice: "120.00",
   replacementValue: "600.00",
   paixaoClutchCopy: "Um brilho discreto para a produção.",
-  paixaoClutchPublicImagePath: "public/paixao-clutch/dourada.jpg",
+  paixaoClutchPublicImagePath: "/images/paixao-clutch/dourada.jpg",
   paixaoClutchPublished: false,
   paixaoClutchFeatured: false,
   paixaoClutchSortOrder: 0,
@@ -68,7 +70,7 @@ describe("Paixão Clutch admin curation", () => {
     expect(screen.getByLabelText("Preço de aluguel")).toHaveValue("120.00");
     expect(screen.getByLabelText("Valor de reposição")).toHaveValue("600.00");
     expect(screen.getByLabelText("Referência da imagem pública")).toHaveValue(
-      "public/paixao-clutch/dourada.jpg"
+      "/images/paixao-clutch/dourada.jpg"
     );
     expect(screen.queryByText(/valor de reposição.*públic/i)).not.toBeInTheDocument();
     expect(mocks.list).toHaveBeenCalledWith({ published: false }, "staff-1");
@@ -77,7 +79,7 @@ describe("Paixão Clutch admin curation", () => {
   it("keeps client interaction behind the catalog boundary and submits curated fields", async () => {
     render(<PaixaoClutchCatalog items={[catalogClutch]} />);
 
-    fireEvent.change(screen.getByLabelText("Ordem editorial"), { target: { value: "2" } });
+    expect(screen.queryByLabelText("Ordem editorial")).not.toBeInTheDocument();
     fireEvent.click(screen.getByLabelText("Publicar na Paixão Clutch"));
     fireEvent.submit(screen.getByRole("button", { name: "Salvar curadoria" }).closest("form")!);
 
@@ -87,10 +89,9 @@ describe("Paixão Clutch admin curation", () => {
           itemId: id,
           rentalPrice: "120.00",
           replacementValue: "600.00",
-          publicImagePath: "public/paixao-clutch/dourada.jpg",
+          publicImagePath: "/images/paixao-clutch/dourada.jpg",
           published: true,
           featured: false,
-          sortOrder: 2,
         }),
         "staff-1"
       )
@@ -106,9 +107,33 @@ describe("Paixão Clutch admin curation", () => {
         rentalPrice: "120.00",
         published: false,
         featured: false,
-        sortOrder: 0,
       })
     ).resolves.toMatchObject({ ok: false, error: expect.stringMatching(/permissão/i) });
+    expect(mocks.update).not.toHaveBeenCalled();
+  });
+
+  it("submits the full published collection in its chosen order independently of filters", async () => {
+    const secondId = "00000000-0000-4000-8000-000000000004";
+    mocks.list.mockImplementation((filters) => Promise.resolve(filters.published === true
+      ? [{ ...clutch, paixaoClutchPublished: true }, { ...clutch, id: secondId, name: "Clutch prata", paixaoClutchPublished: true }]
+      : [clutch]));
+    render(await PaixaoClutchPage({ searchParams: Promise.resolve({ published: "false" }) }));
+    fireEvent.click(screen.getByRole("button", { name: "Subir Clutch prata" }));
+    fireEvent.submit(screen.getByRole("button", { name: "Salvar ordem dos publicados" }).closest("form")!);
+    await waitFor(() => expect(mocks.reorder).toHaveBeenCalledWith({ itemIds: [secondId, id] }, "staff-1"));
+    expect(mocks.revalidate).toHaveBeenCalledWith("/admin/paixao-clutch");
+  });
+
+  it("rejects a client reorder action before reaching the domain", async () => {
+    mocks.user.mockResolvedValue({ id: "client-1", role: "client" });
+    await expect(reorderPaixaoClutchAction({ itemIds: [id] })).resolves.toMatchObject({ ok: false });
+    expect(mocks.reorder).not.toHaveBeenCalled();
+  });
+
+  it("rejects a signed private image URL at the action boundary", async () => {
+    await expect(updatePaixaoClutchAction({ itemId: id, published: true, featured: false,
+      publicImagePath: "https://storage.test/storage/v1/object/sign/inventory-media/a.jpg?token=secret",
+    })).resolves.toMatchObject({ ok: false, fieldErrors: { publicImagePath: expect.any(Array) } });
     expect(mocks.update).not.toHaveBeenCalled();
   });
 

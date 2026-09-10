@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, asc, eq, type SQL } from "drizzle-orm";
+import { and, asc, eq, sql, type SQL } from "drizzle-orm";
 import { db } from "@/db/client";
 import { inventoryItems, type InventoryItem } from "@/db/schema";
 import { recordAuditEvent } from "@/domain/audit/service";
@@ -9,7 +9,17 @@ import {
   type PaixaoClutchAdminFilters,
   type UpdatePaixaoClutchInput,
   updatePaixaoClutchSchema,
+  reorderPaixaoClutchSchema,
+  type ReorderPaixaoClutchInput,
 } from "./clutch-schema";
+
+type CurationTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
+
+async function lockCuration(tx: CurationTransaction) {
+  // Publication and ordering share this lock so the collection cannot gain or
+  // lose members between the membership check and the final ordered write.
+  await tx.execute(sql`select pg_advisory_xact_lock(hashtextextended('paixao-clutch-curation', 0))`);
+}
 
 function assertPublishable(item: InventoryItem, input: ReturnType<typeof updatePaixaoClutchSchema.parse>): void {
   if (item.type !== "clutch") throw new Error("somente clutches podem participar da curadoria Paixão Clutch");
@@ -30,6 +40,7 @@ export async function updatePaixaoClutch(
   await requireInventoryCatalogActor(actorUserId);
 
   return db.transaction(async (tx) => {
+    await lockCuration(tx);
     const [before] = await tx
       .select()
       .from(inventoryItems)
@@ -48,7 +59,6 @@ export async function updatePaixaoClutch(
         paixaoClutchPublicImagePath: parsed.publicImagePath,
         paixaoClutchPublished: parsed.published,
         paixaoClutchFeatured: parsed.featured,
-        paixaoClutchSortOrder: parsed.sortOrder,
         updatedAt: new Date(),
       })
       .where(eq(inventoryItems.id, parsed.itemId))
@@ -67,6 +77,38 @@ export async function updatePaixaoClutch(
       tx,
     );
     return item;
+  });
+}
+
+export async function reorderPaixaoClutch(
+  input: ReorderPaixaoClutchInput,
+  actorUserId: string,
+): Promise<void> {
+  const { itemIds } = reorderPaixaoClutchSchema.parse(input);
+  await requireInventoryCatalogActor(actorUserId);
+  await db.transaction(async (tx) => {
+    await lockCuration(tx);
+    const published = await tx.select().from(inventoryItems)
+      .where(and(eq(inventoryItems.type, "clutch"), eq(inventoryItems.paixaoClutchPublished, true)))
+      .orderBy(asc(inventoryItems.id)).for("update");
+    const members = new Map(published.map((item) => [item.id, item]));
+    if (itemIds.length !== published.length || itemIds.some((id) => !members.has(id))) {
+      throw new Error("A coleção publicada mudou. Atualize a página e tente novamente.");
+    }
+    for (const [sortOrder, itemId] of itemIds.entries()) {
+      const before = members.get(itemId)!;
+      const updatedAt = new Date();
+      await tx.update(inventoryItems).set({ paixaoClutchSortOrder: sortOrder, updatedAt })
+        .where(and(eq(inventoryItems.id, itemId), eq(inventoryItems.paixaoClutchPublished, true)));
+      await recordAuditEvent({
+        actorUserId,
+        action: "inventory_item.paixao_clutch_reordered",
+        entityType: "inventory_item",
+        entityId: itemId,
+        before,
+        after: { ...before, paixaoClutchSortOrder: sortOrder, updatedAt },
+      }, tx);
+    }
   });
 }
 

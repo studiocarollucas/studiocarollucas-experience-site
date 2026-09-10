@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState, useState, type ChangeEvent } from "react";
-import { updatePaixaoClutchAction } from "@/app/admin/(protected)/paixao-clutch/actions";
+import { updatePaixaoClutchAction, reorderPaixaoClutchAction } from "@/app/admin/(protected)/paixao-clutch/actions";
 import type { PaixaoClutchAdminFilters } from "@/domain/inventory/clutch-schema";
 import { type ActionResult, toFormAction } from "@/lib/auth/action-result";
 import { Field } from "@/components/ui/field";
@@ -38,13 +38,11 @@ function ClutchEditor({ item }: { item: PaixaoClutchCatalogItem }) {
     replacementValue: item.replacementValue ?? "",
     copy: item.copy ?? "",
     publicImagePath: item.publicImagePath ?? "",
-    sortOrder: String(item.sortOrder),
   });
   const [published, setPublished] = useState(item.published);
   const [featured, setFeatured] = useState(item.featured);
   const [state, action] = useActionState(
     toFormAction(updatePaixaoClutchAction, {
-      numbers: ["sortOrder"],
       booleans: ["published", "featured"],
     }),
     null
@@ -116,7 +114,7 @@ function ClutchEditor({ item }: { item: PaixaoClutchCatalogItem }) {
           label="Referência da imagem pública"
           htmlFor={`${item.id}-public-image`}
           error={error("publicImagePath")}
-          hint="Informe somente a referência já aprovada para publicação."
+          hint="Imagem pública própria: /images/paixao-clutch/nome-do-arquivo.jpg (ou png/webp). A referência não envia nem publica arquivos."
         >
           <Input
             id={`${item.id}-public-image`}
@@ -125,20 +123,6 @@ function ClutchEditor({ item }: { item: PaixaoClutchCatalogItem }) {
           />
         </Field>
         <div className="grid gap-4 sm:grid-cols-2">
-          <Field
-            label="Ordem editorial"
-            htmlFor={`${item.id}-sort-order`}
-            error={error("sortOrder")}
-          >
-            <Input
-              id={`${item.id}-sort-order`}
-              name="sortOrder"
-              type="number"
-              min={0}
-              step={1}
-              {...field("sortOrder")}
-            />
-          </Field>
           <div className="flex flex-col justify-end gap-3 pb-1">
             <label className="flex min-h-11 items-center gap-2 font-sans text-sm">
               <input
@@ -168,15 +152,61 @@ function ClutchEditor({ item }: { item: PaixaoClutchCatalogItem }) {
   );
 }
 
+function PublishedOrder({ items }: { items: PaixaoClutchCatalogItem[] }) {
+  const [ordered, setOrdered] = useState(items);
+  const [state, action, pending] = useActionState(
+    async (_previous: ActionResult<{ reordered: boolean }> | null, formData: FormData) =>
+      reorderPaixaoClutchAction({ itemIds: formData.getAll("itemIds") }),
+    null,
+  );
+  function move(index: number, offset: number) {
+    setOrdered((current) => {
+      const next = [...current];
+      const target = index + offset;
+      if (target < 0 || target >= next.length) return current;
+      [next[index], next[target]] = [next[target], next[index]];
+      return next;
+    });
+  }
+  return (
+    <form action={action} className="space-y-4 border border-line bg-white p-5">
+      <h2 className="font-serif text-xl text-ink">Ordem dos publicados</h2>
+      <p className="font-sans text-sm text-muted">Toda a coleção publicada, independentemente dos filtros abaixo.</p>
+      <FormStatus state={state} />
+      {state?.ok ? <p role="status">Ordem salva.</p> : null}
+      <ol className="space-y-3">
+        {ordered.map((item, index) => (
+          <li key={item.id} className="flex flex-wrap items-center gap-3 font-sans text-sm">
+            <input type="hidden" name="itemIds" value={item.id} />
+            <span className="flex-1">{index + 1}. {item.name} · {item.code}</span>
+            <button type="button" aria-label={`Subir ${item.name}`} disabled={pending || index === 0}
+              onClick={() => move(index, -1)} className="min-h-11 border border-line px-3 disabled:opacity-40">Subir</button>
+            <button type="button" aria-label={`Descer ${item.name}`} disabled={pending || index === ordered.length - 1}
+              onClick={() => move(index, 1)} className="min-h-11 border border-line px-3 disabled:opacity-40">Descer</button>
+          </li>
+        ))}
+      </ol>
+      {ordered.length ? <SubmitButton>Salvar ordem dos publicados</SubmitButton>
+        : <p className="font-sans text-sm text-muted">Nenhuma clutch publicada.</p>}
+    </form>
+  );
+}
+
 export function PaixaoClutchCatalog({
   items,
+  publishedItems = [],
   filters = {},
 }: {
   items: PaixaoClutchCatalogItem[];
+  publishedItems?: PaixaoClutchCatalogItem[];
   filters?: PaixaoClutchAdminFilters;
 }) {
   return (
     <div className="space-y-5">
+      <PublishedOrder
+        key={publishedItems.map((item) => `${item.id}:${item.sortOrder}`).join(",")}
+        items={publishedItems.filter((item) => item.published)}
+      />
       <form
         method="get"
         action="/admin/paixao-clutch"

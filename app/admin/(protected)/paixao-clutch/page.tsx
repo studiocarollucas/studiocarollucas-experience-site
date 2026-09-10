@@ -6,7 +6,8 @@ import {
 } from "@/components/admin/paixao-clutch-catalog";
 import { getCurrentUser } from "@/lib/auth/session";
 import { hasMinimumRole } from "@/lib/auth/rbac";
-import { listPaixaoClutchForAdmin, type PaixaoClutchAdminFilters } from "@/domain/inventory/clutch";
+import { listPaixaoClutchForAdmin } from "@/domain/inventory/clutch";
+import type { PaixaoClutchAdminFilters } from "@/domain/inventory/clutch-schema";
 
 function parseBoolean(value: string | string[] | undefined): boolean | undefined {
   if (value === "true") return true;
@@ -50,14 +51,17 @@ export default async function PaixaoClutchPage({
   if (published !== undefined) filters.published = published;
   if (featured !== undefined) filters.featured = featured;
 
-  const items = await listPaixaoClutchForAdmin(filters, user.id);
+  const [items, publishedItems] = await Promise.all([
+    listPaixaoClutchForAdmin(filters, user.id),
+    listPaixaoClutchForAdmin({ published: true }, user.id),
+  ]);
   return (
     <div className="space-y-6">
       <PageHeader
         title="Paixão Clutch"
         description="Curadoria administrativa, preços e publicação editorial das clutches."
       />
-      <PaixaoClutchCatalog items={items.map(toCatalogItem)} filters={filters} />
+      <PaixaoClutchCatalog items={items.map(toCatalogItem)} publishedItems={publishedItems.map(toCatalogItem)} filters={filters} />
     </div>
   );
 }
