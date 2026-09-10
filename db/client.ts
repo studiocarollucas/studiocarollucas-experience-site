@@ -10,8 +10,9 @@ const connectionString = process.env.DATABASE_URL!;
 const queryClientOptions = {
   prepare: false,
   max: 1,
-  // Supported by postgres.js at runtime but missing from its published 3.4.9 types.
-  max_pipeline: 0,
+  // `0` leaves postgres.js without a queue slot during transactions. One slot
+  // serializes requests for Supavisor while keeping the driver's queue valid.
+  max_pipeline: 1,
 } satisfies postgres.Options<Record<string, postgres.PostgresType>> & { max_pipeline: number };
 
 const queryClient = postgres(connectionString, queryClientOptions);
