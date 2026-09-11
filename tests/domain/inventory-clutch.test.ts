@@ -35,7 +35,6 @@ const baseInput = {
   rentalPrice: "120.00",
   replacementValue: "600.00",
   copy: "Uma clutch dourada para produções especiais.",
-  publicImagePath: "/images/paixao-clutch/dourada.webp",
   published: true,
   featured: true,
   eligible: true,
@@ -51,7 +50,7 @@ const clutch = {
   rentalPrice: null,
   replacementValue: null,
   paixaoClutchCopy: null,
-  paixaoClutchPublicImagePath: null,
+  paixaoClutchPublicImagePath: "https://project.supabase.co/storage/v1/object/public/paixao-clutch-media/paixao-clutch/confirmed.webp",
   paixaoClutchPublished: false,
   paixaoClutchFeatured: false,
   paixaoClutchSortOrder: 0,
@@ -87,6 +86,7 @@ describe("Paixão Clutch curation", () => {
       }),
     );
     mocks.itemFor.mockResolvedValue([clutch]);
+    mocks.transactionSelect.mockReturnValue({ from: () => ({ where: () => ({ limit: async () => [{ publicPath: clutch.paixaoClutchPublicImagePath, state: "ready" }] }) }) });
     mocks.itemWhere.mockReturnValue({ limit: () => ({ for: mocks.itemFor }), orderBy: () => ({ for: mocks.publishedFor }) });
     mocks.execute.mockResolvedValue([]);
     mocks.update.mockReturnValue({
@@ -115,11 +115,12 @@ describe("Paixão Clutch curation", () => {
   });
 
   it("clears omitted editorial and commercial fields on an unpublished item using SQL NULL", async () => {
-    mocks.itemFor.mockResolvedValueOnce([{ ...clutch, rentalPrice: baseInput.rentalPrice, replacementValue: baseInput.replacementValue, paixaoClutchCopy: baseInput.copy, paixaoClutchPublicImagePath: baseInput.publicImagePath }]);
+    mocks.itemFor.mockResolvedValueOnce([{ ...clutch, rentalPrice: baseInput.rentalPrice, replacementValue: baseInput.replacementValue, paixaoClutchCopy: baseInput.copy }]);
     await updatePaixaoClutch({ itemId, eligible: true, published: false, featured: false }, actorUserId);
     expect(mocks.update.mock.results[0].value.set).toHaveBeenCalledWith(expect.objectContaining({
-      rentalPrice: null, replacementValue: null, paixaoClutchCopy: null, paixaoClutchPublicImagePath: null,
+      rentalPrice: null, replacementValue: null, paixaoClutchCopy: null,
     }));
+    expect(mocks.update.mock.results[0].value.set.mock.calls[0][0]).not.toHaveProperty("paixaoClutchPublicImagePath");
   });
 
   it("requires editorial eligibility to publish", async () => {
@@ -152,7 +153,6 @@ describe("Paixão Clutch curation", () => {
         rentalPrice: "120.00",
         replacementValue: "600.00",
         paixaoClutchCopy: baseInput.copy,
-        paixaoClutchPublicImagePath: baseInput.publicImagePath,
         paixaoClutchPublished: true,
         paixaoClutchFeatured: true,
         updatedAt: expect.any(Date),
@@ -189,8 +189,9 @@ describe("Paixão Clutch curation", () => {
     "/images/paixao-clutch/a\\private.jpg",
     "data:image/png;base64,AAAA",
   ])("rejects unsafe public image references: %s", async (publicImagePath) => {
-    expect(updatePaixaoClutchSchema.shape.publicImagePath.safeParse(publicImagePath).success).toBe(false);
-    await expect(updatePaixaoClutch({ ...baseInput, publicImagePath }, actorUserId)).rejects.toThrow();
+    const input = { ...baseInput, publicImagePath };
+    expect(updatePaixaoClutchSchema.safeParse(input).success).toBe(false);
+    await expect(updatePaixaoClutch(input, actorUserId)).rejects.toThrow();
     expect(mocks.transaction).not.toHaveBeenCalled();
   });
 
@@ -252,13 +253,24 @@ describe("Paixão Clutch curation", () => {
   it.each([
     ["rentalPrice"],
     ["copy"],
-    ["publicImagePath"],
   ] as const)("requires %s before publication", async (missingField) => {
     const input = { ...baseInput, [missingField]: undefined };
 
     await expect(updatePaixaoClutch(input, actorUserId)).rejects.toThrow(/publica/i);
     expect(mocks.update).not.toHaveBeenCalled();
     expect(mocks.recordAuditEvent).not.toHaveBeenCalled();
+  });
+
+  it("requires a confirmed public-media record belonging to the item before publication", async () => {
+    mocks.transactionSelect.mockReturnValueOnce({ from: () => ({ where: () => ({ limit: async () => [] }) }) });
+    await expect(updatePaixaoClutch(baseInput, actorUserId)).rejects.toThrow(/imagem pública confirmada/i);
+    expect(mocks.update).not.toHaveBeenCalled();
+  });
+
+  it("requires an existing image before publication", async () => {
+    mocks.itemFor.mockResolvedValueOnce([{ ...clutch, paixaoClutchPublicImagePath: null }]);
+    await expect(updatePaixaoClutch(baseInput, actorUserId)).rejects.toThrow(/imagem pública/i);
+    expect(mocks.update).not.toHaveBeenCalled();
   });
 
   it.each(["client", undefined])("rejects a %s actor before a curation mutation", async (role) => {

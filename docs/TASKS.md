@@ -2341,7 +2341,7 @@ Criar fonte de verdade para o acervo físico do estúdio, incluindo Paixão Clut
 - Blocks: public launch gate
 - Files/Scope: public Paixão Clutch section/page
 - Migration: no
-- Updated at: 2026-09-09 America/Manaus
+- Updated at: 2026-09-11 America/Manaus
 
 **Acceptance criteria**
 
@@ -2355,6 +2355,7 @@ Criar fonte de verdade para o acervo físico do estúdio, incluindo Paixão Clut
 **Blocker/Hand-off notes**
 
 - desbloqueada para planejamento de mídia pública após o merge de SCL-551; permanece pendente de SCL-556 e da implementação pública.
+- pré-requisito de mídia pública implementado nesta branch: armazenamento público separado, cópia explícita do acervo privado e despublicação ao remover/substituir a mídia. Isso não implementa nem conclui a vitrine pública de SCL-557.
 
 ---
 

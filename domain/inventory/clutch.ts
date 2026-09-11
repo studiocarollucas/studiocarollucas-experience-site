@@ -2,7 +2,7 @@ import "server-only";
 
 import { and, asc, eq, type SQL } from "drizzle-orm";
 import { db } from "@/db/client";
-import { inventoryItems, type InventoryItem } from "@/db/schema";
+import { inventoryItems, inventoryPublicMedia, type InventoryItem } from "@/db/schema";
 import { recordAuditEvent } from "@/domain/audit/service";
 import { requireInventoryCatalogActor } from "./authorization";
 import { lockCuration } from "./curation-lock";
@@ -15,6 +15,8 @@ import {
   type ReorderPaixaoClutchInput,
 } from "./clutch-schema";
 
+export { uploadInventoryPublicMedia, promoteInventoryMedia, removeInventoryPublicMedia, readInventoryPublicMedia } from "./public-media";
+
 function assertPublishable(item: InventoryItem, input: ReturnType<typeof updatePaixaoClutchSchema.parse>): void {
   if (item.type !== "clutch") throw new Error("somente clutches podem participar da curadoria Paixão Clutch");
   if (!input.published) return;
@@ -22,7 +24,7 @@ function assertPublishable(item: InventoryItem, input: ReturnType<typeof updateP
   if (!item.active || item.status !== "available") {
     throw new Error("item indisponível não pode ser publicado na Paixão Clutch");
   }
-  if (!input.rentalPrice || !input.copy || !input.publicImagePath) {
+  if (!input.rentalPrice || !input.copy || !item.paixaoClutchPublicImagePath) {
     throw new Error("publicação da Paixão Clutch exige preço de aluguel, copy e imagem pública");
   }
 }
@@ -44,6 +46,14 @@ export async function updatePaixaoClutch(
       .for("update");
     if (!before) throw new Error("item de acervo inexistente");
     assertPublishable(before, parsed);
+    if (parsed.published) {
+      const [media] = await tx.select().from(inventoryPublicMedia).where(and(
+        eq(inventoryPublicMedia.inventoryItemId, parsed.itemId),
+        eq(inventoryPublicMedia.publicPath, before.paixaoClutchPublicImagePath!),
+        eq(inventoryPublicMedia.state, "ready"),
+      )).limit(1);
+      if (!media) throw new Error("Publicação exige imagem pública confirmada pelo acervo.");
+    }
 
     const [item] = await tx
       .update(inventoryItems)
@@ -52,7 +62,6 @@ export async function updatePaixaoClutch(
         rentalPrice: parsed.rentalPrice ?? null,
         replacementValue: parsed.replacementValue ?? null,
         paixaoClutchCopy: parsed.copy || null,
-        paixaoClutchPublicImagePath: parsed.publicImagePath ?? null,
         paixaoClutchEligible: parsed.eligible,
         paixaoClutchPublished: parsed.published,
         paixaoClutchFeatured: parsed.featured,

@@ -1,11 +1,11 @@
 "use client";
 
-import { useActionState, useState, type ChangeEvent } from "react";
+import { useActionState, useRef, useState, useTransition, type ChangeEvent } from "react";
 import Link from "next/link";
 import { studioDate } from "@/domain/portal/countdown";
 import type { FutureInventoryReservation } from "@/domain/inventory/queries";
-import { updatePaixaoClutchAction, reorderPaixaoClutchAction } from "@/app/admin/(protected)/paixao-clutch/actions";
-import type { PaixaoClutchAdminFilters } from "@/domain/inventory/clutch-schema";
+import { updatePaixaoClutchAction, reorderPaixaoClutchAction, uploadInventoryPublicMediaAction, promoteInventoryMediaAction, removeInventoryPublicMediaAction, readPaixaoClutchPrivateMediaAction } from "@/app/admin/(protected)/paixao-clutch/actions";
+import { publicInventoryMediaFileSchema, type PaixaoClutchAdminFilters } from "@/domain/inventory/clutch-schema";
 import { type ActionResult, toFormAction } from "@/lib/auth/action-result";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
@@ -37,14 +37,130 @@ const statusLabels = {
   retired: "Retirada do acervo",
 } as const;
 
-function ClutchEditor({ item }: { item: PaixaoClutchCatalogItem }) {
+function PublicMediaEditor({ item, onRemove, onRemoveFailure }: {
+  item: PaixaoClutchCatalogItem;
+  onRemove: () => void;
+  onRemoveFailure: (committed: boolean) => void;
+}) {
+  const [publicPath, setPublicPath] = useState(item.publicImagePath);
+  const [serverPublicPath, setServerPublicPath] = useState(item.publicImagePath);
+  const [file, setFile] = useState<File | null>(null);
+  const uploadForm = useRef<HTMLFormElement>(null);
+  const [photos, setPhotos] = useState<Array<{ id: string; signedUrl: string }> | null>(null);
+  const [state, setState] = useState<ActionResult<{ publicPath: string | null }> | null>(null);
+  const [pending, startTransition] = useTransition();
+  const buttonClass = "min-h-11 border border-line px-4 py-2 font-sans text-sm disabled:opacity-40";
+  if (serverPublicPath !== item.publicImagePath) {
+    setServerPublicPath(item.publicImagePath);
+    setPublicPath(item.publicImagePath);
+  }
+
+  function changeMedia(
+    change: () => Promise<ActionResult<{ publicPath: string | null; cleanupError?: string }>>,
+    onFailure?: (committed: boolean) => void,
+  ) {
+    startTransition(async () => {
+      setState(null);
+      try {
+        const result = await change();
+        setState(result);
+        if (result.ok) {
+          setPublicPath(result.data.publicPath);
+          if (result.data.cleanupError) {
+            setState({ ok: false, error: result.data.cleanupError });
+            onFailure?.(true);
+          } else if (!result.data.publicPath) onRemove();
+        } else {
+          onFailure?.(false);
+        }
+      } catch {
+        setState({ ok: false, error: "Não foi possível concluir a operação. Tente novamente." });
+        onFailure?.(false);
+      }
+    });
+  }
+
+  return (
+    <section aria-label={`Imagem pública de ${item.name}`} className="mb-5 space-y-4 border border-line p-4">
+      <h3 className="font-serif text-lg">Imagem pública</h3>
+      <p className="font-sans text-sm text-muted">A imagem enviada ou escolhida ficará acessível publicamente. As demais fotos internas continuam disponíveis apenas para a equipe.</p>
+      {publicPath ? (
+        // eslint-disable-next-line @next/next/no-img-element -- Public media preview does not need optimization.
+        <img src={publicPath} alt={`Imagem pública de ${item.name}`} className="h-48 w-48 object-contain" />
+      ) : <p className="font-sans text-sm text-muted">Sem imagem pública.</p>}
+      <FormStatus state={state} />
+      {state?.ok ? <p role="status" className="font-sans text-sm">{state.data.publicPath ? "Imagem pública salva." : "Imagem pública removida e item despublicado."}</p> : null}
+      {state && !state.ok && state.fieldErrors?.file ? <p role="alert" className="font-sans text-sm text-red-700">{state.fieldErrors.file[0]}</p> : null}
+      <form ref={uploadForm} onSubmit={(event) => {
+        event.preventDefault();
+        if (!file || !publicInventoryMediaFileSchema.safeParse(file).success) {
+          setState({ ok: false, error: "Envie uma imagem JPEG, PNG ou WebP de até 4 MB." });
+          return;
+        }
+        changeMedia(async () => {
+          const result = await uploadInventoryPublicMediaAction({ itemId: item.id, file });
+          if (result.ok) {
+            setFile(null);
+            uploadForm.current?.reset();
+          }
+          return result;
+        });
+      }} className="grid gap-3">
+        <Field label="Enviar imagem pública" htmlFor={`${item.id}-public-upload`} hint="JPEG, PNG ou WebP, até 4 MB.">
+          <Input id={`${item.id}-public-upload`} type="file" accept="image/jpeg,image/png,image/webp" disabled={pending}
+            onChange={(event) => setFile(event.target.files?.[0] ?? null)} />
+        </Field>
+        <div><button type="submit" disabled={pending || !file} className={buttonClass}>{publicPath ? "Substituir imagem pública" : "Salvar imagem pública"}</button></div>
+      </form>
+      <div className="flex flex-wrap gap-3">
+        <button type="button" disabled={pending} className={buttonClass} onClick={() => startTransition(async () => {
+          setState(null);
+          try {
+            const result = await readPaixaoClutchPrivateMediaAction({ itemId: item.id });
+            if (result.ok) setPhotos(result.data);
+            else setState(result);
+          } catch {
+            setState({ ok: false, error: "Não foi possível carregar as fotos internas. Tente novamente." });
+          }
+        })}>Usar foto interna</button>
+        <button type="button" disabled={pending} className={buttonClass}
+          onClick={() => changeMedia(() => removeInventoryPublicMediaAction({ itemId: item.id }), onRemoveFailure)}>Remover imagem pública</button>
+      </div>
+      <p className="font-sans text-xs text-muted">Remover a imagem também despublica a clutch. Se uma remoção falhar, use o botão novamente.</p>
+      {pending ? <p role="status" className="font-sans text-sm">Processando imagem…</p> : null}
+      {photos ? <div className="space-y-3">
+        <p className="font-sans text-sm">Fotos internas deste item. Escolha uma foto para criar a cópia pública.</p>
+        {!photos.length ? <p className="font-sans text-sm text-muted">Este item ainda não tem fotos internas.</p> : null}
+        <div className="grid gap-3 sm:grid-cols-3">
+          {photos.map((photo, index) => <div key={photo.id} className="space-y-2 border border-line p-3">
+            {/* Signed private URLs must bypass the public image optimizer. */}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={photo.signedUrl} alt={`Foto interna ${index + 1} de ${item.name}`} referrerPolicy="no-referrer" className="h-32 w-full object-contain" />
+            <button type="button" disabled={pending} className={buttonClass}
+              onClick={() => changeMedia(() => promoteInventoryMediaAction({ itemId: item.id, mediaId: photo.id }))}>Tornar pública a foto {index + 1}</button>
+          </div>)}
+        </div>
+      </div> : null}
+    </section>
+  );
+}
+
+function ClutchEditor({ item, onRemoveFailure, onRemoveSuccess }: {
+  item: PaixaoClutchCatalogItem;
+  onRemoveFailure: (committed: boolean) => void;
+  onRemoveSuccess: () => void;
+}) {
   const [values, setValues] = useState({
     rentalPrice: item.rentalPrice ?? "",
     replacementValue: item.replacementValue ?? "",
     copy: item.copy ?? "",
-    publicImagePath: item.publicImagePath ?? "",
   });
   const [published, setPublished] = useState(item.published);
+  const [serverPublished, setServerPublished] = useState(item.published);
+  if (serverPublished !== item.published) {
+    setServerPublished(item.published);
+    setPublished(item.published);
+  }
   const [eligible, setEligible] = useState(item.eligible);
   const [featured, setFeatured] = useState(item.featured);
   const [state, action] = useActionState(
@@ -88,6 +204,13 @@ function ClutchEditor({ item }: { item: PaixaoClutchCatalogItem }) {
           </ul>
         </div>
       ) : null}
+      <PublicMediaEditor item={item} onRemove={() => {
+        setPublished(false);
+        onRemoveSuccess();
+      }} onRemoveFailure={(committed) => {
+        if (committed) setPublished(false);
+        onRemoveFailure(committed);
+      }} />
       <form action={action} className="grid gap-4">
         <FormStatus state={state} />
         {state?.ok ? (
@@ -131,18 +254,6 @@ function ClutchEditor({ item }: { item: PaixaoClutchCatalogItem }) {
           hint="Até 280 caracteres."
         >
           <Textarea id={`${item.id}-copy`} name="copy" maxLength={280} {...field("copy")} />
-        </Field>
-        <Field
-          label="Referência da imagem pública"
-          htmlFor={`${item.id}-public-image`}
-          error={error("publicImagePath")}
-          hint="Imagem pública própria: /images/paixao-clutch/nome-do-arquivo.jpg (ou png/webp). A referência não envia nem publica arquivos."
-        >
-          <Input
-            id={`${item.id}-public-image`}
-            name="publicImagePath"
-            {...field("publicImagePath")}
-          />
         </Field>
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="flex flex-col justify-end gap-3 pb-1">
@@ -231,6 +342,11 @@ export function PaixaoClutchCatalog({
   publishedItems?: PaixaoClutchCatalogItem[];
   filters?: PaixaoClutchAdminFilters;
 }) {
+  const [failedRemovalItem, setFailedRemovalItem] = useState<PaixaoClutchCatalogItem | null>(null);
+  const visibleItems = failedRemovalItem && !items.some((item) => item.id === failedRemovalItem.id)
+    ? [failedRemovalItem, ...items]
+    : items;
+
   return (
     <div className="space-y-5">
       <PublishedOrder
@@ -282,12 +398,19 @@ export function PaixaoClutchCatalog({
         </div>
       </form>
       <p className="font-sans text-sm text-muted">
-        {items.length} {items.length === 1 ? "clutch encontrada" : "clutches encontradas"}
+        {visibleItems.length} {visibleItems.length === 1 ? "clutch encontrada" : "clutches encontradas"}
       </p>
-      {items.length ? (
+      {visibleItems.length ? (
         <div className="grid gap-5">
-          {items.map((item) => (
-            <ClutchEditor key={item.id} item={item} />
+          {visibleItems.map((item) => (
+            <ClutchEditor
+              key={item.id}
+              item={item}
+              onRemoveFailure={(committed) => setFailedRemovalItem(committed
+                ? { ...item, published: false, publicImagePath: null }
+                : item)}
+              onRemoveSuccess={() => setFailedRemovalItem((current) => current?.id === item.id ? null : current)}
+            />
           ))}
         </div>
       ) : (

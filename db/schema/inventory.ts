@@ -151,6 +151,25 @@ export const inventoryMedia = pgTable(
   ],
 );
 
+export const inventoryPublicMedia = pgTable("inventory_public_media", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  inventoryItemId: uuid("inventory_item_id").notNull().references(() => inventoryItems.id),
+  sourceMediaId: uuid("source_media_id").references(() => inventoryMedia.id, { onDelete: "set null" }),
+  storagePath: text("storage_path").notNull().unique(),
+  publicPath: text("public_path").notNull().unique(),
+  contentType: text("content_type").notNull(),
+  sizeBytes: integer("size_bytes").notNull(),
+  state: text("state").$type<"pending" | "ready" | "deleting">().notNull().default("pending"),
+  createdByUserId: uuid("created_by_user_id").notNull().references(() => profiles.id),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  index("inventory_public_media_item_idx").on(table.inventoryItemId),
+  uniqueIndex("inventory_public_media_one_ready_per_item_idx").on(table.inventoryItemId).where(sql`${table.state} = 'ready'`),
+  check("inventory_public_media_state_valid", sql`${table.state} in ('pending', 'ready', 'deleting')`),
+  check("inventory_public_media_file_valid", sql`${table.sizeBytes} > 0 and ${table.sizeBytes} <= 4194304 and ${table.contentType} in ('image/jpeg', 'image/png', 'image/webp')`),
+]);
+
+export type InventoryPublicMedia = typeof inventoryPublicMedia.$inferSelect;
 export type InventoryItem = typeof inventoryItems.$inferSelect;
 export type NewInventoryItem = typeof inventoryItems.$inferInsert;
 export type InventoryReservation = typeof inventoryReservations.$inferSelect;
