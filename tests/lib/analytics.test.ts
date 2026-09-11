@@ -17,4 +17,12 @@ describe("trackPublicEvent", () => {
   it("does nothing when GA is unavailable", () => {
     expect(() => trackPublicEvent({ name: "quiz_lead_created", source: "quiz" })).not.toThrow();
   });
+
+  it("tracks Paixão Clutch discovery without public item fields", () => {
+    window.gtag = vi.fn();
+
+    trackPublicEvent({ name: "paixao_clutch_home_clicked", source: "home" });
+
+    expect(window.gtag).toHaveBeenCalledWith("event", "paixao_clutch_home_clicked", { source: "home" });
+  });
 });

@@ -1,4 +1,6 @@
 // @vitest-environment node
+import { readFile } from "node:fs/promises";
+import { join } from "node:path";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { PgDialect } from "drizzle-orm/pg-core";
 
@@ -101,6 +103,7 @@ describe("Paixão Clutch curation", () => {
     expect(updatePaixaoClutchSchema.safeParse(baseInput).success).toBe(true);
     expect(updatePaixaoClutchSchema.safeParse({ ...baseInput, rentalPrice: "-1" }).success).toBe(false);
     expect(updatePaixaoClutchSchema.safeParse({ ...baseInput, sortOrder: -1 }).success).toBe(false);
+    expect(updatePaixaoClutchSchema.safeParse({ ...baseInput, paixaoClutchSlug: "client-controlled" }).success).toBe(false);
   });
 
   it.each(["rentalPrice", "replacementValue"] as const)("bounds %s to numeric(10,2)", (field) => {
@@ -169,6 +172,79 @@ describe("Paixão Clutch curation", () => {
       }),
       expect.objectContaining({ update: mocks.update }),
     );
+  });
+
+  it("creates a stable public slug only on the first valid publication", async () => {
+    const generatedSlug = "clutch-dourada-cl-001--43-4c-2d-30-30-31";
+    const firstPublication = { ...clutch, ...baseInput, paixaoClutchPublished: true, paixaoClutchSlug: generatedSlug };
+    mocks.update.mockReturnValueOnce({ set: vi.fn().mockReturnValue({ where: () => returning(firstPublication) }) });
+
+    await updatePaixaoClutch(baseInput, actorUserId);
+    expect(mocks.update.mock.results[0].value.set).toHaveBeenCalledWith(expect.objectContaining({
+      paixaoClutchSlug: generatedSlug,
+    }));
+
+    mocks.itemFor
+      .mockResolvedValueOnce([{ ...firstPublication, name: "Clutch dourada nova" }])
+      .mockResolvedValueOnce([{ ...firstPublication, name: "Clutch dourada nova" }]);
+    const republished = { ...firstPublication, name: "Clutch dourada nova" };
+    mocks.update.mockReturnValueOnce({ set: vi.fn().mockReturnValue({ where: () => returning(republished) }) });
+    await updatePaixaoClutch({ ...baseInput, published: false }, actorUserId);
+    await updatePaixaoClutch(baseInput, actorUserId);
+
+    expect(mocks.update.mock.results[2].value.set).toHaveBeenCalledWith(expect.objectContaining({
+      paixaoClutchSlug: generatedSlug,
+    }));
+  });
+
+  it("preserves code identity when a non-canonical code would otherwise normalize to an existing slug", async () => {
+    mocks.itemFor.mockResolvedValueOnce([{ ...clutch, code: "CL_001" }]);
+    await updatePaixaoClutch(baseInput, actorUserId);
+
+    expect(mocks.update.mock.results[0].value.set).toHaveBeenCalledWith(expect.objectContaining({
+      paixaoClutchSlug: expect.stringMatching(/^clutch-dourada-cl-001--/),
+    }));
+  });
+
+  it("normalizes accented code characters before adding the collision-safe identity suffix", async () => {
+    mocks.itemFor.mockResolvedValueOnce([{ ...clutch, code: "CL-ÁÇ-001" }]);
+    await updatePaixaoClutch(baseInput, actorUserId);
+
+    expect(mocks.update.mock.results[0].value.set).toHaveBeenCalledWith(expect.objectContaining({
+      paixaoClutchSlug: expect.stringMatching(/^clutch-dourada-cl-ac-001--/),
+    }));
+  });
+
+  it("keeps name and code boundaries unambiguous in generated public slugs", async () => {
+    mocks.itemFor
+      .mockResolvedValueOnce([{ ...clutch, name: "Clutch A", code: "B" }])
+      .mockResolvedValueOnce([{ ...clutch, name: "Clutch", code: "A-B" }]);
+
+    await updatePaixaoClutch(baseInput, actorUserId);
+    await updatePaixaoClutch(baseInput, actorUserId);
+
+    const slugUpdates = mocks.update.mock.results[0].value.set.mock.calls as Array<[
+      { paixaoClutchSlug: string },
+    ]>;
+    const [firstSlug, secondSlug] = slugUpdates.map(([values]) => values.paixaoClutchSlug);
+    expect(firstSlug).not.toBe(secondSlug);
+  });
+
+  it("uses the same Portuguese accent fold while backfilling legacy public slugs", async () => {
+    const migration = await readFile(
+      join(process.cwd(), "db/migrations/0047_paixao_clutch_public_slug.sql"),
+      "utf8",
+    );
+    expect(migration).toContain("translate(lower(btrim(\"code\")), 'áàâãäåçéèêëíìîïñóòôõöúùûüýÿ', 'aaaaaaceeeeiiiinooooouuuuyy')");
+  });
+
+  it("trims an existing slug before retaining it on an unpublished curation update", async () => {
+    mocks.itemFor.mockResolvedValueOnce([{ ...clutch, paixaoClutchSlug: " clutch-dourada-cl-001 " }]);
+    await updatePaixaoClutch({ ...baseInput, published: false }, actorUserId);
+
+    expect(mocks.update.mock.results[0].value.set).toHaveBeenCalledWith(expect.objectContaining({
+      paixaoClutchSlug: "clutch-dourada-cl-001",
+    }));
   });
 
   it("rejects individual sort-order writes, including for unpublished items", () => {

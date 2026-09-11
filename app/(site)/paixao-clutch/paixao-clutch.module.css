@@ -1,0 +1,245 @@
+.intro {
+  padding: 65px 8% 35px;
+  max-width: 820px;
+}
+.intro h1,
+.detailCopy h1,
+.empty h2,
+.related h2 {
+  font-family: var(--font-cormorant), Georgia, serif;
+  font-size: clamp(48px, 5.4vw, 78px);
+  font-weight: 400;
+  line-height: 1.02;
+  letter-spacing: -1.5px;
+  margin: 18px 0 !important;
+}
+.intro h1 em {
+  color: var(--wine);
+}
+.intro > p:last-child,
+.detailCopy > p:not(.eyebrow),
+.empty > p:not(.eyebrow) {
+  max-width: 560px;
+  color: var(--secondary);
+  font-size: 17px;
+  line-height: 1.8;
+}
+.catalog {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 58px 38px;
+  padding: 10px 8% 80px;
+}
+.catalog article:nth-child(even) {
+  padding-top: 68px;
+}
+.catalog article.featured {
+  grid-column: span 2;
+  display: grid;
+  grid-template-columns: 1.15fr 0.85fr;
+}
+.catalog a {
+  display: block;
+}
+.photo,
+.detailPhoto {
+  overflow: hidden;
+  background: #eee7e4;
+}
+.photo {
+  aspect-ratio: 4/5;
+}
+.featured .photo {
+  aspect-ratio: 16/9;
+}
+.photo img,
+.detailPhoto img,
+.related img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.35s;
+}
+.catalog a:hover img,
+.related a:hover img {
+  transform: scale(1.025);
+}
+.cardHeading {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: baseline;
+  margin-top: 19px;
+}
+.cardHeading h2 {
+  font-size: clamp(30px, 3.5vw, 45px) !important;
+  font-weight: 400;
+  margin: 0 !important;
+}
+.cardHeading > span {
+  font-size: 23px;
+}
+.catalog p {
+  color: var(--secondary);
+  font-size: 16px;
+  line-height: 1.6;
+  margin: 10px 0 !important;
+}
+.catalog strong,
+.detailCopy strong {
+  display: block;
+  font-size: 16px;
+  font-weight: 500;
+}
+.readMore {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  border-bottom: 1px solid var(--rule);
+  margin-top: 12px;
+  font-size: 14px;
+}
+.empty {
+  margin: 10px 8% 80px;
+  padding: 60px 7%;
+  background: #f0e6e7;
+}
+.empty h2 {
+  font-size: clamp(40px, 4.6vw, 64px);
+}
+.empty .cta {
+  margin-top: 16px;
+}
+.breadcrumb {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  margin: 25px 5% 0;
+  font-size: 13px;
+  color: var(--secondary);
+}
+.breadcrumb a {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+}
+.detailHero {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 7vw;
+  align-items: center;
+  padding: 25px 8% 80px;
+}
+.detailCopy {
+  max-width: 520px;
+}
+.detailCopy h1 {
+  font-size: clamp(52px, 5.3vw, 76px);
+}
+.detailCopy > p:not(.eyebrow) {
+  margin: 18px 0 !important;
+}
+.detailCopy strong {
+  margin-bottom: 24px;
+}
+.detailPhoto {
+  aspect-ratio: 4/5;
+}
+.related {
+  background: #f0e6e7;
+  padding: 65px 8% 80px;
+}
+.related h2 {
+  font-size: clamp(38px, 4.6vw, 62px);
+  margin-bottom: 34px !important;
+}
+.related > div {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 25px;
+}
+.related a {
+  display: grid;
+  gap: 12px;
+  font-size: 18px;
+}
+.related img {
+  aspect-ratio: 4/5;
+}
+.related i {
+  font-style: normal;
+}
+@media (max-width: 800px) {
+  .catalog article.featured {
+    grid-column: auto;
+    display: block;
+  }
+  .featured .photo {
+    aspect-ratio: 4/5;
+  }
+  .detailHero {
+    grid-template-columns: 1fr;
+    padding-bottom: 55px;
+  }
+  .detailCopy {
+    max-width: none;
+  }
+  .detailPhoto {
+    max-height: 700px;
+  }
+}
+@media (max-width: 700px) {
+  .intro {
+    padding: 38px 6% 25px;
+  }
+  .intro h1,
+  .detailCopy h1 {
+    font-size: 48px;
+    letter-spacing: -1px;
+  }
+  .intro > p:last-child,
+  .detailCopy > p:not(.eyebrow),
+  .empty > p:not(.eyebrow) {
+    font-size: 15px;
+  }
+  .catalog {
+    grid-template-columns: 1fr;
+    padding: 10px 6% 50px;
+    gap: 38px;
+  }
+  .catalog article:nth-child(even) {
+    padding-top: 0;
+  }
+  .empty {
+    margin: 10px 6% 55px;
+    padding: 42px 7%;
+  }
+  .breadcrumb {
+    margin-left: 6%;
+    font-size: 12px;
+  }
+  .detailHero {
+    padding: 20px 6% 45px;
+  }
+  .related {
+    padding: 45px 6% 55px;
+  }
+  .related > div {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+  }
+  .related a {
+    font-size: 15px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .photo img,
+  .related img {
+    transition: none;
+  }
+  .catalog a:hover img,
+  .related a:hover img {
+    transform: none;
+  }
+}

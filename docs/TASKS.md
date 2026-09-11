@@ -111,7 +111,7 @@ Esta revisão preserva todas as tasks já concluídas e adiciona cobertura expl�
 | SCL-554 | Seleção de figurinos/clutches pela cliente | P1 | inventory/client | BACKLOG | unassigned | SCL-305,SCL-553 |
 | SCL-555 | Styling ↔ itens reais reservados | P1 | inventory/client/admin | BACKLOG | unassigned | SCL-305,SCL-553 |
 | SCL-556 | Curadoria Paixão Clutch no Admin | P1 | inventory/admin | BACKLOG | unassigned | SCL-552 |
-| SCL-557 | Paixão Clutch pública | P1 | site/inventory | BACKLOG | unassigned | SCL-551,SCL-556,SCL-400 |
+| SCL-557 | Paixão Clutch pública | P1 | site/inventory | DONE | unassigned | SCL-551,SCL-556,SCL-400 |
 | SCL-558 | Aluguel avulso Paixão Clutch | P2 | inventory/commerce | DEFERRED | unassigned | SCL-553,SCL-557 |
 | SCL-700 | Infra eventos + Resend + templates | P1 | automation | BACKLOG | unassigned | SCL-008 |
 | SCL-701 | Boas-vindas após reserva | P1 | automation | BACKLOG | unassigned | SCL-211,SCL-700 |
@@ -2331,7 +2331,7 @@ Criar fonte de verdade para o acervo físico do estúdio, incluindo Paixão Clut
 
 ### SCL-557 — Paixão Clutch pública
 
-- Status: BACKLOG
+- Status: DONE
 - Priority: P1
 - Area: site/inventory
 - Owner: unassigned
@@ -2345,17 +2345,17 @@ Criar fonte de verdade para o acervo físico do estúdio, incluindo Paixão Clut
 
 **Acceptance criteria**
 
-- [ ] seção/página coerente com o branding Carol Lucas;
-- [ ] usa somente itens marcados como publicáveis;
-- [ ] CTA “consultar disponibilidade”/WhatsApp;
-- [ ] integra a clutch como parte do styling dos ensaios;
-- [ ] não exige preço público;
-- [ ] SEO/analytics cobrem a página/CTA.
+- [x] seção/página coerente com o branding Carol Lucas;
+- [x] usa somente itens marcados como publicáveis;
+- [x] CTA “consultar disponibilidade”/WhatsApp;
+- [x] integra a clutch como parte do styling dos ensaios;
+- [x] preço de aluguel público é obrigatório para a publicação;
+- [x] SEO e analytics cobrem a página, a entrada pela home e os CTAs de consulta.
 
 **Blocker/Hand-off notes**
 
-- desbloqueada para planejamento de mídia pública após o merge de SCL-551; permanece pendente de SCL-556 e da implementação pública.
-- pré-requisito de mídia pública implementado nesta branch: armazenamento público separado, cópia explícita do acervo privado e despublicação ao remover/substituir a mídia. Isso não implementa nem conclui a vitrine pública de SCL-557.
+- concluída com a vitrine editorial, detalhes públicos, preço de aluguel, CTA de consulta, navegação, sitemap e eventos GA sem PII consumindo somente a projeção pública segura.
+- SCL-558 permanece `DEFERRED`: reserva, pagamento, checkout, retirada, devolução e caução seguem fora de escopo.
 
 ---
 

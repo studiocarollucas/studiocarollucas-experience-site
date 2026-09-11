@@ -3,16 +3,27 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { ActionableAdminActionError, defineAdminAction } from "@/lib/auth/admin-action";
-import { updatePaixaoClutch, reorderPaixaoClutch, uploadInventoryPublicMedia, promoteInventoryMedia, removeInventoryPublicMedia } from "@/domain/inventory/clutch";
+import { findPaixaoClutchSlugForRevalidation, updatePaixaoClutch, reorderPaixaoClutch, uploadInventoryPublicMedia, promoteInventoryMedia, removeInventoryPublicMedia } from "@/domain/inventory/clutch";
 import { updatePaixaoClutchSchema, reorderPaixaoClutchSchema, publicInventoryMediaFileSchema, promoteInventoryMediaSchema, removeInventoryPublicMediaSchema } from "@/domain/inventory/clutch-schema";
 import { readInventoryMediaUrls } from "@/domain/inventory/media";
+import { listPublicPaixaoClutches } from "@/domain/inventory/public-clutch";
 import { PublicInventoryMediaError } from "@/domain/inventory/public-media";
 
-function revalidateMedia(itemId: string) {
+function revalidatePublicPaixaoClutches(slugs: Iterable<string>) {
+  revalidatePath("/");
+  revalidatePath("/paixao-clutch");
+  for (const slug of slugs) revalidatePath(`/paixao-clutch/${slug}`);
+}
+
+function revalidatePublicPaixaoClutch(slug: string | null) {
+  revalidatePublicPaixaoClutches(slug ? [slug] : []);
+}
+
+async function revalidateMedia(itemId: string) {
   revalidatePath("/admin/paixao-clutch");
   revalidatePath("/admin/inventario");
   revalidatePath(`/admin/inventario/${itemId}`);
-  revalidatePath("/paixao-clutch");
+  revalidatePublicPaixaoClutch(await findPaixaoClutchSlugForRevalidation(itemId));
 }
 
 async function changeMedia<T>(itemId: string, change: () => Promise<T>): Promise<T> {
@@ -25,7 +36,7 @@ async function changeMedia<T>(itemId: string, change: () => Promise<T>): Promise
     throw error;
   } finally {
     // A lifecycle failure can still commit an image or unpublish the item.
-    revalidateMedia(itemId);
+    await revalidateMedia(itemId);
   }
 }
 
@@ -70,7 +81,7 @@ export const removeInventoryPublicMediaAction = defineAdminAction(
       }
       throw error;
     } finally {
-      revalidateMedia(input.itemId);
+      await revalidateMedia(input.itemId);
     }
   },
 );
@@ -82,6 +93,7 @@ export const updatePaixaoClutchAction = defineAdminAction(
     revalidatePath("/admin/paixao-clutch");
     revalidatePath("/admin/inventario");
     revalidatePath(`/admin/inventario/${item.id}`);
+    revalidatePublicPaixaoClutch(item.paixaoClutchSlug);
     return { id: item.id };
   }
 );
@@ -91,6 +103,7 @@ export const reorderPaixaoClutchAction = defineAdminAction(
   async (input, ctx) => {
     await reorderPaixaoClutch(input, ctx.user.id);
     revalidatePath("/admin/paixao-clutch");
+    revalidatePublicPaixaoClutches((await listPublicPaixaoClutches()).map(({ slug }) => slug));
     return { reordered: true };
   }
 );

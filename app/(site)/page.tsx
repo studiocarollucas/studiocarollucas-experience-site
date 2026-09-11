@@ -1,9 +1,13 @@
 import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
+import { listPublicPaixaoClutches } from "@/domain/inventory/public-clutch";
+import { PaixaoClutchHomeLink } from "@/components/site/paixao-clutch-tracked-links";
 import { experiences } from "@/lib/site/experiences";
 import { contactUrl } from "@/lib/site/contact";
 import s from "./home.module.css";
+
+export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "Stúdio Carol Lucas | Experiências fotográficas autorais",
@@ -40,7 +44,9 @@ function Photo({
   );
 }
 
-export default function Home() {
+export default async function Home() {
+  const [featuredClutch] = await listPublicPaixaoClutches();
+
   return (
     <div className={s.home}>
       <a className={s.skip} href="#conteudo">
@@ -52,6 +58,7 @@ export default function Home() {
         </Link>
         <nav aria-label="Navegação principal" className={s.nav}>
           <Link href="/experiencias">Experiências</Link>
+          <Link href="/paixao-clutch">Paixão Clutch</Link>
           <a href="#preparacao">Como acontece</a>
           <Link className={s.access} href="/minha-experiencia">
             Minha experiência <Arrow />
@@ -145,6 +152,25 @@ export default function Home() {
             </div>
             <Link href="/quiz" className={s.cta}>Descubra a sua curadoria <Arrow /></Link>
           </div>
+        </section>
+        <section className={s.clutchTeaser} aria-labelledby="paixao-clutch-titulo">
+          <div className={s.clutchTeaserCopy}>
+            <p className={s.eyebrow}>Paixão Clutch</p>
+            <h2 id="paixao-clutch-titulo">Detalhes que acompanham sua produção.</h2>
+            <p>
+              Uma curadoria especial para compor o styling e dar forma ao momento que você quer viver.
+            </p>
+            <PaixaoClutchHomeLink className={s.cta}>
+              Conhecer Paixão Clutch <Arrow />
+            </PaixaoClutchHomeLink>
+          </div>
+          {featuredClutch ? (
+            <PaixaoClutchHomeLink className={s.clutchTeaserImage}>
+              {/* Public Supabase media has no fixed host allowlist for next/image. */}
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={featuredClutch.publicImagePath} alt={featuredClutch.name} />
+            </PaixaoClutchHomeLink>
+          ) : null}
         </section>
         <section className={s.process} id="preparacao" aria-labelledby="preparacao-titulo">
           <div>
