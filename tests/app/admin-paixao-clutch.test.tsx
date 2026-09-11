@@ -37,6 +37,7 @@ import PaixaoClutchPage from "@/app/admin/(protected)/paixao-clutch/page";
 import { updatePaixaoClutchAction, reorderPaixaoClutchAction, uploadInventoryPublicMediaAction, promoteInventoryMediaAction, removeInventoryPublicMediaAction, readPaixaoClutchPrivateMediaAction } from "@/app/admin/(protected)/paixao-clutch/actions";
 import { PaixaoClutchCatalog } from "@/components/admin/paixao-clutch-catalog";
 import { AdminNav } from "@/components/admin/admin-nav";
+import { PublicInventoryMediaError } from "@/domain/inventory/public-media";
 
 const clutch = {
   id,
@@ -259,6 +260,25 @@ describe("Paixão Clutch admin curation", () => {
     rerender(<PaixaoClutchCatalog items={[]} filters={{ published: true }} />);
 
     expect(await screen.findByRole("alert")).toHaveTextContent("Não foi possível concluir a operação. Tente novamente.");
+    // An unknown/pre-commit failure must not invent a committed removal.
+    expect(screen.getByLabelText("Publicar na Paixão Clutch")).toBeChecked();
+    expect(screen.getByRole("img", { name: "Imagem pública de Clutch dourada" })).toHaveAttribute("src", catalogClutch.publicImagePath);
+    fireEvent.click(screen.getByRole("button", { name: "Remover imagem pública" }));
+    await waitFor(() => expect(mocks.remove).toHaveBeenCalledTimes(2));
+  });
+
+  it("retains committed unpublication and clears the old preview after cleanup fails under Published", async () => {
+    const message = "Item despublicado. Não foi possível remover o arquivo público; tente novamente.";
+    mocks.remove.mockRejectedValueOnce(new PublicInventoryMediaError(message, id, null, new Error("cleanup down")));
+    const { rerender } = render(<PaixaoClutchCatalog items={[{ ...catalogClutch, published: true }]} filters={{ published: true }} />);
+    fireEvent.change(screen.getByLabelText("Copy curta"), { target: { value: "Texto ainda não salvo" } });
+    fireEvent.click(screen.getByRole("button", { name: "Remover imagem pública" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent(message);
+    rerender(<PaixaoClutchCatalog items={[]} filters={{ published: true }} />);
+    expect(screen.getByLabelText("Publicar na Paixão Clutch")).not.toBeChecked();
+    expect(screen.queryByRole("img", { name: "Imagem pública de Clutch dourada" })).not.toBeInTheDocument();
+    expect(screen.getByLabelText("Copy curta")).toHaveValue("Texto ainda não salvo");
+    expect(screen.getByRole("alert")).toHaveTextContent(message);
     fireEvent.click(screen.getByRole("button", { name: "Remover imagem pública" }));
     await waitFor(() => expect(mocks.remove).toHaveBeenCalledTimes(2));
   });

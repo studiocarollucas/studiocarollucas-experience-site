@@ -40,7 +40,7 @@ const statusLabels = {
 function PublicMediaEditor({ item, onRemove, onRemoveFailure }: {
   item: PaixaoClutchCatalogItem;
   onRemove: () => void;
-  onRemoveFailure: () => void;
+  onRemoveFailure: (committed: boolean) => void;
 }) {
   const [publicPath, setPublicPath] = useState(item.publicImagePath);
   const [serverPublicPath, setServerPublicPath] = useState(item.publicImagePath);
@@ -56,8 +56,8 @@ function PublicMediaEditor({ item, onRemove, onRemoveFailure }: {
   }
 
   function changeMedia(
-    change: () => Promise<ActionResult<{ publicPath: string | null }>>,
-    onFailure?: () => void,
+    change: () => Promise<ActionResult<{ publicPath: string | null; cleanupError?: string }>>,
+    onFailure?: (committed: boolean) => void,
   ) {
     startTransition(async () => {
       setState(null);
@@ -66,13 +66,16 @@ function PublicMediaEditor({ item, onRemove, onRemoveFailure }: {
         setState(result);
         if (result.ok) {
           setPublicPath(result.data.publicPath);
-          if (!result.data.publicPath) onRemove();
+          if (result.data.cleanupError) {
+            setState({ ok: false, error: result.data.cleanupError });
+            onFailure?.(true);
+          } else if (!result.data.publicPath) onRemove();
         } else {
-          onFailure?.();
+          onFailure?.(false);
         }
       } catch {
         setState({ ok: false, error: "Não foi possível concluir a operação. Tente novamente." });
-        onFailure?.();
+        onFailure?.(false);
       }
     });
   }
@@ -144,7 +147,7 @@ function PublicMediaEditor({ item, onRemove, onRemoveFailure }: {
 
 function ClutchEditor({ item, onRemoveFailure, onRemoveSuccess }: {
   item: PaixaoClutchCatalogItem;
-  onRemoveFailure: () => void;
+  onRemoveFailure: (committed: boolean) => void;
   onRemoveSuccess: () => void;
 }) {
   const [values, setValues] = useState({
@@ -204,7 +207,10 @@ function ClutchEditor({ item, onRemoveFailure, onRemoveSuccess }: {
       <PublicMediaEditor item={item} onRemove={() => {
         setPublished(false);
         onRemoveSuccess();
-      }} onRemoveFailure={onRemoveFailure} />
+      }} onRemoveFailure={(committed) => {
+        if (committed) setPublished(false);
+        onRemoveFailure(committed);
+      }} />
       <form action={action} className="grid gap-4">
         <FormStatus state={state} />
         {state?.ok ? (
@@ -400,7 +406,9 @@ export function PaixaoClutchCatalog({
             <ClutchEditor
               key={item.id}
               item={item}
-              onRemoveFailure={() => setFailedRemovalItem(item)}
+              onRemoveFailure={(committed) => setFailedRemovalItem(committed
+                ? { ...item, published: false, publicImagePath: null }
+                : item)}
               onRemoveSuccess={() => setFailedRemovalItem((current) => current?.id === item.id ? null : current)}
             />
           ))}

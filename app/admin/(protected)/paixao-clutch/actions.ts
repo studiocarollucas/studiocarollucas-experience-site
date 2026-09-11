@@ -59,8 +59,19 @@ export const promoteInventoryMediaAction = defineAdminAction(
 export const removeInventoryPublicMediaAction = defineAdminAction(
   { role: "staff", input: removeInventoryPublicMediaSchema },
   async (input, ctx) => {
-    await changeMedia(input.itemId, () => removeInventoryPublicMedia(input, ctx.user.id));
-    return { publicPath: null };
+    try {
+      await removeInventoryPublicMedia(input, ctx.user.id);
+      return { publicPath: null };
+    } catch (error) {
+      // This domain error is emitted only after unpublication commits. Keep that
+      // state available even when filtered RSC props no longer contain the item.
+      if (error instanceof PublicInventoryMediaError) {
+        return { publicPath: null, cleanupError: error.message };
+      }
+      throw error;
+    } finally {
+      revalidateMedia(input.itemId);
+    }
   },
 );
 
