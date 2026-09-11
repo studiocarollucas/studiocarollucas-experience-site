@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { metadata as clientMetadata } from "@/app/(client)/layout";
 import { metadata as protectedAdminMetadata } from "@/app/admin/(protected)/layout";
 import { metadata as adminMetadata } from "@/app/admin/layout";
@@ -8,13 +8,27 @@ import { metadata as quizMetadata } from "@/app/(site)/quiz/page";
 import robots from "@/app/robots";
 import sitemap from "@/app/sitemap";
 
+const sitemapMocks = vi.hoisted(() => ({
+  list: vi.fn(),
+}));
+
+vi.mock("@/domain/inventory/public-clutch", () => ({
+  listPublicPaixaoClutches: sitemapMocks.list,
+}));
+
 describe("public SEO metadata", () => {
-  it("lists only canonical public URLs in sitemap", async () => {
+  it("lists canonical fixed, collection, and safe public clutch detail URLs in sitemap", async () => {
+    sitemapMocks.list.mockResolvedValue([
+      { slug: "clutch-dourada-cl-001", code: "CL-001", replacementValue: "250.00" },
+    ]);
+
     const urls = (await sitemap()).map((entry) => entry.url);
 
     expect(urls).toEqual([
       "https://studiocarollucas.com.br/",
       "https://studiocarollucas.com.br/experiencias",
+      "https://studiocarollucas.com.br/paixao-clutch",
+      "https://studiocarollucas.com.br/paixao-clutch/clutch-dourada-cl-001",
     ]);
     expect(urls).not.toContain(expect.stringContaining("/admin"));
     expect(urls).not.toContain(expect.stringContaining("/minha-experiencia"));

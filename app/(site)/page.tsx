@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
+import { listPublicPaixaoClutches } from "@/domain/inventory/public-clutch";
 import { experiences } from "@/lib/site/experiences";
 import { contactUrl } from "@/lib/site/contact";
 import s from "./home.module.css";
@@ -40,7 +41,9 @@ function Photo({
   );
 }
 
-export default function Home() {
+export default async function Home() {
+  const [featuredClutch] = await listPublicPaixaoClutches();
+
   return (
     <div className={s.home}>
       <a className={s.skip} href="#conteudo">
@@ -146,6 +149,29 @@ export default function Home() {
             </div>
             <Link href="/quiz" className={s.cta}>Descubra a sua curadoria <Arrow /></Link>
           </div>
+        </section>
+        <section className={s.clutchTeaser} aria-labelledby="paixao-clutch-titulo">
+          <div className={s.clutchTeaserCopy}>
+            <p className={s.eyebrow}>Paixão Clutch</p>
+            <h2 id="paixao-clutch-titulo">Detalhes que acompanham sua produção.</h2>
+            <p>
+              Uma curadoria especial para compor o styling e dar forma ao momento que você quer viver.
+            </p>
+            <Link href="/paixao-clutch" className={s.cta}>
+              Conhecer Paixão Clutch <Arrow />
+            </Link>
+          </div>
+          {featuredClutch ? (
+            <Link href="/paixao-clutch" className={s.clutchTeaserImage}>
+              <Image
+                src={featuredClutch.publicImagePath}
+                alt={featuredClutch.name}
+                width={480}
+                height={600}
+                sizes="(max-width: 700px) 88vw, 35vw"
+              />
+            </Link>
+          ) : null}
         </section>
         <section className={s.process} id="preparacao" aria-labelledby="preparacao-titulo">
           <div>
