@@ -175,12 +175,13 @@ describe("Paixão Clutch curation", () => {
   });
 
   it("creates a stable public slug only on the first valid publication", async () => {
-    const firstPublication = { ...clutch, ...baseInput, paixaoClutchPublished: true, paixaoClutchSlug: "clutch-dourada-cl-001" };
+    const generatedSlug = "clutch-dourada-cl-001--43-4c-2d-30-30-31";
+    const firstPublication = { ...clutch, ...baseInput, paixaoClutchPublished: true, paixaoClutchSlug: generatedSlug };
     mocks.update.mockReturnValueOnce({ set: vi.fn().mockReturnValue({ where: () => returning(firstPublication) }) });
 
     await updatePaixaoClutch(baseInput, actorUserId);
     expect(mocks.update.mock.results[0].value.set).toHaveBeenCalledWith(expect.objectContaining({
-      paixaoClutchSlug: "clutch-dourada-cl-001",
+      paixaoClutchSlug: generatedSlug,
     }));
 
     mocks.itemFor
@@ -192,7 +193,7 @@ describe("Paixão Clutch curation", () => {
     await updatePaixaoClutch(baseInput, actorUserId);
 
     expect(mocks.update.mock.results[2].value.set).toHaveBeenCalledWith(expect.objectContaining({
-      paixaoClutchSlug: "clutch-dourada-cl-001",
+      paixaoClutchSlug: generatedSlug,
     }));
   });
 
@@ -212,6 +213,21 @@ describe("Paixão Clutch curation", () => {
     expect(mocks.update.mock.results[0].value.set).toHaveBeenCalledWith(expect.objectContaining({
       paixaoClutchSlug: expect.stringMatching(/^clutch-dourada-cl-ac-001--/),
     }));
+  });
+
+  it("keeps name and code boundaries unambiguous in generated public slugs", async () => {
+    mocks.itemFor
+      .mockResolvedValueOnce([{ ...clutch, name: "Clutch A", code: "B" }])
+      .mockResolvedValueOnce([{ ...clutch, name: "Clutch", code: "A-B" }]);
+
+    await updatePaixaoClutch(baseInput, actorUserId);
+    await updatePaixaoClutch(baseInput, actorUserId);
+
+    const slugUpdates = mocks.update.mock.results[0].value.set.mock.calls as Array<[
+      { paixaoClutchSlug: string },
+    ]>;
+    const [firstSlug, secondSlug] = slugUpdates.map(([values]) => values.paixaoClutchSlug);
+    expect(firstSlug).not.toBe(secondSlug);
   });
 
   it("uses the same Portuguese accent fold while backfilling legacy public slugs", async () => {

@@ -164,13 +164,9 @@ export default async function Home() {
           </div>
           {featuredClutch ? (
             <PaixaoClutchHomeLink className={s.clutchTeaserImage}>
-              <Image
-                src={featuredClutch.publicImagePath}
-                alt={featuredClutch.name}
-                width={480}
-                height={600}
-                sizes="(max-width: 700px) 88vw, 35vw"
-              />
+              {/* Public Supabase media has no fixed host allowlist for next/image. */}
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={featuredClutch.publicImagePath} alt={featuredClutch.name} />
             </PaixaoClutchHomeLink>
           ) : null}
         </section>

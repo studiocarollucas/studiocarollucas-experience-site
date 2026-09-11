@@ -50,14 +50,15 @@ function normalizedPublicCode(value: string): string {
     .replace(/^-+|-+$/g, "");
 }
 
+function publicCodeIdentity(value: string): string {
+  return Array.from(value)
+    .map((character) => character.codePointAt(0)!.toString(16))
+    .join("-");
+}
+
 function publicSlug(name: string, code: string): string {
   const normalizedCode = normalizedPublicCode(code.trim()) || "code";
-  const canonicalCode = code === code.trim()
-    && /^[A-Z0-9]+(?:-[A-Z0-9]+)*$/.test(code);
-  const codeIdentity = canonicalCode
-    ? normalizedCode
-    : `${normalizedCode}--${Array.from(code).map((character) => character.codePointAt(0)!.toString(16).padStart(6, "0")).join("")}`;
-  return `${normalizedSlugPart(name) || "clutch"}-${codeIdentity}`;
+  return `${normalizedSlugPart(name) || "clutch"}-${normalizedCode}--${publicCodeIdentity(code)}`;
 }
 
 function assertPublishable(item: InventoryItem, input: ReturnType<typeof updatePaixaoClutchSchema.parse>): void {

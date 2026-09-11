@@ -52,10 +52,9 @@ describe("Paixão Clutch home discovery", () => {
       "href",
       "/paixao-clutch",
     );
-    expect(screen.getByRole("img", { name: "Clutch dourada" })).toHaveAttribute(
-      "data-src",
-      clutch.publicImagePath,
-    );
+    const teaserImage = screen.getByRole("img", { name: "Clutch dourada" });
+    expect(teaserImage).toBeInstanceOf(HTMLImageElement);
+    expect(teaserImage).toHaveAttribute("src", clutch.publicImagePath);
     expect(screen.queryByText("R$ 120,00")).not.toBeInTheDocument();
     expect(document.body.textContent).not.toContain("CL-001");
     expect(document.body.textContent).not.toContain("250.00");
