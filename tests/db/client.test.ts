@@ -20,13 +20,13 @@ describe("database client", () => {
     vi.unstubAllEnvs();
   });
 
-  it("disables query pipelining for the Supavisor transaction pooler", async () => {
+  it("serializes query pipelining for the Supavisor transaction pooler", async () => {
     await import("@/db/client");
 
     expect(mocks.postgres).toHaveBeenCalledWith(process.env.DATABASE_URL, {
       prepare: false,
       max: 1,
-      max_pipeline: 0,
+      max_pipeline: 1,
     });
   });
 });

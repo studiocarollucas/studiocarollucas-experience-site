@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const NOT_FOUND = "NOT_FOUND";
 const mockedGetContext = vi.hoisted(() => vi.fn());
 const mockedGetUser = vi.hoisted(() => vi.fn());
+const mockedGetActiveContractorProfile = vi.hoisted(() => vi.fn());
 
 vi.mock("@/lib/auth/session", () => ({ getCurrentUser: mockedGetUser }));
 
@@ -14,6 +15,9 @@ vi.mock("next/navigation", () => ({
   },
 }));
 vi.mock("@/domain/contracts/queries", () => ({ getContractIssueContext: mockedGetContext }));
+vi.mock("@/domain/contractor-profile/service", () => ({
+  getActiveContractorProfile: mockedGetActiveContractorProfile,
+}));
 vi.mock("@/app/admin/(protected)/agenda/[id]/contrato/contract-issue-panel", () => ({
   ContractIssuePanel: () => <div>painel de emissão</div>,
 }));
@@ -26,6 +30,7 @@ describe("ContractIssuePage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockedGetUser.mockResolvedValue({ id: "staff-1", role: "staff" });
+    mockedGetActiveContractorProfile.mockResolvedValue(null);
   });
 
   it.each([null, { id: "client-1", role: "client" }])("blocks unauthorized users before reading civil data: %j", async (user) => {

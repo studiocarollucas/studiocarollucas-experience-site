@@ -25,7 +25,8 @@ function walk(absDir) {
  *     defineAdminAction() (lib/auth/admin-action.ts).
  *  2. Any page/layout/route must live under the (protected) route group, whose
  *     layout.tsx runs the requireRole guard.
- * app/admin/login is the unauthenticated entry point, so it is exempt — but the two
+ * app/admin/login is the unauthenticated entry point, and app/admin/layout.tsx is
+ * the metadata/structural wrapper shared by those routes, so they are exempt — but the two
  * rules are exempted at different scopes. The page/route rule is exempt for the
  * whole login/ subtree (nothing under it can render with a role). The "use server"
  * rule is exempt for exactly login/actions.ts and login/page.tsx: those are the
@@ -54,9 +55,10 @@ export function findAdminAuthViolations(adminDir) {
       );
     }
 
+    const isRootAdminLayout = rel === "layout.tsx";
     const isPageOrRoute = /(^|\/)(page|layout|route)\.(ts|tsx)$/.test(rel);
     const inProtected = rel.startsWith("(protected)/") || rel === "(protected)/layout.tsx";
-    if (isPageOrRoute && !inProtected && !inLoginSubtree) {
+    if (isPageOrRoute && !isRootAdminLayout && !inProtected && !inLoginSubtree) {
       violations.push(
         `${rel}: a Studio OS page/route outside the (protected) group — it would render without the role guard in app/admin/(protected)/layout.tsx. Move it under (protected).`,
       );

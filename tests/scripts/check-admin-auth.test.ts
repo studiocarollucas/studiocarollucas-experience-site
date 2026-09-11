@@ -36,6 +36,10 @@ beforeAll(() => {
   mkdirSync(join(dir, "login", "tools"), { recursive: true });
   mkdirSync(join(dir, "loose"), { recursive: true });
 
+  // compliant: the root admin layout only provides structural metadata/wrapping.
+  // It does not introduce an unguarded admin route of its own.
+  writeFileSync(join(dir, "layout.tsx"), `export default function AdminLayout({ children }) { return children; }\n`);
+
   // compliant: wrapped mutation
   writeFileSync(
     join(dir, "(protected)", "clientes", "actions.ts"),
@@ -83,6 +87,7 @@ describe("findAdminAuthViolations", () => {
     expect(violations.some((v) => v.includes("clientes/actions.ts"))).toBe(false);
     expect(violations.some((v) => v.includes("login/page.tsx"))).toBe(false);
     expect(violations.some((v) => v.includes("(protected)/clientes/page.tsx"))).toBe(false);
+    expect(violations.some((v) => v.startsWith("layout.tsx:") && v.includes("outside the (protected) group"))).toBe(false);
     // the sign-in action keeps its exemption
     expect(violations.some((v) => v === "login/actions.ts" || v.startsWith("login/actions.ts:"))).toBe(false);
   });
