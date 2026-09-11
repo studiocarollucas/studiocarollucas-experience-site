@@ -50,6 +50,7 @@ export const inventoryItems = pgTable("inventory_items", {
   paixaoClutchCopy: text("paixao_clutch_copy"),
   paixaoClutchEligible: boolean("paixao_clutch_eligible").notNull().default(false),
   paixaoClutchPublicImagePath: text("paixao_clutch_public_image_path"),
+  paixaoClutchSlug: text("paixao_clutch_slug"),
   paixaoClutchPublished: boolean("paixao_clutch_published").notNull().default(false),
   paixaoClutchFeatured: boolean("paixao_clutch_featured").notNull().default(false),
   paixaoClutchSortOrder: integer("paixao_clutch_sort_order").notNull().default(0),
@@ -60,6 +61,9 @@ export const inventoryItems = pgTable("inventory_items", {
     "inventory_items_rental_price_nonnegative",
     sql`${table.rentalPrice} is null or ${table.rentalPrice} >= 0`,
   ),
+  uniqueIndex("inventory_items_paixao_clutch_slug_unique")
+    .on(table.paixaoClutchSlug)
+    .where(sql`${table.paixaoClutchSlug} is not null`),
   check(
     "inventory_items_replacement_value_nonnegative",
     sql`${table.replacementValue} is null or ${table.replacementValue} >= 0`,
@@ -75,6 +79,7 @@ export const inventoryItems = pgTable("inventory_items", {
       and ${table.replacementValue} is null
       and ${table.paixaoClutchCopy} is null
       and ${table.paixaoClutchPublicImagePath} is null
+      and ${table.paixaoClutchSlug} is null
       and ${table.paixaoClutchPublished} = false
       and ${table.paixaoClutchEligible} = false
       and ${table.paixaoClutchFeatured} = false
@@ -91,6 +96,8 @@ export const inventoryItems = pgTable("inventory_items", {
       and ${table.rentalPrice} is not null
       and nullif(btrim(${table.paixaoClutchCopy}), '') is not null
       and nullif(btrim(${table.paixaoClutchPublicImagePath}), '') is not null
+      and nullif(btrim(${table.paixaoClutchSlug}), '') is not null
+      and ${table.paixaoClutchSlug} = btrim(${table.paixaoClutchSlug})
     )`,
   ),
 ]);

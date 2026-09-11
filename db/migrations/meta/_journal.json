@@ -330,6 +330,13 @@
       "when": 1789131075179,
       "tag": "0046_paixao_clutch_media_provenance",
       "breakpoints": true
+    },
+    {
+      "idx": 47,
+      "version": "7",
+      "when": 1789138150352,
+      "tag": "0047_paixao_clutch_public_slug",
+      "breakpoints": true
     }
   ]
 }

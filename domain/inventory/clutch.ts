@@ -17,6 +17,40 @@ import {
 
 export { uploadInventoryPublicMedia, promoteInventoryMedia, removeInventoryPublicMedia, readInventoryPublicMedia } from "./public-media";
 
+function normalizedSlugPart(value: string): string {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+function normalizedPublicCode(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(/[áàâãäå]/g, "a")
+    .replace(/[ç]/g, "c")
+    .replace(/[éèêë]/g, "e")
+    .replace(/[íìîï]/g, "i")
+    .replace(/[ñ]/g, "n")
+    .replace(/[óòôõö]/g, "o")
+    .replace(/[úùûü]/g, "u")
+    .replace(/[ýÿ]/g, "y")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+function publicSlug(name: string, code: string): string {
+  const normalizedCode = normalizedPublicCode(code.trim()) || "code";
+  const canonicalCode = code === code.trim()
+    && /^[A-Z0-9]+(?:-[A-Z0-9]+)*$/.test(code);
+  const codeIdentity = canonicalCode
+    ? normalizedCode
+    : `${normalizedCode}--${Array.from(code).map((character) => character.codePointAt(0)!.toString(16).padStart(6, "0")).join("")}`;
+  return `${normalizedSlugPart(name) || "clutch"}-${codeIdentity}`;
+}
+
 function assertPublishable(item: InventoryItem, input: ReturnType<typeof updatePaixaoClutchSchema.parse>): void {
   if (item.type !== "clutch") throw new Error("somente clutches podem participar da curadoria Paixão Clutch");
   if (!input.published) return;
@@ -46,6 +80,7 @@ export async function updatePaixaoClutch(
       .for("update");
     if (!before) throw new Error("item de acervo inexistente");
     assertPublishable(before, parsed);
+    const existingSlug = before.paixaoClutchSlug?.trim() || null;
     if (parsed.published) {
       const [media] = await tx.select().from(inventoryPublicMedia).where(and(
         eq(inventoryPublicMedia.inventoryItemId, parsed.itemId),
@@ -62,6 +97,9 @@ export async function updatePaixaoClutch(
         rentalPrice: parsed.rentalPrice ?? null,
         replacementValue: parsed.replacementValue ?? null,
         paixaoClutchCopy: parsed.copy || null,
+        paixaoClutchSlug: parsed.published
+          ? existingSlug ?? publicSlug(before.name, before.code)
+          : existingSlug,
         paixaoClutchEligible: parsed.eligible,
         paixaoClutchPublished: parsed.published,
         paixaoClutchFeatured: parsed.featured,
