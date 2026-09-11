@@ -12,6 +12,7 @@ const mocks = vi.hoisted(() => ({
   promote: vi.fn(),
   remove: vi.fn(),
   photos: vi.fn(),
+  slugForRevalidation: vi.fn(),
 }));
 
 vi.mock("@/lib/auth/session", () => ({ getCurrentUser: mocks.user }));
@@ -22,6 +23,7 @@ vi.mock("@/domain/inventory/clutch", () => ({
   uploadInventoryPublicMedia: mocks.upload,
   promoteInventoryMedia: mocks.promote,
   removeInventoryPublicMedia: mocks.remove,
+  findPaixaoClutchSlugForRevalidation: mocks.slugForRevalidation,
 }));
 vi.mock("@/domain/inventory/media", () => ({ readInventoryMediaUrls: mocks.photos }));
 vi.mock("@/domain/inventory/public-media", () => ({ PublicInventoryMediaError: class extends Error {} }));
@@ -55,6 +57,7 @@ const clutch = {
   paixaoClutchPublished: false,
   paixaoClutchFeatured: false,
   paixaoClutchSortOrder: 0,
+  paixaoClutchSlug: "clutch-dourada-cl-001",
 };
 
 const catalogClutch = {
@@ -76,6 +79,7 @@ describe("Paixão Clutch admin curation", () => {
     mocks.photos.mockResolvedValue([{ id: "00000000-0000-4000-8000-000000000005", inventoryItemId: id, signedUrl: "https://storage.test/private.jpg?token=secret" }]);
     mocks.upload.mockResolvedValue({ id: "public-1", publicPath: "/api/public/inventory-media/new.jpg" });
     mocks.promote.mockResolvedValue({ id: "public-2", publicPath: "/api/public/inventory-media/copied.jpg" });
+    mocks.slugForRevalidation.mockResolvedValue("clutch-dourada-cl-001");
   });
 
   it("shows only the protected clutch curation controls and operational availability", async () => {
@@ -210,7 +214,23 @@ describe("Paixão Clutch admin curation", () => {
     expect(mocks.upload.mock.calls[0][0].file).toBe(file);
     await waitFor(() => expect(screen.getByRole("img", { name: "Imagem pública de Clutch dourada" })).toHaveAttribute("src", "/api/public/inventory-media/new.jpg"));
     expect(mocks.revalidate).toHaveBeenCalledWith("/paixao-clutch");
+    expect(mocks.revalidate).toHaveBeenCalledWith("/");
     expect(screen.getByRole("button", { name: "Substituir imagem pública" })).toBeDisabled();
+  });
+
+  it("invalidates the public home, collection, and known current or former detail after editorial changes", async () => {
+    await updatePaixaoClutchAction({
+      itemId: id,
+      rentalPrice: "120.00",
+      copy: "Um brilho discreto para a produção.",
+      eligible: true,
+      published: false,
+      featured: false,
+    });
+
+    expect(mocks.revalidate).toHaveBeenCalledWith("/");
+    expect(mocks.revalidate).toHaveBeenCalledWith("/paixao-clutch");
+    expect(mocks.revalidate).toHaveBeenCalledWith("/paixao-clutch/clutch-dourada-cl-001");
   });
 
   it("removes the public preview and unchecks publication", async () => {

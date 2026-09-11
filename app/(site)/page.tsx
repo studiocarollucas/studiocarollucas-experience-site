@@ -52,6 +52,7 @@ export default function Home() {
         </Link>
         <nav aria-label="Navegação principal" className={s.nav}>
           <Link href="/experiencias">Experiências</Link>
+          <Link href="/paixao-clutch">Paixão Clutch</Link>
           <a href="#preparacao">Como acontece</a>
           <Link className={s.access} href="/minha-experiencia">
             Minha experiência <Arrow />

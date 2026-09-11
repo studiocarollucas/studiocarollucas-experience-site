@@ -17,6 +17,15 @@ import {
 
 export { uploadInventoryPublicMedia, promoteInventoryMedia, removeInventoryPublicMedia, readInventoryPublicMedia } from "./public-media";
 
+export async function findPaixaoClutchSlugForRevalidation(itemId: string): Promise<string | null> {
+  const [item] = await db
+    .select({ slug: inventoryItems.paixaoClutchSlug })
+    .from(inventoryItems)
+    .where(eq(inventoryItems.id, itemId))
+    .limit(1);
+  return item?.slug ?? null;
+}
+
 function normalizedSlugPart(value: string): string {
   return value
     .normalize("NFD")
