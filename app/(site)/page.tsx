@@ -7,6 +7,8 @@ import { experiences } from "@/lib/site/experiences";
 import { contactUrl } from "@/lib/site/contact";
 import s from "./home.module.css";
 
+export const dynamic = "force-dynamic";
+
 export const metadata: Metadata = {
   title: "Stúdio Carol Lucas | Experiências fotográficas autorais",
   description:

@@ -7,6 +7,8 @@ import { PaixaoClutchWhatsAppLink } from "@/components/site/paixao-clutch-tracke
 import s from "../home.module.css";
 import p from "./paixao-clutch.module.css";
 
+export const dynamic = "force-dynamic";
+
 export const metadata: Metadata = {
   title: "Paixão Clutch | Stúdio Carol Lucas",
   description: "Uma curadoria de clutches para compor sua experiência no Stúdio Carol Lucas.",

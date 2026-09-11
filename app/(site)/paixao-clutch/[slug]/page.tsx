@@ -8,6 +8,8 @@ import { PaixaoClutchWhatsAppLink } from "@/components/site/paixao-clutch-tracke
 import s from "../../home.module.css";
 import p from "../paixao-clutch.module.css";
 
+export const dynamic = "force-dynamic";
+
 type Props = { params: Promise<{ slug: string }> };
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {

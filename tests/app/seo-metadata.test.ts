@@ -1,4 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
+import { readFile } from "node:fs/promises";
+import { join } from "node:path";
 import { metadata as clientMetadata } from "@/app/(client)/layout";
 import { metadata as protectedAdminMetadata } from "@/app/admin/(protected)/layout";
 import { metadata as adminMetadata } from "@/app/admin/layout";
@@ -17,6 +19,20 @@ vi.mock("@/domain/inventory/public-clutch", () => ({
 }));
 
 describe("public SEO metadata", () => {
+  it("forces request-time rendering for every mutable public clutch consumer", async () => {
+    const routes = [
+      "app/(site)/page.tsx",
+      "app/(site)/paixao-clutch/page.tsx",
+      "app/(site)/paixao-clutch/[slug]/page.tsx",
+      "app/sitemap.ts",
+    ];
+    const sources = await Promise.all(routes.map((route) => readFile(join(process.cwd(), route), "utf8")));
+
+    for (const source of sources) {
+      expect(source).toContain('export const dynamic = "force-dynamic"');
+    }
+  });
+
   it("lists canonical fixed, collection, and safe public clutch detail URLs in sitemap", async () => {
     sitemapMocks.list.mockResolvedValue([
       { slug: "clutch-dourada-cl-001", code: "CL-001", replacementValue: "250.00" },
