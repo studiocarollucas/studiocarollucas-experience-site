@@ -13,6 +13,7 @@ const mocks = vi.hoisted(() => ({
   remove: vi.fn(),
   photos: vi.fn(),
   slugForRevalidation: vi.fn(),
+  publicList: vi.fn(),
 }));
 
 vi.mock("@/lib/auth/session", () => ({ getCurrentUser: mocks.user }));
@@ -26,6 +27,7 @@ vi.mock("@/domain/inventory/clutch", () => ({
   findPaixaoClutchSlugForRevalidation: mocks.slugForRevalidation,
 }));
 vi.mock("@/domain/inventory/media", () => ({ readInventoryMediaUrls: mocks.photos }));
+vi.mock("@/domain/inventory/public-clutch", () => ({ listPublicPaixaoClutches: mocks.publicList }));
 vi.mock("@/domain/inventory/public-media", () => ({ PublicInventoryMediaError: class extends Error {} }));
 vi.mock("next/cache", () => ({ revalidatePath: mocks.revalidate }));
 vi.mock("next/navigation", () => ({
@@ -80,6 +82,10 @@ describe("Paixão Clutch admin curation", () => {
     mocks.upload.mockResolvedValue({ id: "public-1", publicPath: "/api/public/inventory-media/new.jpg" });
     mocks.promote.mockResolvedValue({ id: "public-2", publicPath: "/api/public/inventory-media/copied.jpg" });
     mocks.slugForRevalidation.mockResolvedValue("clutch-dourada-cl-001");
+    mocks.publicList.mockResolvedValue([
+      { slug: "clutch-dourada-cl-001" },
+      { slug: "clutch-prata-cl-002" },
+    ]);
   });
 
   it("shows only the protected clutch curation controls and operational availability", async () => {
@@ -170,6 +176,14 @@ describe("Paixão Clutch admin curation", () => {
     fireEvent.submit(screen.getByRole("button", { name: "Salvar ordem dos publicados" }).closest("form")!);
     await waitFor(() => expect(mocks.reorder).toHaveBeenCalledWith({ itemIds: [secondId, id] }, "staff-1"));
     expect(mocks.revalidate).toHaveBeenCalledWith("/admin/paixao-clutch");
+  });
+
+  it("invalidates every rendered public detail when reordering changes related-clutch order", async () => {
+    await reorderPaixaoClutchAction({ itemIds: [id] });
+
+    expect(mocks.publicList).toHaveBeenCalledOnce();
+    expect(mocks.revalidate).toHaveBeenCalledWith("/paixao-clutch/clutch-dourada-cl-001");
+    expect(mocks.revalidate).toHaveBeenCalledWith("/paixao-clutch/clutch-prata-cl-002");
   });
 
   it("rejects a client reorder action before reaching the domain", async () => {

@@ -39,6 +39,7 @@ describe("Paixão Clutch collection", () => {
     render(await PaixaoClutchPage());
 
     expect(screen.getByText("Paixão Clutch")).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "Curadoria Paixão Clutch" })).toBeInTheDocument();
     expect(screen.getByRole("img", { name: "Clutch dourada" })).toHaveAttribute("src", clutch.publicImagePath);
     expect(screen.getByText("R$ 120,00")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /conhecer clutch dourada/i })).toHaveAttribute(

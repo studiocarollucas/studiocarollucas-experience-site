@@ -32,7 +32,7 @@ export default async function PaixaoClutchPage() {
         <p>Uma seleção especial para dar o toque final à sua produção e à experiência que você quer viver.</p>
       </section>
       {clutches.length > 0 ? (
-        <section className={p.catalog} aria-label="Clutches disponíveis">
+        <section className={p.catalog} aria-label="Curadoria Paixão Clutch">
           {clutches.map((clutch, index) => (
             <article key={clutch.slug} className={index === 0 && clutch.featured ? p.featured : undefined}>
               <Link href={`/paixao-clutch/${clutch.slug}`} aria-label={`Conhecer ${clutch.name}`}>

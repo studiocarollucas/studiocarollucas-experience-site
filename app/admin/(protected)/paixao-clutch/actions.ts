@@ -6,12 +6,17 @@ import { ActionableAdminActionError, defineAdminAction } from "@/lib/auth/admin-
 import { findPaixaoClutchSlugForRevalidation, updatePaixaoClutch, reorderPaixaoClutch, uploadInventoryPublicMedia, promoteInventoryMedia, removeInventoryPublicMedia } from "@/domain/inventory/clutch";
 import { updatePaixaoClutchSchema, reorderPaixaoClutchSchema, publicInventoryMediaFileSchema, promoteInventoryMediaSchema, removeInventoryPublicMediaSchema } from "@/domain/inventory/clutch-schema";
 import { readInventoryMediaUrls } from "@/domain/inventory/media";
+import { listPublicPaixaoClutches } from "@/domain/inventory/public-clutch";
 import { PublicInventoryMediaError } from "@/domain/inventory/public-media";
 
-function revalidatePublicPaixaoClutch(slug: string | null) {
+function revalidatePublicPaixaoClutches(slugs: Iterable<string>) {
   revalidatePath("/");
   revalidatePath("/paixao-clutch");
-  if (slug) revalidatePath(`/paixao-clutch/${slug}`);
+  for (const slug of slugs) revalidatePath(`/paixao-clutch/${slug}`);
+}
+
+function revalidatePublicPaixaoClutch(slug: string | null) {
+  revalidatePublicPaixaoClutches(slug ? [slug] : []);
 }
 
 async function revalidateMedia(itemId: string) {
@@ -98,7 +103,7 @@ export const reorderPaixaoClutchAction = defineAdminAction(
   async (input, ctx) => {
     await reorderPaixaoClutch(input, ctx.user.id);
     revalidatePath("/admin/paixao-clutch");
-    revalidatePublicPaixaoClutch(null);
+    revalidatePublicPaixaoClutches((await listPublicPaixaoClutches()).map(({ slug }) => slug));
     return { reordered: true };
   }
 );
