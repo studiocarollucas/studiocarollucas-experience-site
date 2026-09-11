@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { listPublicPaixaoClutches } from "@/domain/inventory/public-clutch";
+import { PaixaoClutchHomeLink } from "@/components/site/paixao-clutch-tracked-links";
 import { experiences } from "@/lib/site/experiences";
 import { contactUrl } from "@/lib/site/contact";
 import s from "./home.module.css";
@@ -157,12 +158,12 @@ export default async function Home() {
             <p>
               Uma curadoria especial para compor o styling e dar forma ao momento que você quer viver.
             </p>
-            <Link href="/paixao-clutch" className={s.cta}>
+            <PaixaoClutchHomeLink className={s.cta}>
               Conhecer Paixão Clutch <Arrow />
-            </Link>
+            </PaixaoClutchHomeLink>
           </div>
           {featuredClutch ? (
-            <Link href="/paixao-clutch" className={s.clutchTeaserImage}>
+            <PaixaoClutchHomeLink className={s.clutchTeaserImage}>
               <Image
                 src={featuredClutch.publicImagePath}
                 alt={featuredClutch.name}
@@ -170,7 +171,7 @@ export default async function Home() {
                 height={600}
                 sizes="(max-width: 700px) 88vw, 35vw"
               />
-            </Link>
+            </PaixaoClutchHomeLink>
           ) : null}
         </section>
         <section className={s.process} id="preparacao" aria-labelledby="preparacao-titulo">

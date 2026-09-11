@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
@@ -7,6 +7,7 @@ const mocks = vi.hoisted(() => ({
   notFound: vi.fn(() => {
     throw new Error("not found");
   }),
+  trackPublicEvent: vi.fn(),
 }));
 
 vi.mock("@/domain/inventory/public-clutch", () => ({
@@ -14,6 +15,7 @@ vi.mock("@/domain/inventory/public-clutch", () => ({
   listPublicPaixaoClutches: mocks.list,
 }));
 vi.mock("next/navigation", () => ({ notFound: mocks.notFound }));
+vi.mock("@/lib/site/analytics", () => ({ trackPublicEvent: mocks.trackPublicEvent }));
 vi.mock("next/link", () => ({
   default: ({ children, ...props }: React.AnchorHTMLAttributes<HTMLAnchorElement>) => (
     <a {...props}>{children}</a>
@@ -76,6 +78,19 @@ describe("Paixão Clutch detail", () => {
       PaixaoClutchDetailPage({ params: Promise.resolve({ slug: "indisponivel" }) }),
     ).rejects.toThrow("not found");
     expect(mocks.notFound).toHaveBeenCalledOnce();
+  });
+
+  it("tracks the availability inquiry without item or price data", async () => {
+    render(await PaixaoClutchDetailPage({ params: Promise.resolve({ slug: clutch.slug }) }));
+
+    const link = screen.getByRole("link", { name: /consultar disponibilidade/i });
+    link.addEventListener("click", (event) => event.preventDefault());
+    fireEvent.click(link);
+
+    expect(mocks.trackPublicEvent).toHaveBeenCalledWith({
+      name: "paixao_clutch_whatsapp_clicked",
+      source: "paixao_clutch",
+    });
   });
 
   it("generates canonical and social metadata from the public editorial projection", async () => {

@@ -1,12 +1,19 @@
-export type PublicQuizEventName = "quiz_lead_created" | "quiz_whatsapp_clicked";
+export type PublicEventName =
+  | "quiz_lead_created"
+  | "quiz_whatsapp_clicked"
+  | "paixao_clutch_home_clicked"
+  | "paixao_clutch_whatsapp_clicked";
 
-type PublicQuizEvent = { name: PublicQuizEventName; source: "quiz" };
-type PublicEventParameters = Omit<PublicQuizEvent, "name">;
+type PublicEvent =
+  | { name: "quiz_lead_created" | "quiz_whatsapp_clicked"; source: "quiz" }
+  | { name: "paixao_clutch_home_clicked"; source: "home" }
+  | { name: "paixao_clutch_whatsapp_clicked"; source: "paixao_clutch" };
+type PublicEventParameters = Omit<PublicEvent, "name">;
 
 type Gtag = {
   (command: "js", date: Date): void;
   (command: "config", measurementId: string): void;
-  (command: "event", eventName: PublicQuizEventName, parameters: PublicEventParameters): void;
+  (command: "event", eventName: PublicEventName, parameters: PublicEventParameters): void;
 };
 
 declare global {
@@ -16,7 +23,7 @@ declare global {
   }
 }
 
-export function trackPublicEvent(event: PublicQuizEvent) {
+export function trackPublicEvent(event: PublicEvent) {
   if (typeof window === "undefined") return;
   if (typeof window.gtag !== "function") return;
 

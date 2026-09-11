@@ -2349,12 +2349,12 @@ Criar fonte de verdade para o acervo físico do estúdio, incluindo Paixão Clut
 - [x] usa somente itens marcados como publicáveis;
 - [x] CTA “consultar disponibilidade”/WhatsApp;
 - [x] integra a clutch como parte do styling dos ensaios;
-- [x] não exige preço público;
-- [x] SEO/analytics cobrem a página/CTA.
+- [x] preço de aluguel público é obrigatório para a publicação;
+- [x] SEO e analytics cobrem a página, a entrada pela home e os CTAs de consulta.
 
 **Blocker/Hand-off notes**
 
-- concluída com a vitrine editorial, detalhes públicos, CTA de consulta, navegação e sitemap consumindo somente a projeção pública segura.
+- concluída com a vitrine editorial, detalhes públicos, preço de aluguel, CTA de consulta, navegação, sitemap e eventos GA sem PII consumindo somente a projeção pública segura.
 - SCL-558 permanece `DEFERRED`: reserva, pagamento, checkout, retirada, devolução e caução seguem fora de escopo.
 
 ---

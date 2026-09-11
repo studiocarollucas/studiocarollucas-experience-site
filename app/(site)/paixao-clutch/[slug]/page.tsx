@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { findPublicPaixaoClutch, listPublicPaixaoClutches } from "@/domain/inventory/public-clutch";
 import { formatBRL } from "@/lib/format";
 import { paixaoClutchContactUrl } from "@/lib/site/contact";
+import { PaixaoClutchWhatsAppLink } from "@/components/site/paixao-clutch-tracked-links";
 import s from "../../home.module.css";
 import p from "../paixao-clutch.module.css";
 
@@ -40,9 +41,9 @@ export default async function PaixaoClutchDetailPage({ params }: Props) {
           <h1>{clutch.name}</h1>
           <p>{clutch.copy}</p>
           <strong>{formattedPrice}</strong>
-          <a className={s.cta} href={paixaoClutchContactUrl({ name: clutch.name, formattedPrice })} target="_blank" rel="noreferrer">
+          <PaixaoClutchWhatsAppLink className={s.cta} href={paixaoClutchContactUrl({ name: clutch.name, formattedPrice })} target="_blank" rel="noreferrer">
             Consultar disponibilidade <span aria-hidden="true">↗</span>
-          </a>
+          </PaixaoClutchWhatsAppLink>
         </div>
         <div className={p.detailPhoto}><img src={clutch.publicImagePath} alt={clutch.name} /></div>
       </section>

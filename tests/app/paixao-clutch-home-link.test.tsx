@@ -1,12 +1,16 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   list: vi.fn(),
+  trackPublicEvent: vi.fn(),
 }));
 
 vi.mock("@/domain/inventory/public-clutch", () => ({
   listPublicPaixaoClutches: mocks.list,
+}));
+vi.mock("@/lib/site/analytics", () => ({
+  trackPublicEvent: mocks.trackPublicEvent,
 }));
 vi.mock("next/image", () => ({
   default: ({ alt, src }: { alt: string; src: string }) => (
@@ -69,5 +73,18 @@ describe("Paixão Clutch home discovery", () => {
     );
     expect(screen.queryByRole("img", { name: "Clutch dourada" })).not.toBeInTheDocument();
     expect(screen.getByText(/detalhes que acompanham sua produção/i)).toBeInTheDocument();
+  });
+
+  it("tracks the collection entry without passing item data", async () => {
+    render(await Home());
+
+    const link = screen.getByRole("link", { name: /conhecer paixão clutch/i });
+    link.addEventListener("click", (event) => event.preventDefault());
+    fireEvent.click(link);
+
+    expect(mocks.trackPublicEvent).toHaveBeenCalledWith({
+      name: "paixao_clutch_home_clicked",
+      source: "home",
+    });
   });
 });

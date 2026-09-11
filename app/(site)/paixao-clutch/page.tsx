@@ -3,6 +3,7 @@ import Link from "next/link";
 import { listPublicPaixaoClutches } from "@/domain/inventory/public-clutch";
 import { formatBRL } from "@/lib/format";
 import { contactUrl } from "@/lib/site/contact";
+import { PaixaoClutchWhatsAppLink } from "@/components/site/paixao-clutch-tracked-links";
 import s from "../home.module.css";
 import p from "./paixao-clutch.module.css";
 
@@ -55,9 +56,9 @@ export default async function PaixaoClutchPage() {
           <p className={s.eyebrow}>Em breve</p>
           <h2 id="curadoria-em-breve">Nossa curadoria está ganhando forma.</h2>
           <p>Conte ao estúdio o que você imagina para a sua produção.</p>
-          <a className={s.cta} href={contactUrl()} target="_blank" rel="noreferrer">
+          <PaixaoClutchWhatsAppLink className={s.cta} href={contactUrl()} target="_blank" rel="noreferrer">
             Conversar sobre uma clutch <span aria-hidden="true">↗</span>
-          </a>
+          </PaixaoClutchWhatsAppLink>
         </section>
       )}
     </main>
