@@ -42,6 +42,11 @@ export default async function PaixaoClutchDetailPage({ params }: Props) {
           <p className={s.eyebrow}>Paixão Clutch · Stúdio Carol Lucas</p>
           <h1>{clutch.name}</h1>
           <p>{clutch.copy}</p>
+          {clutch.description ? <p className={p.detailDescription}>{clutch.description}</p> : null}
+          {(clutch.color || clutch.size) ? <dl className={p.detailAttributes}>
+            {clutch.color ? <div><dt>Cor</dt><dd>{clutch.color}</dd></div> : null}
+            {clutch.size ? <div><dt>Tamanho</dt><dd>{clutch.size}</dd></div> : null}
+          </dl> : null}
           <strong>{formattedPrice}</strong>
           <PaixaoClutchWhatsAppLink className={s.cta} href={paixaoClutchContactUrl({ name: clutch.name, formattedPrice })} target="_blank" rel="noreferrer">
             Consultar disponibilidade <span aria-hidden="true">↗</span>
