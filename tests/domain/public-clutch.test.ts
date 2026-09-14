@@ -18,6 +18,9 @@ const row = {
   publicImagePath,
   featured: true,
   sortOrder: 0,
+  color: "Dourado",
+  size: "Média",
+  description: "Acabamento metalizado.",
 };
 
 function result(rows: unknown[]) {
@@ -44,6 +47,13 @@ describe("public Paixão Clutch projection", () => {
     const [item] = await listPublicPaixaoClutches();
     expect(item).not.toHaveProperty("replacementValue");
     expect(item).not.toHaveProperty("storagePath");
+    expect(item).toMatchObject({ color: "Dourado", size: "Média", description: "Acabamento metalizado." });
+    const selectedFields = mocks.select.mock.calls[0][0];
+    expect(selectedFields).toMatchObject({
+      color: expect.anything(),
+      size: expect.anything(),
+      description: expect.anything(),
+    });
   });
 
   it("requires every public publication invariant, including ready matching media", async () => {

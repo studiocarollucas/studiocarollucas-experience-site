@@ -27,6 +27,9 @@ const clutch = {
   publicImagePath: "/api/public/inventory-media/dourada.webp",
   featured: true,
   sortOrder: 0,
+  color: "Dourado",
+  size: "Média",
+  description: "Acabamento metalizado.",
 };
 
 describe("Paixão Clutch collection", () => {
@@ -42,6 +45,8 @@ describe("Paixão Clutch collection", () => {
     expect(screen.getByRole("region", { name: "Curadoria Paixão Clutch" })).toBeInTheDocument();
     expect(screen.getByRole("img", { name: "Clutch dourada" })).toHaveAttribute("src", clutch.publicImagePath);
     expect(screen.getByText("R$ 120,00")).toBeInTheDocument();
+    expect(screen.getByText("Dourado · Média")).toBeInTheDocument();
+    expect(screen.getByText("Acabamento metalizado.")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /conhecer clutch dourada/i })).toHaveAttribute(
       "href",
       "/paixao-clutch/clutch-dourada-cl-001",

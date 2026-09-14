@@ -35,6 +35,9 @@ const clutch = {
   publicImagePath: "/api/public/inventory-media/dourada.webp",
   featured: true,
   sortOrder: 0,
+  color: "Dourado",
+  size: "Média",
+  description: "Acabamento metalizado.",
 };
 
 const related = {
@@ -58,7 +61,12 @@ describe("Paixão Clutch detail", () => {
     expect(screen.getByRole("img", { name: "Clutch dourada" })).toHaveAttribute("src", clutch.publicImagePath);
     expect(screen.getByRole("heading", { name: "Clutch dourada" })).toBeInTheDocument();
     expect(screen.getByText(clutch.copy)).toBeInTheDocument();
+    expect(screen.getByText(clutch.description)).toBeInTheDocument();
     expect(screen.getByText("R$ 120,00")).toBeInTheDocument();
+    expect(screen.getByText("Cor")).toBeInTheDocument();
+    expect(screen.getByText("Dourado")).toBeInTheDocument();
+    expect(screen.getByText("Tamanho")).toBeInTheDocument();
+    expect(screen.getByText("Média")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /consultar disponibilidade/i })).toHaveAttribute(
       "href",
       expect.stringContaining("Clutch+dourada"),

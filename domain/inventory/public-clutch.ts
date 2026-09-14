@@ -13,6 +13,9 @@ export type PublicPaixaoClutch = {
   publicImagePath: string;
   featured: boolean;
   sortOrder: number;
+  color: string | null;
+  size: string | null;
+  description: string | null;
 };
 
 const publicPaixaoClutchFields = {
@@ -24,6 +27,9 @@ const publicPaixaoClutchFields = {
   publicImagePath: inventoryItems.paixaoClutchPublicImagePath,
   featured: inventoryItems.paixaoClutchFeatured,
   sortOrder: inventoryItems.paixaoClutchSortOrder,
+  color: inventoryItems.color,
+  size: inventoryItems.size,
+  description: inventoryItems.description,
 };
 
 function publicPaixaoClutchPredicate() {
