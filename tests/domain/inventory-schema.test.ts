@@ -77,6 +77,10 @@ describe("inventory reservations schema", () => {
     expect(Object.keys(inventoryReservations)).toEqual(expect.arrayContaining([
       "inventoryItemId",
       "shootId",
+      "guestName",
+      "guestPhone",
+      "guestEmail",
+      "expiresAt",
       "purpose",
       "startsOn",
       "endsOn",

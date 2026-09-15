@@ -107,7 +107,11 @@ export const inventoryReservations = pgTable(
   {
     id: uuid("id").primaryKey().defaultRandom(),
     inventoryItemId: uuid("inventory_item_id").notNull().references(() => inventoryItems.id),
-    shootId: uuid("shoot_id").notNull().references(() => shoots.id),
+    shootId: uuid("shoot_id").references(() => shoots.id),
+    guestName: text("guest_name"),
+    guestPhone: text("guest_phone"),
+    guestEmail: text("guest_email"),
+    expiresAt: timestamp("expires_at", { withTimezone: true }),
     purpose: inventoryReservationPurposeEnum("purpose").notNull().default("shoot"),
     startsOn: date("starts_on").notNull(),
     endsOn: date("ends_on").notNull(),
@@ -124,6 +128,24 @@ export const inventoryReservations = pgTable(
     check(
       "inventory_reservations_dates_valid",
       sql`${table.endsOn} >= ${table.startsOn}`,
+    ),
+    check(
+      "inventory_reservations_reservation_contact_valid",
+      sql`(
+        ${table.purpose} = 'shoot'
+        and ${table.shootId} is not null
+        and ${table.guestName} is null
+        and ${table.guestPhone} is null
+      ) or (
+        ${table.purpose} = 'rental' and (
+          (${table.shootId} is not null and ${table.guestName} is null and ${table.guestPhone} is null)
+          or (${table.shootId} is null and ${table.guestName} is not null and ${table.guestPhone} is not null)
+        )
+      )`,
+    ),
+    check(
+      "inventory_reservations_expires_at_rental_only",
+      sql`${table.purpose} = 'rental' or ${table.expiresAt} is null`,
     ),
     index("inventory_reservations_blocking_item_dates_idx")
       .on(table.inventoryItemId, table.startsOn, table.endsOn)
