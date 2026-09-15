@@ -24,7 +24,7 @@ Permitir que uma visitante solicite a reserva de uma clutch publicada, sem login
 
 ## Arquitetura
 
-Reutilizar `inventory_reservations`, com `purpose: "rental"`, e as proteções de conflito existentes. Uma migration mínima torna `shoot_id` opcional para locações e acrescenta `guest_name`, `guest_phone`, `guest_email` e `expires_at`; reservas de ensaio continuam exigindo o ensaio vinculado pela validação de domínio. Criar uma fronteira pública específica para:
+Reutilizar `inventory_reservations`, com `purpose: "rental"`, e as proteções de conflito existentes. Uma migration mínima torna `shoot_id` opcional para locações e acrescenta `guest_name`, `guest_phone`, `guest_email` e `expires_at`. A locação interna já vinculada a um ensaio continua válida; a nova locação pública não tem ensaio e exige contato. Reservas de ensaio continuam exigindo o ensaio vinculado pela validação de domínio. Criar uma fronteira pública específica para:
 
 1. validar dados de convidada e o intervalo;
 2. localizar exclusivamente a clutch pela projeção pública publicada;

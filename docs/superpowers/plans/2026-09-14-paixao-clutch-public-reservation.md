@@ -10,7 +10,7 @@
 
 ## Global Constraints
 
-- Rental reservations use `purpose: "rental"`; shoot reservations keep their shoot link and current behavior.
+- Rental reservations use `purpose: "rental"`; locações internas vinculadas a ensaio mantêm o comportamento atual, e a nova locação pública não possui ensaio.
 - A pending rental expires 24 hours after creation; `confirmed` reservations never expire automatically.
 - Overlapping `confirmed` and unexpired `pending` rentals block a published clutch.
 - Public requests are guest-only: required name, WhatsApp and inclusive start/end dates; email optional.
@@ -63,7 +63,8 @@ Add SQL checks equivalent to:
 
 ```sql
 check ((purpose = 'shoot' and shoot_id is not null and guest_name is null and guest_phone is null)
-    or (purpose = 'rental' and shoot_id is null and guest_name is not null and guest_phone is not null));
+    or (purpose = 'rental' and ((shoot_id is not null and guest_name is null and guest_phone is null)
+      or (shoot_id is null and guest_name is not null and guest_phone is not null))));
 check (purpose = 'rental' or expires_at is null);
 ```
 
