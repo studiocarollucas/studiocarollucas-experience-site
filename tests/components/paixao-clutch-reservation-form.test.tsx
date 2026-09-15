@@ -25,6 +25,7 @@ describe("PaixaoClutchReservationForm", () => {
     expect(screen.getByLabelText(/whatsapp/i)).toBeRequired();
     expect(screen.getByLabelText(/e-mail/i)).not.toBeRequired();
     expect(screen.getByRole("link", { name: /consultar pelo whatsapp/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /enviar pedido/i }).closest("form")).not.toHaveAttribute("novalidate");
     expect(document.body.textContent).not.toContain("inventoryItemId");
     expect(document.body.textContent).not.toContain("private-item-id");
   });
@@ -44,8 +45,7 @@ describe("PaixaoClutchReservationForm", () => {
   it("renders a pending success receipt and disables a pending submit", async () => {
     mocks.action.mockImplementation(async () => ({
       ok: true,
-      reservationCode: "RQ-2030-001",
-      expiresAt: "2030-05-11T12:00:00.000Z",
+      expiresAt: "2030-05-11T00:30:00.000Z",
     }));
 
     render(<PaixaoClutchReservationForm slug="clutch-dourada" name="Clutch dourada" />);
@@ -58,7 +58,8 @@ describe("PaixaoClutchReservationForm", () => {
 
     expect(screen.getByRole("button", { name: /enviando/i })).toBeDisabled();
     expect(await screen.findByRole("status")).toHaveTextContent(/pedido recebido/i);
-    expect(screen.getByRole("status")).toHaveTextContent("RQ-2030-001");
+    expect(screen.getByRole("status")).toHaveTextContent("10 de mai. de 2030, 20:30");
+    expect(screen.getByRole("status")).not.toHaveTextContent("00000000-0000-4000-8000");
   });
 
   it("renders an unavailable response without private reservation data", async () => {

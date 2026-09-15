@@ -6,7 +6,6 @@ import { InventoryItemUnavailableError, InventoryReservationConflictError } from
 export type PublicClutchReservationActionState =
   | {
     ok: true;
-    reservationCode: string;
     expiresAt: string;
   }
   | {
@@ -57,7 +56,6 @@ export async function submitPublicClutchRentalReservationAction(
     const reservation = await createPublicClutchRentalReservation(input);
     return {
       ok: true,
-      reservationCode: reservation.reservationCode,
       expiresAt: reservation.expiresAt,
     };
   } catch (error) {

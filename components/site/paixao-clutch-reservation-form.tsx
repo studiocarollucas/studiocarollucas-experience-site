@@ -3,7 +3,6 @@
 import { useActionState, useState } from "react";
 import { submitPublicClutchRentalReservationAction, type PublicClutchReservationActionState } from "@/app/(site)/paixao-clutch/[slug]/reservation-actions";
 import { studioDate } from "@/domain/portal/countdown";
-import { formatDateTime } from "@/lib/format";
 import { contactUrl } from "@/lib/site/contact";
 import { PaixaoClutchWhatsAppLink } from "@/components/site/paixao-clutch-tracked-links";
 import s from "@/app/(site)/paixao-clutch/paixao-clutch.module.css";
@@ -21,6 +20,18 @@ const fieldIds: Record<FieldName, string> = {
 
 function errorFor(state: PublicClutchReservationActionState, clientErrors: FieldErrors, field: FieldName) {
   return clientErrors[field] ?? (state && !state.ok ? state.fieldErrors?.[field] : undefined);
+}
+
+function formatReservationExpiry(expiresAt: string) {
+  return new Intl.DateTimeFormat("pt-BR", {
+    timeZone: "America/Manaus",
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).format(new Date(expiresAt));
 }
 
 export function PaixaoClutchReservationForm({ slug, name }: { slug: string; name: string }) {
@@ -50,7 +61,7 @@ export function PaixaoClutchReservationForm({ slug, name }: { slug: string; name
       <section className={s.reservationForm} aria-labelledby="reserva-clutch">
         <h2 id="reserva-clutch">Pedido de reserva enviado</h2>
         <p role="status" aria-live="polite">
-          Pedido recebido. Protocolo {state.reservationCode}. Ele fica reservado para análise até {formatDateTime(state.expiresAt)}.
+          Pedido recebido. Ele fica reservado para análise até {formatReservationExpiry(state.expiresAt)}.
         </p>
         <p>O pedido não inclui pagamento e depende da confirmação do estúdio.</p>
       </section>
@@ -63,7 +74,6 @@ export function PaixaoClutchReservationForm({ slug, name }: { slug: string; name
       <p>Envie seu pedido e o estúdio confirma a disponibilidade antes de qualquer pagamento.</p>
       <form
         action={formAction}
-        noValidate
         onSubmit={(event) => {
           if (!validateDates()) event.preventDefault();
         }}

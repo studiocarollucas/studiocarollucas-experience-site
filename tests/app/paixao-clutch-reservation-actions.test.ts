@@ -19,7 +19,7 @@ function formData(values: Record<string, string>) {
 describe("public clutch reservation action", () => {
   it("passes only the public slug and guest form fields to the public domain", async () => {
     mocks.createReservation.mockResolvedValue({
-      reservationCode: "RQ-2030-001",
+      reservationCode: "00000000-0000-4000-8000-000000000001",
       status: "pending",
       expiresAt: "2030-05-11T12:00:00.000Z",
     });
@@ -37,7 +37,6 @@ describe("public clutch reservation action", () => {
       }),
     )).resolves.toEqual({
       ok: true,
-      reservationCode: "RQ-2030-001",
       expiresAt: "2030-05-11T12:00:00.000Z",
     });
 
@@ -50,6 +49,11 @@ describe("public clutch reservation action", () => {
       guestEmail: "ana@example.com",
     });
     expect(mocks.createReservation.mock.calls[0]?.[0]).not.toHaveProperty("inventoryItemId");
+    await expect(submitPublicClutchRentalReservationAction(
+      "clutch-dourada",
+      null,
+      formData({ startsOn: "2030-05-10", endsOn: "2030-05-12", guestName: "Ana Silva", guestPhone: "92999990000" }),
+    )).resolves.not.toHaveProperty("reservationCode");
   });
 
   it("returns safe field guidance for malformed submissions", async () => {
