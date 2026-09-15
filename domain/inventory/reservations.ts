@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, desc, eq, gte, inArray, lte, sql } from "drizzle-orm";
+import { and, desc, eq, gt, gte, inArray, isNotNull, lte, or, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { inventoryItems, inventoryReservations, profiles, type InventoryReservation } from "@/db/schema";
 import { recordAuditEvent } from "@/domain/audit/service";
@@ -10,6 +10,17 @@ import {
 } from "./reservation-schema";
 
 const blockingStatuses = ["pending", "confirmed"] as const;
+
+export function inventoryReservationBlockingPredicate(now: Date) {
+  return or(
+    eq(inventoryReservations.status, "confirmed"),
+    and(
+      eq(inventoryReservations.status, "pending"),
+      // Internal reservations predate guest holds and have no expiry.
+      or(isNotNull(inventoryReservations.shootId), gt(inventoryReservations.expiresAt, now)),
+    ),
+  )!;
+}
 
 export class InventoryItemUnavailableError extends Error {
   constructor() {
@@ -29,7 +40,7 @@ export function canonicalizeInventoryReservationLockId(id: string): string {
   return id.toLowerCase();
 }
 
-async function requireInventoryReservationActor(actorUserId: string): Promise<void> {
+export async function requireInventoryReservationActor(actorUserId: string): Promise<void> {
   const [actor] = await db
     .select({ role: profiles.role })
     .from(profiles)
@@ -65,7 +76,7 @@ export async function createShootInventoryReservation(
       .where(
         and(
           eq(inventoryReservations.inventoryItemId, parsed.inventoryItemId),
-          inArray(inventoryReservations.status, blockingStatuses),
+          inventoryReservationBlockingPredicate(new Date()),
           lte(inventoryReservations.startsOn, parsed.endsOn),
           gte(inventoryReservations.endsOn, parsed.startsOn),
         ),
