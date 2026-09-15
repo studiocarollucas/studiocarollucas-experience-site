@@ -4,7 +4,8 @@ import { useActionState, useRef, useState, useTransition, type ChangeEvent } fro
 import Link from "next/link";
 import { studioDate } from "@/domain/portal/countdown";
 import type { FutureInventoryReservation } from "@/domain/inventory/queries";
-import { updatePaixaoClutchAction, reorderPaixaoClutchAction, uploadInventoryPublicMediaAction, promoteInventoryMediaAction, removeInventoryPublicMediaAction, readPaixaoClutchPrivateMediaAction } from "@/app/admin/(protected)/paixao-clutch/actions";
+import type { PaixaoClutchRentalRequest } from "@/domain/inventory/clutch";
+import { approvePublicClutchRentalAction, releasePublicClutchRentalAction, updatePaixaoClutchAction, reorderPaixaoClutchAction, uploadInventoryPublicMediaAction, promoteInventoryMediaAction, removeInventoryPublicMediaAction, readPaixaoClutchPrivateMediaAction } from "@/app/admin/(protected)/paixao-clutch/actions";
 import { publicInventoryMediaFileSchema, type PaixaoClutchAdminFilters } from "@/domain/inventory/clutch-schema";
 import { type ActionResult, toFormAction } from "@/lib/auth/action-result";
 import { Field } from "@/components/ui/field";
@@ -21,6 +22,7 @@ export type PaixaoClutchCatalogItem = {
   active: boolean;
   eligible: boolean;
   futureReservations: FutureInventoryReservation[];
+  rentalRequests: PaixaoClutchRentalRequest[];
   status: "available" | "maintenance" | "retired";
   rentalPrice: string | null;
   replacementValue: string | null;
@@ -36,6 +38,50 @@ const statusLabels = {
   maintenance: "Em manutenção",
   retired: "Retirada do acervo",
 } as const;
+
+const rentalStatusLabels = {
+  pending: "Em análise", confirmed: "Confirmada", released: "Liberada",
+  cancelled: "Cancelada", expired: "Expirada",
+} as const;
+
+function RentalRequest({ request, clutchName }: { request: PaixaoClutchRentalRequest; clutchName: string }) {
+  const [state, setState] = useState<ActionResult<{ id: string; status: PaixaoClutchRentalRequest["status"] }> | null>(null);
+  const [status, setStatus] = useState(request.status);
+  const [pending, startTransition] = useTransition();
+  const phone = request.guestPhone?.replace(/\D/g, "") ?? "";
+  const message = `Olá, ${request.guestName ?? "cliente"}! Sua reserva ${request.id} da ${clutchName}, de ${request.startsOn} a ${request.endsOn}, está ${rentalStatusLabels[status].toLowerCase()}.`;
+  const whatsapp = /^\d{8,15}$/.test(phone) ? `https://wa.me/${phone}?text=${encodeURIComponent(message)}` : null;
+  function decide(action: typeof approvePublicClutchRentalAction) {
+    startTransition(async () => {
+      try {
+        const result = await action({ reservationId: request.id });
+        setState(result);
+        if (result.ok) setStatus(result.data.status);
+      } catch {
+        setState({ ok: false, error: "Não foi possível concluir a operação. Tente novamente." });
+      }
+    });
+  }
+  return <li className="space-y-3 border border-line p-4 font-sans text-sm">
+    <div className="flex flex-wrap justify-between gap-2">
+      <h4 className="font-medium">{request.guestName ?? "Cliente"}</h4>
+      <p>{rentalStatusLabels[status]}</p>
+    </div>
+    <p className="break-all text-xs text-muted">Pedido {request.id}</p>
+    <p>{request.startsOn} a {request.endsOn}</p>
+    <p>{request.guestPhone}</p>
+    {request.guestEmail ? <p className="break-all">{request.guestEmail}</p> : null}
+    {status === "pending" && request.expiresAt ? <p className="text-muted">Expira em {new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short", timeZone: "America/Manaus" }).format(new Date(request.expiresAt))} (Manaus)</p> : null}
+    <FormStatus state={state} />
+    {state?.ok ? <p role="status">Reserva {rentalStatusLabels[status].toLowerCase()}. Avise a cliente pelo WhatsApp.</p> : null}
+    <div className="flex flex-wrap gap-3">
+      {status === "pending" ? <button type="button" disabled={pending} className="min-h-11 border border-ink px-4 py-2 disabled:opacity-40" onClick={() => decide(approvePublicClutchRentalAction)}>Aprovar reserva</button> : null}
+      {status === "pending" || status === "confirmed" ? <button type="button" disabled={pending} className="min-h-11 border border-line px-4 py-2 disabled:opacity-40" onClick={() => decide(releasePublicClutchRentalAction)}>Liberar reserva</button> : null}
+      {whatsapp ? <a href={whatsapp} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-11 items-center underline">Avisar {request.guestName ?? "cliente"} no WhatsApp</a> : null}
+    </div>
+    {pending ? <p role="status">Atualizando reserva…</p> : null}
+  </li>;
+}
 
 function PublicMediaEditor({ item, onRemove, onRemoveFailure }: {
   item: PaixaoClutchCatalogItem;
@@ -204,6 +250,11 @@ function ClutchEditor({ item, onRemoveFailure, onRemoveSuccess }: {
           </ul>
         </div>
       ) : null}
+      {item.rentalRequests.length ? <section aria-label={`Pedidos de aluguel de ${item.name}`} className="mb-5 space-y-3">
+        <h3 className="font-serif text-lg">Pedidos de aluguel</h3>
+        <p className="font-sans text-sm text-muted">Aprovação e liberação atualizam a reserva. Abra o WhatsApp para revisar e enviar a mensagem à cliente.</p>
+        <ul className="space-y-3">{item.rentalRequests.map((request) => <RentalRequest key={`${request.id}:${request.status}:${request.expiresAt}`} request={request} clutchName={item.name} />)}</ul>
+      </section> : null}
       <PublicMediaEditor item={item} onRemove={() => {
         setPublished(false);
         onRemoveSuccess();

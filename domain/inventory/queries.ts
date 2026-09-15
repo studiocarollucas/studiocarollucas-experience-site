@@ -6,8 +6,7 @@ import { db } from "@/db/client";
 import { inventoryItems, inventoryReservations } from "@/db/schema";
 import { inventoryItemStatusValues, inventoryItemTypeValues } from "./schema";
 import { requireInventoryCatalogActor } from "./authorization";
-
-const blockingReservationStatuses = ["pending", "confirmed"] as const;
+import { inventoryReservationBlockingPredicate } from "./reservations";
 
 export type InventoryListFilters = {
   search?: string;
@@ -33,7 +32,7 @@ export type FutureInventoryReservation = {
   id: string;
   startsOn: string;
   endsOn: string;
-  status: (typeof blockingReservationStatuses)[number];
+  status: "pending" | "confirmed";
 };
 
 export type InventoryListRow = {
@@ -146,7 +145,7 @@ export async function withFutureInventoryReservations<T extends { id: string }>(
         .where(
           and(
             inArray(inventoryReservations.inventoryItemId, ids),
-            inArray(inventoryReservations.status, blockingReservationStatuses),
+            inventoryReservationBlockingPredicate(new Date()),
             gte(inventoryReservations.endsOn, studioDate())
           )
         )

@@ -1,8 +1,8 @@
 import "server-only";
 
-import { and, asc, eq, type SQL } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNull, type SQL } from "drizzle-orm";
 import { db } from "@/db/client";
-import { inventoryItems, inventoryPublicMedia, type InventoryItem } from "@/db/schema";
+import { inventoryItems, inventoryPublicMedia, inventoryReservations, type InventoryItem, type InventoryReservation } from "@/db/schema";
 import { recordAuditEvent } from "@/domain/audit/service";
 import { requireInventoryCatalogActor } from "./authorization";
 import { lockCuration } from "./curation-lock";
@@ -16,6 +16,17 @@ import {
 } from "./clutch-schema";
 
 export { uploadInventoryPublicMedia, promoteInventoryMedia, removeInventoryPublicMedia, readInventoryPublicMedia } from "./public-media";
+
+export type PaixaoClutchRentalRequest = {
+  id: string;
+  guestName: string | null;
+  guestPhone: string | null;
+  guestEmail: string | null;
+  startsOn: string;
+  endsOn: string;
+  status: InventoryReservation["status"] | "expired";
+  expiresAt: string | null;
+};
 
 export async function findPaixaoClutchSlugForRevalidation(itemId: string): Promise<string | null> {
   const [item] = await db
@@ -181,7 +192,7 @@ function curationPredicate(filters: PaixaoClutchAdminFilters): SQL {
 export async function listPaixaoClutchForAdmin(
   filters: PaixaoClutchAdminFilters,
   actorUserId: string,
-): Promise<Array<InventoryItem & { futureReservations: FutureInventoryReservation[] }>> {
+): Promise<Array<InventoryItem & { futureReservations: FutureInventoryReservation[]; rentalRequests: PaixaoClutchRentalRequest[] }>> {
   await requireInventoryCatalogActor(actorUserId);
   const items = await db
     .select()
@@ -192,5 +203,39 @@ export async function listPaixaoClutchForAdmin(
       asc(inventoryItems.code),
       asc(inventoryItems.id),
     );
-  return withFutureInventoryReservations(items);
+  const withReservations = await withFutureInventoryReservations(items);
+  if (!items.length) return [];
+  const requests = await db.select({
+    id: inventoryReservations.id,
+    inventoryItemId: inventoryReservations.inventoryItemId,
+    guestName: inventoryReservations.guestName,
+    guestPhone: inventoryReservations.guestPhone,
+    guestEmail: inventoryReservations.guestEmail,
+    startsOn: inventoryReservations.startsOn,
+    endsOn: inventoryReservations.endsOn,
+    status: inventoryReservations.status,
+    expiresAt: inventoryReservations.expiresAt,
+  }).from(inventoryReservations).where(and(
+    inArray(inventoryReservations.inventoryItemId, items.map((item) => item.id)),
+    eq(inventoryReservations.purpose, "rental"),
+    isNull(inventoryReservations.shootId),
+  )).orderBy(desc(inventoryReservations.createdAt), asc(inventoryReservations.id));
+  const now = new Date();
+  const requestsByItem = new Map<string, PaixaoClutchRentalRequest[]>();
+  for (const request of requests) {
+    const rentalRequests = requestsByItem.get(request.inventoryItemId) ?? [];
+    rentalRequests.push({
+      id: request.id,
+      guestName: request.guestName,
+      guestPhone: request.guestPhone,
+      guestEmail: request.guestEmail,
+      startsOn: request.startsOn,
+      endsOn: request.endsOn,
+      status: request.status === "pending" && (!request.expiresAt || request.expiresAt <= now)
+        ? "expired" : request.status,
+      expiresAt: request.expiresAt?.toISOString() ?? null,
+    });
+    requestsByItem.set(request.inventoryItemId, rentalRequests);
+  }
+  return withReservations.map((item) => ({ ...item, rentalRequests: requestsByItem.get(item.id) ?? [] }));
 }

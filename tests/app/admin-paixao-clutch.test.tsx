@@ -14,6 +14,7 @@ const mocks = vi.hoisted(() => ({
   photos: vi.fn(),
   slugForRevalidation: vi.fn(),
   publicList: vi.fn(),
+  decide: vi.fn(),
 }));
 
 vi.mock("@/lib/auth/session", () => ({ getCurrentUser: mocks.user }));
@@ -29,6 +30,7 @@ vi.mock("@/domain/inventory/clutch", () => ({
 vi.mock("@/domain/inventory/media", () => ({ readInventoryMediaUrls: mocks.photos }));
 vi.mock("@/domain/inventory/public-clutch", () => ({ listPublicPaixaoClutches: mocks.publicList }));
 vi.mock("@/domain/inventory/public-media", () => ({ PublicInventoryMediaError: class extends Error {} }));
+vi.mock("@/domain/inventory/public-rental-reservation", () => ({ decidePublicClutchRentalReservation: mocks.decide }));
 vi.mock("next/cache", () => ({ revalidatePath: mocks.revalidate }));
 vi.mock("next/navigation", () => ({
   redirect: (path: string) => {
@@ -38,7 +40,7 @@ vi.mock("next/navigation", () => ({
 }));
 
 import PaixaoClutchPage from "@/app/admin/(protected)/paixao-clutch/page";
-import { updatePaixaoClutchAction, reorderPaixaoClutchAction, uploadInventoryPublicMediaAction, promoteInventoryMediaAction, removeInventoryPublicMediaAction, readPaixaoClutchPrivateMediaAction } from "@/app/admin/(protected)/paixao-clutch/actions";
+import { approvePublicClutchRentalAction, releasePublicClutchRentalAction, updatePaixaoClutchAction, reorderPaixaoClutchAction, uploadInventoryPublicMediaAction, promoteInventoryMediaAction, removeInventoryPublicMediaAction, readPaixaoClutchPrivateMediaAction } from "@/app/admin/(protected)/paixao-clutch/actions";
 import { PaixaoClutchCatalog } from "@/components/admin/paixao-clutch-catalog";
 import { AdminNav } from "@/components/admin/admin-nav";
 import { PublicInventoryMediaError } from "@/domain/inventory/public-media";
@@ -52,6 +54,7 @@ const clutch = {
   active: true,
   paixaoClutchEligible: true,
   futureReservations: [],
+  rentalRequests: [],
   rentalPrice: "120.00",
   replacementValue: "600.00",
   paixaoClutchCopy: "Um brilho discreto para a produção.",
@@ -72,12 +75,20 @@ const catalogClutch = {
   sortOrder: clutch.paixaoClutchSortOrder,
 };
 
+const rental = {
+  id: "00000000-0000-4000-8000-000000000008",
+  guestName: "Ana Silva", guestPhone: "5592999999999", guestEmail: "ana@example.test",
+  startsOn: "2099-01-01", endsOn: "2099-01-02", status: "pending" as const,
+  expiresAt: "2098-12-31T12:00:00.000Z",
+};
+
 describe("Paixão Clutch admin curation", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.user.mockResolvedValue({ id: "staff-1", email: "staff@example.test", role: "staff" });
     mocks.list.mockResolvedValue([clutch]);
     mocks.update.mockResolvedValue(clutch);
+    mocks.decide.mockImplementation(async ({ decision }) => ({ ...rental, inventoryItemId: id, status: decision === "approve" ? "confirmed" : "released", expiresAt: null }));
     mocks.photos.mockResolvedValue([{ id: "00000000-0000-4000-8000-000000000005", inventoryItemId: id, signedUrl: "https://storage.test/private.jpg?token=secret" }]);
     mocks.upload.mockResolvedValue({ id: "public-1", publicPath: "/api/public/inventory-media/new.jpg" });
     mocks.promote.mockResolvedValue({ id: "public-2", publicPath: "/api/public/inventory-media/copied.jpg" });
@@ -86,6 +97,95 @@ describe("Paixão Clutch admin curation", () => {
       { slug: "clutch-dourada-cl-001" },
       { slug: "clutch-prata-cl-002" },
     ]);
+  });
+
+  it.each(["approve", "release"] as const)("lets staff %s a rental and revalidates affected pages with a minimal result", async (decision) => {
+    const action = decision === "approve" ? approvePublicClutchRentalAction : releasePublicClutchRentalAction;
+    const status = decision === "approve" ? "confirmed" : "released";
+    await expect(action({ reservationId: rental.id })).resolves.toEqual({ ok: true, data: { id: rental.id, status } });
+    expect(mocks.decide).toHaveBeenCalledWith({ reservationId: rental.id, decision }, "staff-1");
+    for (const path of ["/admin/paixao-clutch", "/admin/inventario", `/admin/inventario/${id}`, "/paixao-clutch", "/paixao-clutch/clutch-dourada-cl-001"]) {
+      expect(mocks.revalidate).toHaveBeenCalledWith(path);
+    }
+  });
+
+  it.each([null, { id: "client-1", role: "client" }])("denies rental reads and decisions to unauthorized actor %j", async (user) => {
+    mocks.user.mockResolvedValue(user);
+    await expect(PaixaoClutchPage({ searchParams: Promise.resolve({}) })).rejects.toThrow("REDIRECT:/admin/login");
+    for (const action of [approvePublicClutchRentalAction, releasePublicClutchRentalAction]) {
+      await expect(action({ reservationId: rental.id })).resolves.toMatchObject({ ok: false, error: expect.stringMatching(/permissão/) });
+    }
+    expect(mocks.decide).not.toHaveBeenCalled();
+    expect(mocks.list).not.toHaveBeenCalled();
+  });
+
+  it("shows staff guest details and updates the manual WhatsApp message after approval", async () => {
+    mocks.list.mockResolvedValue([{ ...clutch, rentalRequests: [rental] }]);
+    render(await PaixaoClutchPage({ searchParams: Promise.resolve({}) }));
+    expect(screen.getByText("Ana Silva")).toBeInTheDocument();
+    expect(screen.getByText("ana@example.test")).toBeInTheDocument();
+    expect(screen.getByText(/Expira em/)).toBeInTheDocument();
+    const link = screen.getByRole("link", { name: /avisar Ana Silva no WhatsApp/i });
+    const before = new URL(link.getAttribute("href")!);
+    expect(before.origin).toBe("https://wa.me");
+    expect(before.pathname).toBe("/5592999999999");
+    expect(before.searchParams.get("text")).toContain("em análise");
+    expect(mocks.decide).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: /aprovar reserva/i }));
+    await waitFor(() => expect(mocks.decide).toHaveBeenCalledWith({ reservationId: rental.id, decision: "approve" }, "staff-1"));
+    await waitFor(() => expect(new URL(link.getAttribute("href")!).searchParams.get("text")).toContain("confirmada"));
+    const text = new URL(link.getAttribute("href")!).searchParams.get("text")!;
+    for (const value of [rental.id, rental.guestName, clutch.name, rental.startsOn, rental.endsOn]) expect(text).toContain(value);
+    expect(text).not.toContain(rental.guestEmail);
+    expect(text).not.toContain(clutch.replacementValue);
+    expect(screen.queryByRole("button", { name: /aprovar reserva/i })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /liberar reserva/i })).toBeEnabled();
+  });
+
+  it("releases a confirmed request and keeps manual contact available", async () => {
+    render(<PaixaoClutchCatalog items={[{ ...catalogClutch, rentalRequests: [{ ...rental, status: "confirmed", expiresAt: null }] }]} />);
+    fireEvent.click(screen.getByRole("button", { name: /liberar reserva/i }));
+    await waitFor(() => expect(screen.queryByRole("button", { name: /liberar reserva/i })).not.toBeInTheDocument());
+    expect(new URL(screen.getByRole("link", { name: /avisar Ana Silva no WhatsApp/i }).getAttribute("href")!).searchParams.get("text")).toContain("liberada");
+  });
+
+  it("shows expired request history without approval controls or an active block", () => {
+    render(<PaixaoClutchCatalog items={[{ ...catalogClutch, rentalRequests: [{ ...rental, status: "expired", expiresAt: "2000-01-01T00:00:00.000Z" }] }]} />);
+    expect(screen.getByText("Expirada")).toBeInTheDocument();
+    expect(screen.getByText("Disponível para operação")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /aprovar reserva/i })).not.toBeInTheDocument();
+  });
+
+  it("preserves pending state and offers retry when a decision fails", async () => {
+    mocks.decide.mockRejectedValueOnce(new Error("conflict"));
+    render(<PaixaoClutchCatalog items={[{ ...catalogClutch, rentalRequests: [rental] }]} />);
+    fireEvent.click(screen.getByRole("button", { name: /aprovar reserva/i }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("Não foi possível concluir a operação. Tente novamente.");
+    await waitFor(() => expect(screen.getByRole("button", { name: /aprovar reserva/i })).toBeEnabled());
+    expect(new URL(screen.getByRole("link", { name: /avisar Ana Silva no WhatsApp/i }).getAttribute("href")!).searchParams.get("text")).toContain("em análise");
+  });
+
+  it("retains the confirmed decision when a following release fails", async () => {
+    render(<PaixaoClutchCatalog items={[{ ...catalogClutch, rentalRequests: [rental] }]} />);
+    fireEvent.click(screen.getByRole("button", { name: /aprovar reserva/i }));
+    await waitFor(() => expect(screen.queryByRole("button", { name: /aprovar reserva/i })).not.toBeInTheDocument());
+    await waitFor(() => expect(screen.getByRole("button", { name: /liberar reserva/i })).toBeEnabled());
+    mocks.decide.mockRejectedValueOnce(new Error("release failed"));
+    fireEvent.click(screen.getByRole("button", { name: /liberar reserva/i }));
+    expect(await screen.findByRole("alert")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /aprovar reserva/i })).not.toBeInTheDocument();
+    expect(new URL(screen.getByRole("link", { name: /avisar Ana Silva no WhatsApp/i }).getAttribute("href")!).searchParams.get("text")).toContain("confirmada");
+  });
+
+  it("encodes request text in the fixed WhatsApp URL and omits invalid phones", () => {
+    const special = { ...rental, guestName: "Ana & Maria?", guestPhone: "+55 (92) 99999-9999" };
+    const { rerender } = render(<PaixaoClutchCatalog items={[{ ...catalogClutch, rentalRequests: [special] }]} />);
+    const url = new URL(screen.getByRole("link", { name: /avisar Ana & Maria/i }).getAttribute("href")!);
+    expect(url.pathname).toBe("/5592999999999");
+    expect([...url.searchParams.keys()]).toEqual(["text"]);
+    expect(url.searchParams.get("text")).toContain(special.guestName);
+    rerender(<PaixaoClutchCatalog items={[{ ...catalogClutch, rentalRequests: [{ ...special, guestPhone: "invalid" }] }]} />);
+    expect(screen.queryByRole("link", { name: /avisar Ana/i })).not.toBeInTheDocument();
   });
 
   it("shows only the protected clutch curation controls and operational availability", async () => {

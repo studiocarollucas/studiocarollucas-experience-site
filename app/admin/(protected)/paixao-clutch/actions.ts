@@ -8,6 +8,26 @@ import { updatePaixaoClutchSchema, reorderPaixaoClutchSchema, publicInventoryMed
 import { readInventoryMediaUrls } from "@/domain/inventory/media";
 import { listPublicPaixaoClutches } from "@/domain/inventory/public-clutch";
 import { PublicInventoryMediaError } from "@/domain/inventory/public-media";
+import { decidePublicClutchRentalReservation } from "@/domain/inventory/public-rental-reservation";
+import { publicClutchRentalDecisionSchema } from "@/domain/inventory/public-rental-reservation-schema";
+
+const rentalRequestIdSchema = publicClutchRentalDecisionSchema.pick({ reservationId: true }).strict();
+
+async function decideRental(reservationId: string, decision: "approve" | "release", actorUserId: string) {
+  const reservation = await decidePublicClutchRentalReservation({ reservationId, decision }, actorUserId);
+  await revalidateMedia(reservation.inventoryItemId);
+  return { id: reservation.id, status: reservation.status };
+}
+
+export const approvePublicClutchRentalAction = defineAdminAction(
+  { role: "staff", input: rentalRequestIdSchema },
+  async ({ reservationId }, ctx) => decideRental(reservationId, "approve", ctx.user.id),
+);
+
+export const releasePublicClutchRentalAction = defineAdminAction(
+  { role: "staff", input: rentalRequestIdSchema },
+  async ({ reservationId }, ctx) => decideRental(reservationId, "release", ctx.user.id),
+);
 
 function revalidatePublicPaixaoClutches(slugs: Iterable<string>) {
   revalidatePath("/");
