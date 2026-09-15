@@ -16,8 +16,8 @@ describe("public clutch rental reservations migration", () => {
     expect(normalizedSql).toContain('add column "guest_phone" text');
     expect(normalizedSql).toContain('add column "guest_email" text');
     expect(normalizedSql).toContain('add column "expires_at" timestamp with time zone');
-    expect(normalizedSql).toContain('"inventory_reservations"."purpose" = \'shoot\' and "inventory_reservations"."shoot_id" is not null and "inventory_reservations"."guest_name" is null and "inventory_reservations"."guest_phone" is null');
-    expect(normalizedSql).toContain('"inventory_reservations"."purpose" = \'rental\' and ( ("inventory_reservations"."shoot_id" is not null and "inventory_reservations"."guest_name" is null and "inventory_reservations"."guest_phone" is null) or ("inventory_reservations"."shoot_id" is null and "inventory_reservations"."guest_name" is not null and "inventory_reservations"."guest_phone" is not null) )');
+    expect(normalizedSql).toContain('"inventory_reservations"."purpose" = \'shoot\' and "inventory_reservations"."shoot_id" is not null and "inventory_reservations"."guest_name" is null and "inventory_reservations"."guest_phone" is null and "inventory_reservations"."guest_email" is null');
+    expect(normalizedSql).toContain('"inventory_reservations"."purpose" = \'rental\' and ( ("inventory_reservations"."shoot_id" is not null and "inventory_reservations"."guest_name" is null and "inventory_reservations"."guest_phone" is null and "inventory_reservations"."guest_email" is null) or ("inventory_reservations"."shoot_id" is null and "inventory_reservations"."guest_name" is not null and "inventory_reservations"."guest_phone" is not null) )');
     expect(normalizedSql).toContain('"inventory_reservations"."purpose" = \'rental\' or "inventory_reservations"."expires_at" is null');
   });
 

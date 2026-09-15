@@ -136,9 +136,10 @@ export const inventoryReservations = pgTable(
         and ${table.shootId} is not null
         and ${table.guestName} is null
         and ${table.guestPhone} is null
+        and ${table.guestEmail} is null
       ) or (
         ${table.purpose} = 'rental' and (
-          (${table.shootId} is not null and ${table.guestName} is null and ${table.guestPhone} is null)
+          (${table.shootId} is not null and ${table.guestName} is null and ${table.guestPhone} is null and ${table.guestEmail} is null)
           or (${table.shootId} is null and ${table.guestName} is not null and ${table.guestPhone} is not null)
         )
       )`,

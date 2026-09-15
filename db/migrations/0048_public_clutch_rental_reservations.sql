@@ -8,9 +8,10 @@ ALTER TABLE "inventory_reservations" ADD CONSTRAINT "inventory_reservations_rese
         and "inventory_reservations"."shoot_id" is not null
         and "inventory_reservations"."guest_name" is null
         and "inventory_reservations"."guest_phone" is null
+        and "inventory_reservations"."guest_email" is null
       ) or (
         "inventory_reservations"."purpose" = 'rental' and (
-          ("inventory_reservations"."shoot_id" is not null and "inventory_reservations"."guest_name" is null and "inventory_reservations"."guest_phone" is null)
+          ("inventory_reservations"."shoot_id" is not null and "inventory_reservations"."guest_name" is null and "inventory_reservations"."guest_phone" is null and "inventory_reservations"."guest_email" is null)
           or ("inventory_reservations"."shoot_id" is null and "inventory_reservations"."guest_name" is not null and "inventory_reservations"."guest_phone" is not null)
         )
       ));--> statement-breakpoint

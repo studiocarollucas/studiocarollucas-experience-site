@@ -38,3 +38,21 @@ The migration test reported both assertions passing. The schema test was also ru
 ## Note
 
 Vitest emits an existing Vite configuration deprecation warning about native config loading. It does not affect the test outcomes.
+
+## Review correction — internal guest email
+
+The internal reservation branches now also require `guest_email is null`: both a `shoot` reservation and an internal `rental` reservation with `shoot_id` reject guest email data. The public rental branch remains able to store an optional guest email alongside its required name and phone.
+
+### RED
+
+The migration contract test was strengthened to require `guest_email is null` in both internal branches. Before changing the schema or SQL, it failed with the expected assertion: the generated constraint included guest-name and guest-phone null checks but not guest-email null checks.
+
+### GREEN
+
+Updated the Drizzle schema, migration SQL, and migration snapshot. Fresh verification:
+
+```text
+npx.cmd vitest run tests/db/public-clutch-rental-reservations-migration.test.ts tests/domain/inventory-schema.test.ts --maxWorkers=1
+```
+
+Result: 2 test files passed, 6 tests passed, 0 failures (13.38s). The existing Vite native-config deprecation warning remained informational only.
