@@ -77,4 +77,37 @@ describe("PaixaoClutchReservationForm", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent(/indisponível/i);
     expect(document.body.textContent).not.toContain("00000000-0000-4000-8000");
   });
+
+  it("preserves the guest's values after a server error so the same request can be retried", async () => {
+    mocks.action
+      .mockResolvedValueOnce({ ok: false, message: "Esta clutch está indisponível para este período." })
+      .mockResolvedValueOnce({ ok: true, expiresAt: "2030-05-11T00:30:00.000Z" });
+
+    render(<PaixaoClutchReservationForm slug="clutch-dourada" name="Clutch dourada" />);
+
+    const pickup = screen.getByLabelText(/retirada/i);
+    const returnDate = screen.getByLabelText(/devolução/i);
+    const guestName = screen.getByLabelText(/^nome/i);
+    const phone = screen.getByLabelText(/whatsapp/i);
+    const email = screen.getByLabelText(/e-mail/i);
+    const form = screen.getByRole("button", { name: /enviar pedido/i }).closest("form")!;
+
+    fireEvent.change(pickup, { target: { value: "2030-05-10" } });
+    fireEvent.change(returnDate, { target: { value: "2030-05-12" } });
+    fireEvent.change(guestName, { target: { value: "Ana Silva" } });
+    fireEvent.change(phone, { target: { value: "92999990000" } });
+    fireEvent.change(email, { target: { value: "ana@example.com" } });
+    fireEvent.submit(form);
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(/indisponível/i);
+    expect(pickup).toHaveValue("2030-05-10");
+    expect(returnDate).toHaveValue("2030-05-12");
+    expect(guestName).toHaveValue("Ana Silva");
+    expect(phone).toHaveValue("92999990000");
+    expect(email).toHaveValue("ana@example.com");
+
+    fireEvent.submit(form);
+    expect(await screen.findByRole("status")).toHaveTextContent(/pedido recebido/i);
+    expect(mocks.action).toHaveBeenCalledTimes(2);
+  });
 });
