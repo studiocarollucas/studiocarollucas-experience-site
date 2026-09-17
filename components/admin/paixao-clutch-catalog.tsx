@@ -48,7 +48,8 @@ function RentalRequest({ request, clutchName }: { request: PaixaoClutchRentalReq
   const [state, setState] = useState<ActionResult<{ id: string; status: PaixaoClutchRentalRequest["status"] }> | null>(null);
   const [status, setStatus] = useState(request.status);
   const [pending, startTransition] = useTransition();
-  const phone = request.guestPhone?.replace(/\D/g, "") ?? "";
+  const digits = request.guestPhone?.replace(/\D/g, "") ?? "";
+  const phone = /^\d{10,11}$/.test(digits) ? `55${digits}` : digits;
   const message = `Olá, ${request.guestName ?? "cliente"}! Sua reserva ${request.id} da ${clutchName}, de ${request.startsOn} a ${request.endsOn}, está ${rentalStatusLabels[status].toLowerCase()}.`;
   const whatsapp = /^\d{8,15}$/.test(phone) ? `https://wa.me/${phone}?text=${encodeURIComponent(message)}` : null;
   function decide(action: typeof approvePublicClutchRentalAction) {

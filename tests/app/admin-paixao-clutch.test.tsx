@@ -139,7 +139,7 @@ describe("Paixão Clutch admin curation", () => {
     expect(text).not.toContain(rental.guestEmail);
     expect(text).not.toContain(clutch.replacementValue);
     expect(screen.queryByRole("button", { name: /aprovar reserva/i })).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /liberar reserva/i })).toBeEnabled();
+    await waitFor(() => expect(screen.getByRole("button", { name: /liberar reserva/i })).toBeEnabled());
   });
 
   it("releases a confirmed request and keeps manual contact available", async () => {
@@ -175,6 +175,20 @@ describe("Paixão Clutch admin curation", () => {
     expect(await screen.findByRole("alert")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /aprovar reserva/i })).not.toBeInTheDocument();
     expect(new URL(screen.getByRole("link", { name: /avisar Ana Silva no WhatsApp/i }).getAttribute("href")!).searchParams.get("text")).toContain("confirmada");
+  });
+
+  it.each([
+    ["(92) 99999-0000", "5592999990000"],
+    ["(92) 3333-0000", "559233330000"],
+    ["(55) 99999-0000", "5555999990000"],
+    ["+55 (92) 99999-0000", "5592999990000"],
+    ["5592999990000", "5592999990000"],
+    ["+44 20 7946 0958", "442079460958"],
+  ])("normalizes manual WhatsApp number %s to %s", (guestPhone, expectedPhone) => {
+    render(<PaixaoClutchCatalog items={[{ ...catalogClutch, rentalRequests: [{ ...rental, guestPhone }] }]} />);
+    const url = new URL(screen.getByRole("link", { name: /avisar Ana Silva no WhatsApp/i }).getAttribute("href")!);
+    expect(url.origin).toBe("https://wa.me");
+    expect(url.pathname).toBe(`/${expectedPhone}`);
   });
 
   it("encodes request text in the fixed WhatsApp URL and omits invalid phones", () => {
