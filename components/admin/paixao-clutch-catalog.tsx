@@ -5,6 +5,7 @@ import Link from "next/link";
 import { studioDate } from "@/domain/portal/countdown";
 import type { FutureInventoryReservation } from "@/domain/inventory/queries";
 import type { PaixaoClutchRentalRequest } from "@/domain/inventory/clutch";
+import { normalizeBrazilianWhatsApp } from "@/domain/inventory/public-rental-reservation-schema";
 import { approvePublicClutchRentalAction, releasePublicClutchRentalAction, updatePaixaoClutchAction, reorderPaixaoClutchAction, uploadInventoryPublicMediaAction, promoteInventoryMediaAction, removeInventoryPublicMediaAction, readPaixaoClutchPrivateMediaAction } from "@/app/admin/(protected)/paixao-clutch/actions";
 import { publicInventoryMediaFileSchema, type PaixaoClutchAdminFilters } from "@/domain/inventory/clutch-schema";
 import { type ActionResult, toFormAction } from "@/lib/auth/action-result";
@@ -48,10 +49,9 @@ function RentalRequest({ request, clutchName }: { request: PaixaoClutchRentalReq
   const [state, setState] = useState<ActionResult<{ id: string; status: PaixaoClutchRentalRequest["status"] }> | null>(null);
   const [status, setStatus] = useState(request.status);
   const [pending, startTransition] = useTransition();
-  const digits = request.guestPhone?.replace(/\D/g, "") ?? "";
-  const phone = /^\d{10,11}$/.test(digits) ? `55${digits}` : digits;
+  const phone = normalizeBrazilianWhatsApp(request.guestPhone ?? "");
   const message = `Olá, ${request.guestName ?? "cliente"}! Sua reserva ${request.id} da ${clutchName}, de ${request.startsOn} a ${request.endsOn}, está ${rentalStatusLabels[status].toLowerCase()}.`;
-  const whatsapp = /^\d{8,15}$/.test(phone) ? `https://wa.me/${phone}?text=${encodeURIComponent(message)}` : null;
+  const whatsapp = phone ? `https://wa.me/${phone}?text=${encodeURIComponent(message)}` : null;
   function decide(action: typeof approvePublicClutchRentalAction) {
     startTransition(async () => {
       try {

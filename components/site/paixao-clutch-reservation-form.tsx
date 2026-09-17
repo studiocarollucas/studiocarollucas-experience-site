@@ -111,8 +111,9 @@ export function PaixaoClutchReservationForm({ slug, name }: { slug: string; name
         </label>
         {errors.guestName ? <p id={fieldIds.guestName} role="alert">{errors.guestName}</p> : null}
         <label htmlFor="guestPhone">WhatsApp
-          <input id="guestPhone" name="guestPhone" type="tel" autoComplete="tel" required aria-invalid={Boolean(errors.guestPhone)} aria-describedby={errors.guestPhone ? fieldIds.guestPhone : undefined} />
+          <input id="guestPhone" name="guestPhone" type="tel" autoComplete="tel" required aria-invalid={Boolean(errors.guestPhone)} aria-describedby={errors.guestPhone ? `guestPhone-hint ${fieldIds.guestPhone}` : "guestPhone-hint"} />
         </label>
+        <p id="guestPhone-hint">WhatsApp brasileiro com DDD, com ou sem o código 55. Ex.: (92) 99999-0000.</p>
         {errors.guestPhone ? <p id={fieldIds.guestPhone} role="alert">{errors.guestPhone}</p> : null}
         <label htmlFor="guestEmail">E-mail (opcional)
           <input id="guestEmail" name="guestEmail" type="email" autoComplete="email" aria-invalid={Boolean(errors.guestEmail)} aria-describedby={errors.guestEmail ? fieldIds.guestEmail : undefined} />

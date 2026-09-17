@@ -17,7 +17,7 @@ const inventoryItemId = "a0b1c2d3-e4f5-4000-8000-000000000001";
 const reservationId = "00000000-0000-4000-8000-000000000002";
 const actorUserId = "00000000-0000-4000-8000-000000000003";
 const input = { slug: "clutch-dourada", startsOn: "2030-05-10", endsOn: "2030-05-12", guestName: " Ana Silva ", guestPhone: "(92) 99999-0000", guestEmail: "ana@example.com" };
-const pending = { id: reservationId, inventoryItemId, shootId: null, purpose: "rental", status: "pending", startsOn: input.startsOn, endsOn: input.endsOn, expiresAt: new Date(now.getTime() + 86400000), guestName: "Ana Silva", guestPhone: "92999990000" };
+const pending = { id: reservationId, inventoryItemId, shootId: null, purpose: "rental", status: "pending", startsOn: input.startsOn, endsOn: input.endsOn, expiresAt: new Date(now.getTime() + 86400000), guestName: "Ana Silva", guestPhone: "5592999990000" };
 type Query = { table: unknown; fields: unknown; condition?: SQL; lock?: string };
 let queries: Query[];
 let itemRows: unknown[][];
@@ -69,7 +69,7 @@ describe("public rental requests", () => {
   it("creates a published rental with normalized contact, exactly 24h expiry and only a public receipt", async () => {
     const result = await createPublicClutchRentalReservation(input);
     expect(result).toEqual({ reservationCode: reservationId, status: "pending", expiresAt: "2030-05-02T12:34:56.789Z" });
-    expect(written).toMatchObject({ inventoryItemId, shootId: null, purpose: "rental", status: "pending", guestName: "Ana Silva", guestPhone: "92999990000", guestEmail: "ana@example.com", expiresAt: new Date(now.getTime() + 86400000) });
+    expect(written).toMatchObject({ inventoryItemId, shootId: null, purpose: "rental", status: "pending", guestName: "Ana Silva", guestPhone: "5592999990000", guestEmail: "ana@example.com", expiresAt: new Date(now.getTime() + 86400000) });
     expect(JSON.stringify(result)).not.toContain(inventoryItemId);
     expect(JSON.stringify(result)).not.toMatch(/private|Ana|99999|example/);
     expect(mocks.audit).toHaveBeenCalledWith(expect.objectContaining({ actorUserId: null, action: "inventory_reservation.created", entityId: reservationId }), mocks);
@@ -132,19 +132,41 @@ describe("public rental requests", () => {
     expect(query.sql).toContain('"guest_phone" =');
     expect(query.sql).toContain('"created_at" >');
     expect(query.sql).not.toContain('"inventory_item_id"');
-    expect(query.params).toContain("92999990000");
+    expect(query.params).toContain("5592999990000");
     expect(query.params).toContain("2030-05-01T11:34:56.789Z");
     expect(mocks.insert).not.toHaveBeenCalled();
     const locks = mocks.execute.mock.calls.map(([statement]) => compile(statement));
-    expect(locks[0].params).toEqual(["public-rental-phone:92999990000"]);
+    expect(locks[0].params).toEqual(["public-rental-phone:5592999990000"]);
     expect(mocks.execute.mock.invocationCallOrder[0]).toBeLessThan(mocks.select.mock.invocationCallOrder[0]);
   });
 
   it("allows the third request with the same phone in another format", async () => {
     reservationRows = [[{ count: 2 }], []];
     await expect(createPublicClutchRentalReservation({ ...input, guestPhone: "92 99999 0000", guestEmail: "" })).resolves.toMatchObject({ status: "pending" });
-    expect(written.guestPhone).toBe("92999990000");
+    expect(written.guestPhone).toBe("5592999990000");
     expect(written.guestEmail).toBeNull();
+  });
+
+  it.each([
+    ["(92) 99999-0000", "5592999990000"],
+    ["(92) 3333-0000", "559233330000"],
+    ["(55) 99999-0000", "5555999990000"],
+    ["+55 (92) 99999-0000", "5592999990000"],
+    ["5592999990000", "5592999990000"],
+    ["55 92 3333-0000", "559233330000"],
+  ])("canonicalizes Brazilian phone %s consistently in schema, persistence and admission lock", async (guestPhone, expected) => {
+    expect(publicClutchRentalRequestSchema.parse({ ...input, guestPhone }).guestPhone).toBe(expected);
+    await createPublicClutchRentalReservation({ ...input, guestPhone });
+    expect(written.guestPhone).toBe(expected);
+    expect(compile(mocks.execute.mock.calls[0][0]).params).toEqual([`public-rental-phone:${expected}`]);
+  });
+
+  it.each(["+1 202 555 0123", "+1 212 555 0100", "+44 20 7946 0958", "442079460958", "+92 99999-0000", "99990000", "559299999000000", "abc92999990000", "55+92999990000"])("rejects unsupported WhatsApp %s as field validation before opening a transaction", async (guestPhone) => {
+    const result = publicClutchRentalRequestSchema.safeParse({ ...input, guestPhone });
+    expect(result.success).toBe(false);
+    if (!result.success) expect(result.error.flatten().fieldErrors.guestPhone?.[0]).toMatch(/brasileiro/i);
+    await expect(createPublicClutchRentalReservation({ ...input, guestPhone })).rejects.toThrow();
+    expect(mocks.transaction).not.toHaveBeenCalled();
   });
 
   it.each([{ slug: "" }, { guestName: "A" }, { guestPhone: "12" }, { guestEmail: "invalid" }, { startsOn: "2030-02-30" }, { endsOn: "2030-05-09" }])("rejects malformed input before opening a transaction: %j", async (invalid) => {

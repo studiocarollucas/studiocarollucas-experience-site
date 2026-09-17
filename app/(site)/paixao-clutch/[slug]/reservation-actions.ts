@@ -2,6 +2,7 @@
 
 import { createPublicClutchRentalReservation } from "@/domain/inventory/public-rental-reservation";
 import { InventoryItemUnavailableError, InventoryReservationConflictError } from "@/domain/inventory/reservations";
+import { brazilianWhatsAppSchema, brazilianWhatsAppMessage } from "@/domain/inventory/public-rental-reservation-schema";
 
 export type PublicClutchReservationActionState =
   | {
@@ -49,7 +50,7 @@ export async function submitPublicClutchRentalReservationAction(
     fieldErrors.endsOn = "A devolução deve ser igual ou posterior à retirada.";
   }
   if (input.guestName.trim().length < 2) fieldErrors.guestName = "Informe seu nome.";
-  if (!input.guestPhone.trim()) fieldErrors.guestPhone = "Informe seu WhatsApp.";
+  if (!brazilianWhatsAppSchema.safeParse(input.guestPhone).success) fieldErrors.guestPhone = brazilianWhatsAppMessage;
   if (Object.keys(fieldErrors).length) return invalidSubmission(fieldErrors);
 
   try {

@@ -183,12 +183,17 @@ describe("Paixão Clutch admin curation", () => {
     ["(55) 99999-0000", "5555999990000"],
     ["+55 (92) 99999-0000", "5592999990000"],
     ["5592999990000", "5592999990000"],
-    ["+44 20 7946 0958", "442079460958"],
   ])("normalizes manual WhatsApp number %s to %s", (guestPhone, expectedPhone) => {
     render(<PaixaoClutchCatalog items={[{ ...catalogClutch, rentalRequests: [{ ...rental, guestPhone }] }]} />);
     const url = new URL(screen.getByRole("link", { name: /avisar Ana Silva no WhatsApp/i }).getAttribute("href")!);
     expect(url.origin).toBe("https://wa.me");
     expect(url.pathname).toBe(`/${expectedPhone}`);
+  });
+
+  it.each(["+1 202 555 0123", "+1 212 555 0100", "+44 20 7946 0958", "442079460958"])("does not offer a Brazilian WhatsApp link for unsupported international contact %s", (guestPhone) => {
+    render(<PaixaoClutchCatalog items={[{ ...catalogClutch, rentalRequests: [{ ...rental, guestPhone }] }]} />);
+    expect(screen.getByText(guestPhone)).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /avisar Ana Silva no WhatsApp/i })).not.toBeInTheDocument();
   });
 
   it("encodes request text in the fixed WhatsApp URL and omits invalid phones", () => {

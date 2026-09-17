@@ -46,7 +46,7 @@ export async function createPublicClutchRentalReservation(
   input: PublicClutchRentalRequestInput,
 ): Promise<PublicRentalReservationResult> {
   const parsed = publicClutchRentalRequestSchema.parse(input);
-  const guestPhone = z.string().regex(/^\d{8,15}$/, "telefone inválido").parse(parsed.guestPhone.replace(/\D/g, ""));
+  const guestPhone = parsed.guestPhone;
 
   return db.transaction(async (tx) => {
     // Serialize this phone across items before counting requests, then acquire

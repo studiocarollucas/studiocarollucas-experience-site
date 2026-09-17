@@ -17,6 +17,14 @@ function formData(values: Record<string, string>) {
 }
 
 describe("public clutch reservation action", () => {
+  it.each(["+1 202 555 0123", "+44 20 7946 0958", "442079460958"])("returns a phone validation error before the domain for unsupported international number %s", async (guestPhone) => {
+    mocks.createReservation.mockClear();
+    await expect(submitPublicClutchRentalReservationAction("clutch-dourada", null,
+      formData({ startsOn: "2030-05-10", endsOn: "2030-05-12", guestName: "Ana Silva", guestPhone }),
+    )).resolves.toMatchObject({ ok: false, fieldErrors: { guestPhone: expect.stringMatching(/brasileiro/i) } });
+    expect(mocks.createReservation).not.toHaveBeenCalled();
+  });
+
   it("passes only the public slug and guest form fields to the public domain", async () => {
     mocks.createReservation.mockResolvedValue({
       reservationCode: "00000000-0000-4000-8000-000000000001",

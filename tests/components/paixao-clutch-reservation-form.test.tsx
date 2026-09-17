@@ -23,6 +23,7 @@ describe("PaixaoClutchReservationForm", () => {
     expect(screen.getByLabelText(/devolução/i)).toBeRequired();
     expect(screen.getByLabelText(/^nome/i)).toBeRequired();
     expect(screen.getByLabelText(/whatsapp/i)).toBeRequired();
+    expect(screen.getByLabelText(/whatsapp/i)).toHaveAccessibleDescription(/WhatsApp brasileiro com DDD.*55/i);
     expect(screen.getByLabelText(/e-mail/i)).not.toBeRequired();
     expect(screen.getByRole("link", { name: /consultar pelo whatsapp/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /enviar pedido/i }).closest("form")).not.toHaveAttribute("novalidate");
