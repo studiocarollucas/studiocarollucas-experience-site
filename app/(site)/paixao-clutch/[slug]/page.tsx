@@ -5,6 +5,7 @@ import { findPublicPaixaoClutch, listPublicPaixaoClutches } from "@/domain/inven
 import { formatBRL } from "@/lib/format";
 import { paixaoClutchContactUrl } from "@/lib/site/contact";
 import { PaixaoClutchWhatsAppLink } from "@/components/site/paixao-clutch-tracked-links";
+import { PaixaoClutchReservationForm } from "@/components/site/paixao-clutch-reservation-form";
 import s from "../../home.module.css";
 import p from "../paixao-clutch.module.css";
 
@@ -48,6 +49,7 @@ export default async function PaixaoClutchDetailPage({ params }: Props) {
             {clutch.size ? <div><dt>Tamanho</dt><dd>{clutch.size}</dd></div> : null}
           </dl> : null}
           <strong>{formattedPrice}</strong>
+          <PaixaoClutchReservationForm slug={clutch.slug} name={clutch.name} />
           <PaixaoClutchWhatsAppLink className={s.cta} href={paixaoClutchContactUrl({ name: clutch.name, formattedPrice })} target="_blank" rel="noreferrer">
             Consultar disponibilidade <span aria-hidden="true">↗</span>
           </PaixaoClutchWhatsAppLink>

@@ -337,6 +337,13 @@
       "when": 1789138150352,
       "tag": "0047_paixao_clutch_public_slug",
       "breakpoints": true
+    },
+    {
+      "idx": 48,
+      "version": "7",
+      "when": 1789440775273,
+      "tag": "0048_public_clutch_rental_reservations",
+      "breakpoints": true
     }
   ]
 }

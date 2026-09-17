@@ -143,6 +143,63 @@
 .detailCopy strong {
   margin-bottom: 24px;
 }
+.reservationForm {
+  display: grid;
+  gap: 13px;
+  margin: 26px 0;
+  padding: 24px;
+  border: 1px solid var(--rule);
+  background: #f8f3f1;
+}
+.reservationForm h2 {
+  margin: 0 !important;
+  font-family: var(--font-cormorant), Georgia, serif;
+  font-size: clamp(29px, 3vw, 38px);
+  font-weight: 400;
+}
+.reservationForm > p,
+.reservationForm form > p {
+  margin: 0 !important;
+  color: var(--secondary);
+  font-size: 14px;
+  line-height: 1.55;
+}
+.reservationForm form {
+  display: grid;
+  gap: 12px;
+}
+.reservationForm label {
+  display: grid;
+  gap: 6px;
+  color: var(--secondary);
+  font-size: 13px;
+}
+.reservationForm input {
+  min-height: 44px;
+  border: 1px solid var(--rule);
+  border-radius: 0;
+  background: #fff;
+  padding: 9px 10px;
+  color: var(--ink);
+  font: inherit;
+}
+.reservationForm input[aria-invalid="true"] { border-color: #9e2f36; }
+.reservationForm button {
+  min-height: 46px;
+  border: 1px solid var(--ink);
+  background: var(--ink);
+  color: #fff;
+  padding: 12px 18px;
+  font: inherit;
+  font-size: 12px;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+.reservationForm button:hover { background: transparent; color: var(--ink); }
+.reservationForm button:disabled { cursor: wait; opacity: .65; }
+.reservationForm > a { font-size: 13px; text-decoration: underline; text-underline-offset: 4px; }
+.reservationDates { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
 .detailAttributes { display:flex; flex-wrap:wrap; gap:18px 28px; margin:18px 0; font-size:14px; }
 .detailAttributes div { display:flex; gap:6px; }
 .detailAttributes dt { color:var(--secondary); }
@@ -187,6 +244,7 @@
   .detailPhoto {
     max-height: 700px;
   }
+  .reservationDates { grid-template-columns: 1fr; }
 }
 @media (max-width: 700px) {
   .intro {

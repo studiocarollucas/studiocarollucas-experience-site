@@ -32,7 +32,7 @@ const publicPaixaoClutchFields = {
   description: inventoryItems.description,
 };
 
-function publicPaixaoClutchPredicate() {
+export function publicPaixaoClutchPredicate() {
   return and(
     eq(inventoryItems.type, "clutch"),
     eq(inventoryItems.active, true),

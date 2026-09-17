@@ -367,7 +367,8 @@ describe("Paixão Clutch curation", () => {
       });
 
     mocks.select.mockReturnValueOnce({ from: () => ({ where: () => ({ orderBy: async () => [] }) }) });
-    await expect(listPaixaoClutchForAdmin({ published: true }, actorUserId)).resolves.toEqual(rows.map((row) => ({ ...row, futureReservations: [] })));
+    mocks.select.mockReturnValueOnce({ from: () => ({ where: () => ({ orderBy: async () => [] }) }) });
+    await expect(listPaixaoClutchForAdmin({ published: true }, actorUserId)).resolves.toEqual(rows.map((row) => ({ ...row, futureReservations: [], rentalRequests: [] })));
   });
 
   it("includes ongoing and future blocking reservations using the shared reservation projection", async () => {
@@ -375,12 +376,37 @@ describe("Paixão Clutch curation", () => {
     const where = vi.fn().mockReturnValue({ orderBy: async () => [reservation] });
     mocks.select.mockReturnValueOnce(roleResult("staff"))
       .mockReturnValueOnce({ from: () => ({ where: () => ({ orderBy: async () => [clutch] }) }) })
-      .mockReturnValueOnce({ from: () => ({ where }) });
+      .mockReturnValueOnce({ from: () => ({ where }) })
+      .mockReturnValueOnce({ from: () => ({ where: () => ({ orderBy: async () => [] }) }) });
     const [row] = await listPaixaoClutchForAdmin({}, actorUserId);
     expect(row.futureReservations).toEqual([{ id: "r1", startsOn: "2000-01-01", endsOn: "2099-01-01", status: "confirmed" }]);
     const predicate = new PgDialect().sqlToQuery(where.mock.calls[0][0]);
     expect(predicate.sql).toContain('"inventory_reservations"."ends_on" >=');
-    expect(predicate.params.slice(0, 3)).toEqual([itemId, "pending", "confirmed"]);
+    expect(predicate.params).toEqual(expect.arrayContaining([itemId, "pending", "confirmed"]));
+    expect(predicate.sql).toContain('"inventory_reservations"."expires_at" >');
+    expect(predicate.sql).toContain('"inventory_reservations"."shoot_id" is not null');
     expect(predicate.sql).not.toContain('"starts_on" >=');
+  });
+
+  it("projects only staff rental request fields and marks expired pending holds as expired", async () => {
+    const request = { id: "rental-1", inventoryItemId: itemId, guestName: "Ana Silva", guestPhone: "5592999999999", guestEmail: "ana@example.test", startsOn: "2099-01-01", endsOn: "2099-01-02", status: "pending", expiresAt: new Date("2000-01-01"), internalNotes: "private note" };
+    const where = vi.fn().mockReturnValue({ orderBy: async () => [request] });
+    mocks.select.mockReturnValueOnce(roleResult("staff"))
+      .mockReturnValueOnce({ from: () => ({ where: () => ({ orderBy: async () => [clutch] }) }) })
+      .mockReturnValueOnce({ from: () => ({ where: () => ({ orderBy: async () => [] }) }) })
+      .mockReturnValueOnce({ from: () => ({ where }) });
+    const [row] = await listPaixaoClutchForAdmin({}, actorUserId);
+    expect(row.rentalRequests).toEqual([{ id: request.id, guestName: request.guestName, guestPhone: request.guestPhone, guestEmail: request.guestEmail, startsOn: request.startsOn, endsOn: request.endsOn, status: "expired", expiresAt: "2000-01-01T00:00:00.000Z" }]);
+    expect(row.futureReservations).toEqual([]);
+    const predicate = new PgDialect().sqlToQuery(where.mock.calls[0][0]);
+    expect(predicate.params).toEqual(expect.arrayContaining([itemId, "rental"]));
+    expect(predicate.sql).toContain('"inventory_reservations"."shoot_id" is null');
+    expect(Object.keys(mocks.select.mock.calls[3][0])).not.toContain("internalNotes");
+  });
+
+  it.each(["client", undefined])("rejects %s before reading guest rental contact", async (role) => {
+    mocks.select.mockReturnValueOnce(roleResult(role));
+    await expect(listPaixaoClutchForAdmin({}, actorUserId)).rejects.toThrow(/não autorizado/);
+    expect(mocks.select).toHaveBeenCalledTimes(1);
   });
 });

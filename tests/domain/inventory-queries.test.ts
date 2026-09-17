@@ -162,9 +162,10 @@ describe("inventory catalog queries", () => {
     expect(reservationPredicate.sql).toContain(
       '"inventory_reservations"."inventory_item_id" in ($1)'
     );
-    expect(reservationPredicate.sql).toContain('"inventory_reservations"."status" in ($2, $3)');
-    expect(reservationPredicate.sql).toContain('"inventory_reservations"."ends_on" >= $4');
-    expect(reservationPredicate.params.slice(0, 3)).toEqual([itemId, "pending", "confirmed"]);
+    expect(reservationPredicate.sql).toContain('"inventory_reservations"."expires_at" >');
+    expect(reservationPredicate.sql).toContain('"inventory_reservations"."shoot_id" is not null');
+    expect(reservationPredicate.sql).toContain('"inventory_reservations"."ends_on" >=');
+    expect(reservationPredicate.params).toEqual(expect.arrayContaining([itemId, "pending", "confirmed"]));
   });
 
   it("searches active available items by code or name and never offers maintenance, retired, or inactive inventory", async () => {
