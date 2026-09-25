@@ -61,6 +61,23 @@ describe("ExperiencePage", () => {
     }
   });
 
+  it("renders Service structured data without prices", async () => {
+    const { container } = render(
+      await ExperiencePage({ params: Promise.resolve({ slug: "familia" }) })
+    );
+
+    const script = container.querySelector('script[type="application/ld+json"]');
+    expect(script).not.toBeNull();
+    const data = JSON.parse(script?.textContent ?? "{}");
+    expect(data).toMatchObject({
+      "@context": "https://schema.org",
+      "@type": "Service",
+      name: "Ensaio Família",
+      url: "https://studiocarollucas.com.br/experiencias/familia",
+    });
+    expect(data).not.toHaveProperty("offers");
+  });
+
   it("uses notFound for an unknown experience slug", async () => {
     await expect(
       ExperiencePage({ params: Promise.resolve({ slug: "desconhecida" }) })

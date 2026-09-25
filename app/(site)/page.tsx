@@ -3,9 +3,11 @@ import Image from "next/image";
 import Link from "next/link";
 import { listPublicPaixaoClutches } from "@/domain/inventory/public-clutch";
 import { ExperienceWhatsAppLink } from "@/components/site/experience-whatsapp-link";
+import { JsonLd } from "@/components/site/json-ld";
 import { PaixaoClutchHomeLink } from "@/components/site/paixao-clutch-tracked-links";
 import { experiences } from "@/lib/site/experiences";
 import { contactUrl, studioWhatsAppLabel } from "@/lib/site/contact";
+import { studioJsonLd } from "@/lib/site/structured-data";
 import s from "./home.module.css";
 
 export const dynamic = "force-dynamic";
@@ -50,6 +52,7 @@ export default async function Home() {
 
   return (
     <div className={s.home}>
+      <JsonLd data={studioJsonLd()} />
       <a className={s.skip} href="#conteudo">
         Ir para o conteúdo
       </a>

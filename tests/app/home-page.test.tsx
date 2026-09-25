@@ -56,4 +56,20 @@ describe("Home WhatsApp CTA", () => {
     );
     expect(screen.getByText("WhatsApp · (92) 91111-2222")).toBeInTheDocument();
   });
+
+  it("publishes the studio as schema.org ProfessionalService without invented data", async () => {
+    const { container } = render(await Home());
+
+    const script = container.querySelector('script[type="application/ld+json"]');
+    expect(script).not.toBeNull();
+    const data = JSON.parse(script?.textContent ?? "{}");
+    expect(data).toMatchObject({
+      "@context": "https://schema.org",
+      "@type": "ProfessionalService",
+      name: "Stúdio Carol Lucas",
+      url: "https://studiocarollucas.com.br/",
+    });
+    expect(data).not.toHaveProperty("priceRange");
+    expect(data).not.toHaveProperty("aggregateRating");
+  });
 });
