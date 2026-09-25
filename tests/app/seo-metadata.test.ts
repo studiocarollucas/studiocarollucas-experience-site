@@ -58,9 +58,13 @@ describe("public SEO metadata", () => {
   });
 
   it("prepares Google Search Console verification only when a token is configured", async () => {
-    expect(siteVerification(undefined)).toBeUndefined();
+    vi.stubEnv("NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION", "");
+    expect(siteVerification()).toBeUndefined();
     expect(siteVerification("   ")).toBeUndefined();
     expect(siteVerification(" google-token ")).toEqual({ google: "google-token" });
+    vi.stubEnv("NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION", "env-token");
+    expect(siteVerification()).toEqual({ google: "env-token" });
+    vi.unstubAllEnvs();
 
     const rootLayout = await readFile(join(process.cwd(), "app/layout.tsx"), "utf8");
     expect(rootLayout).toContain("siteVerification()");
