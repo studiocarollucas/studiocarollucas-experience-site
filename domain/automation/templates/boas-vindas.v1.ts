@@ -7,22 +7,26 @@ const httpUrl = z
   .trim()
   .max(2048)
   .url()
-  .refine((value) => /^https?:\/\//i.test(value), "URL precisa usar http(s)");
+  .refine((value: string) => /^https?:\/\//i.test(value), "URL precisa usar http(s)");
+
+const boasVindasSchema = z.object({
+  firstName: z.string().trim().min(1).max(60),
+  portalUrl: httpUrl.optional(),
+});
+
+type BoasVindasData = z.output<typeof boasVindasSchema>;
 
 /**
  * Generic welcome used to exercise the pipeline. SCL-701 owns the real
  * post-reservation welcome and should ship it as version 2 (or a new key)
  * instead of editing this version in place.
  */
-export const boasVindasV1 = defineEmailTemplate({
+export const boasVindasV1 = defineEmailTemplate<BoasVindasData>({
   key: "boas-vindas",
   version: 1,
   description: "Boas-vindas genérica com link opcional para Minha Experiência.",
-  schema: z.object({
-    firstName: z.string().trim().min(1).max(60),
-    portalUrl: httpUrl.optional(),
-  }),
-  render: ({ firstName, portalUrl }) => {
+  schema: boasVindasSchema,
+  render: ({ firstName, portalUrl }: BoasVindasData) => {
     const subject = "Boas-vindas ao Stúdio Carol Lucas";
     const greeting = `Olá, ${firstName}!`;
     const intro =

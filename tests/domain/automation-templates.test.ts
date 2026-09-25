@@ -76,7 +76,7 @@ describe("boas-vindas v1", () => {
 
 describe("defineEmailTemplate", () => {
   it("parses data through the schema before rendering", () => {
-    const template = defineEmailTemplate({
+    const template = defineEmailTemplate<{ name: string }>({
       key: "teste",
       version: 2,
       description: "Template de teste",
