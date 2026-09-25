@@ -189,3 +189,9 @@ Cada aresta acima alcança código executável e ao menos uma asserção automat
 **Regra de status:** depois que Task 4 e Task 6 passarem pelos gates aprovados, o único item a ser atualizado para `DONE` é SCL-310, com seus critérios evidenciados e os comandos datados registrados. Até os gates, o estado factual é `IN_PROGRESS`; após os gates, o estado aprovado é `MERGE_READY`; `DONE` só pode ser registrado depois do merge.
 
 **Higiene de evidência:** os comandos registrados não podem conter PII, segredos, links assinados ou caminhos de objetos.
+
+## 2026-09-25 — Automações de e-mail: outbox transacional, Resend via REST e cron com segredo
+
+**Decisão:** comunicações automáticas nascem como `automation_events` + `notification_deliveries` gravados na mesma transação da ação de negócio (`enqueueAutomationEvent(input, tx)`) e são enviadas depois por `/api/cron/email-deliveries`, que reivindica linhas com `FOR UPDATE SKIP LOCKED` + lease e chama o Resend pela API REST atrás da interface `EmailProvider`. O endpoint fica fora de `app/admin` e é autorizado por `CRON_SECRET` (Bearer, comparação em tempo constante). Envio real exige `EMAIL_DELIVERY_ENABLED=true`; sem o flag, o provider de log simula o envio, exceto em `VERCEL_ENV=production`, onde isso é erro de configuração. Templates são TypeScript versionados por `key` + `version`, e a versão é fixada em cada entrega.
+
+**Motivo:** enviar e-mail dentro da transação acoplaria o commit a um serviço externo e duplicaria envios em retries; o outbox garante que o evento existe se e somente se a ação commitou, e as chaves idempotentes (evento, entrega e `Idempotency-Key` no Resend) tornam retry e reprocessamento seguros. REST em vez do SDK evita dependência nova. As tabelas guardam destinatários, por isso são server-only (RLS ligada, nenhum grant para `anon`/`authenticated`). Detalhes operacionais em `docs/runbooks/email-automation.md`.
