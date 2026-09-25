@@ -1,5 +1,8 @@
 // @vitest-environment node
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+vi.mock("@sentry/nextjs", () => ({ captureException: vi.fn() }));
+
 import { EmailProviderError, type EmailMessage, type EmailProvider } from "@/lib/email/provider";
 import {
   deliveryIdempotencyKey,
