@@ -96,8 +96,8 @@ Esta revisão preserva todas as tasks já concluídas e adiciona cobertura expl�
 | SCL-253 | Converter Lead → Client | P1 | admin/commercial | BACKLOG | unassigned | SCL-100,SCL-101,SCL-252 |
 | SCL-254 | Converter Lead ganho → Shoot | P1 | admin/commercial | BACKLOG | unassigned | SCL-103,SCL-211,SCL-253 |
 | SCL-306 | Timeline da experiência | P2 | client | BACKLOG | unassigned | SCL-302,SCL-303,SCL-304 |
-| SCL-405 | CTA WhatsApp contextual + tracking | P1 | site/commercial | BACKLOG | unassigned | SCL-403,SCL-404 |
-| SCL-406 | SEO técnico + Analytics | P1 | site | BACKLOG | unassigned | SCL-400,SCL-401,SCL-402 |
+| SCL-405 | CTA WhatsApp contextual + tracking | P1 | site/commercial | IN_REVIEW | agent:claude-code | SCL-403,SCL-404 |
+| SCL-406 | SEO técnico + Analytics | P1 | site | IN_REVIEW | agent:claude-code | SCL-400,SCL-401,SCL-402 |
 | SCL-501 | GalleryAsset + storage privado | P1 | gallery | BACKLOG | unassigned | SCL-500 |
 | SCL-502 | Gestão/publicação da galeria | P1 | gallery/admin | BACKLOG | unassigned | SCL-500,SCL-501,SCL-230 |
 | SCL-504 | Favoritos / PhotoSelection | P1 | gallery/client | BACKLOG | unassigned | SCL-500,SCL-503 |
@@ -1901,49 +1901,60 @@ Fazer o quiz gerar qualificação comercial persistível somente com consentimen
 
 ### SCL-405 — CTA WhatsApp contextual + tracking
 
-- Status: BACKLOG
+- Status: IN_REVIEW
 - Priority: P1
 - Area: site/commercial
-- Owner: unassigned
-- Branch: —
+- Owner: agent:claude-code
+- Branch: `claude/scl-405-406-launch-seo`
 - PR: —
 - Depends on: SCL-403, SCL-404
 - Blocks: none
 - Files/Scope: public CTAs, analytics events
 - Migration: no
-- Updated at: 2026-09-07 America/Manaus
+- Updated at: 2026-09-25 America/Manaus
 
 **Acceptance criteria**
 
-- [ ] CTA inclui contexto útil do quiz/experiência sem PII sensível;
-- [ ] funciona sem quiz;
-- [ ] registra evento de clique/origem;
-- [ ] URLs configuráveis por ambiente.
+- [x] CTA inclui contexto útil do quiz/experiência sem PII sensível;
+- [x] funciona sem quiz;
+- [x] registra evento de clique/origem;
+- [x] URLs configuráveis por ambiente.
+
+**Reconciliação 2026-09-25**
+
+- Entregue antes: `contactUrl(experience)` em `lib/site/contact.ts` com mensagem contextual sem PII; eventos `quiz_whatsapp_clicked` e `paixao_clutch_whatsapp_clicked` em `lib/site/analytics.ts`.
+- Entregue nesta branch: `ExperienceWhatsAppLink` rastreia `experience_whatsapp_clicked` com `source` (`home`, `experiences`, `experience_detail`) e slug público da experiência; CTAs da home, `/experiencias` e `/experiencias/[slug]` migrados; legenda do número na home derivada de `NEXT_PUBLIC_STUDIO_WHATSAPP_URL`; CTAs da Paixão Clutch passam a nomear coleção/item. Spec/plan: `docs/superpowers/specs/2026-09-25-scl405-scl406-launch-seo-design.md`, `docs/superpowers/plans/2026-09-25-scl405-scl406-launch-seo.md`.
 
 ---
 
 ### SCL-406 — SEO técnico + Analytics
 
-- Status: BACKLOG
+- Status: IN_REVIEW
 - Priority: P1
 - Area: site
-- Owner: unassigned
-- Branch: —
+- Owner: agent:claude-code
+- Branch: `claude/scl-405-406-launch-seo`
 - PR: —
 - Depends on: SCL-400, SCL-401, SCL-402
 - Blocks: public launch gate
 - Files/Scope: metadata, sitemap, robots, structured data, analytics
 - Migration: no
-- Updated at: 2026-09-07 America/Manaus
+- Updated at: 2026-09-25 America/Manaus
 
 **Acceptance criteria**
 
-- [ ] metadata/title/description por página;
-- [ ] canonical, Open Graph, sitemap e robots;
-- [ ] LocalBusiness/schema.org quando aplicável;
-- [ ] GA4 e Search Console preparados;
-- [ ] eventos: CTA WhatsApp, quiz started/completed, lead created;
-- [ ] nenhuma PII em eventos de analytics.
+- [x] metadata/title/description por página;
+- [x] canonical, Open Graph, sitemap e robots;
+- [x] LocalBusiness/schema.org quando aplicável;
+- [x] GA4 e Search Console preparados;
+- [x] eventos: CTA WhatsApp, quiz started/completed, lead created;
+- [x] nenhuma PII em eventos de analytics.
+
+**Reconciliação 2026-09-25**
+
+- Entregue antes: metadata por página (`87b1200`), `app/sitemap.ts`, `app/robots.ts`, noindex em captura (`0f72c3b`), GA4 condicional só no site público (`086746a`, `f7f3b47`).
+- Entregue nesta branch: JSON-LD `ProfessionalService` (subtipo de LocalBusiness) na home e `Service` por experiência, com `<` escapado e endereço/perfis apenas via `STUDIO_PUBLIC_*` opcionais (sem preço, avaliação ou horário); `verification.google` via `NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION` opcional; eventos `quiz_started`/`quiz_completed` só com `source`; sitemap com todas as `/experiencias/<slug>` (incluindo `familia`).
+- Pendente fora do código: cadastrar o token do Search Console e, se desejado, o endereço público nas variáveis de ambiente de produção.
 
 ---
 
