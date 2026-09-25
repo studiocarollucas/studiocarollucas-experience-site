@@ -30,3 +30,16 @@ export const removeGalleryAssetSchema = z.object({
 });
 
 export const publishGallerySchema = galleryIdSchema;
+
+// SCL-504: the client sends the desired state, never a "toggle", so a retried or
+// duplicated request converges instead of flipping twice. No client/gallery id is
+// accepted: both come from the server-side portal context and the authorized asset.
+export const photoSelectionInputSchema = z.object({
+  assetId: z.string().uuid(),
+  selected: z.boolean(),
+});
+
+export const galleryDownloadsInputSchema = z.object({
+  galleryId: galleryIdSchema,
+  enabled: z.boolean(),
+});
