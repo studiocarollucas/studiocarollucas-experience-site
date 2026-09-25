@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
 import { Cormorant_Garamond, Jost } from "next/font/google";
+import { siteVerification } from "@/lib/site/search-console";
 import "./globals.css";
 
 const siteUrl = new URL(process.env.NEXT_PUBLIC_SITE_URL ?? "https://studiocarollucas.com.br");
+const verification = siteVerification();
 
 const cormorant = Cormorant_Garamond({
   subsets: ["latin"],
@@ -40,6 +42,7 @@ export const metadata: Metadata = {
     description:
       "Experiências fotográficas autorais para celebrar a sua história no Stúdio Carol Lucas.",
   },
+  ...(verification ? { verification } : {}),
 };
 
 export default function RootLayout({
