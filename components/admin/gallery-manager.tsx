@@ -4,6 +4,7 @@ import { useActionState } from "react";
 import {
   publishGalleryAction,
   removeGalleryAssetAction,
+  setGalleryDownloadsAction,
   uploadGalleryAssetAction,
 } from "@/app/admin/(protected)/galerias/[shootId]/actions";
 import { FormStatus } from "@/components/admin/form-status";
@@ -12,9 +13,14 @@ import type { GalleryAsset } from "@/db/schema";
 import type { ActionResult } from "@/lib/auth/action-result";
 
 type GalleryManagerProps = {
-  gallery: { id: string; status: "draft" | "published"; assets: GalleryAsset[] };
+  gallery: { id: string; status: "draft" | "published"; downloadsEnabled: boolean; assets: GalleryAsset[] };
   shootId: string;
+  selectionSummary: { totalSelections: number; byAssetId: Record<string, number> };
 };
+
+function favoritesLabel(count: number) {
+  return count === 1 ? "1 favorito" : `${count} favoritos`;
+}
 
 function useFormServerAction<T>(action: (raw: unknown) => Promise<ActionResult<T>>) {
   return useActionState(
@@ -23,9 +29,10 @@ function useFormServerAction<T>(action: (raw: unknown) => Promise<ActionResult<T
   );
 }
 
-export function GalleryManager({ gallery, shootId }: GalleryManagerProps) {
+export function GalleryManager({ gallery, shootId, selectionSummary }: GalleryManagerProps) {
   const [uploadState, uploadAction] = useFormServerAction(uploadGalleryAssetAction);
   const [publishState, publishAction] = useFormServerAction(publishGalleryAction);
+  const [downloadsState, downloadsAction] = useFormServerAction(setGalleryDownloadsAction);
 
   return (
     <div className="space-y-6">
@@ -46,11 +53,19 @@ export function GalleryManager({ gallery, shootId }: GalleryManagerProps) {
 
       <section className="border border-line p-5">
         <h2 className="font-serif text-xl text-ink">Fotos na ordem da galeria</h2>
+        <p className="mt-1 font-sans text-sm text-muted">
+          Favoritos da cliente: {favoritesLabel(selectionSummary.totalSelections)}
+        </p>
         {gallery.assets.length ? (
           <ol className="mt-4 space-y-3">
             {gallery.assets.map((asset, index) => (
               <li key={asset.id} className="flex items-center justify-between gap-4 border-b border-line pb-3 font-sans text-sm text-ink">
-                <span>{index + 1}. Foto da galeria</span>
+                <span>
+                  {index + 1}. Foto da galeria
+                  {selectionSummary.byAssetId[asset.id] ? (
+                    <span className="ml-2 text-muted">· {favoritesLabel(selectionSummary.byAssetId[asset.id])}</span>
+                  ) : null}
+                </span>
                 <RemoveAssetForm assetId={asset.id} galleryId={gallery.id} shootId={shootId} />
               </li>
             ))}
@@ -75,6 +90,22 @@ export function GalleryManager({ gallery, shootId }: GalleryManagerProps) {
           </form>
         ) : null}
         <div className="mt-3"><FormStatus state={publishState} /></div>
+      </section>
+
+      <section className="border border-line p-5">
+        <h2 className="font-serif text-xl text-ink">Downloads</h2>
+        <p className="mt-1 font-sans text-sm text-muted">
+          {gallery.downloadsEnabled
+            ? "Downloads liberados: a cliente pode baixar cada foto por um link temporário."
+            : "Downloads bloqueados: a cliente só visualiza e favorita as fotos."}
+        </p>
+        <form action={downloadsAction} className="mt-4">
+          <input type="hidden" name="galleryId" value={gallery.id} />
+          <input type="hidden" name="shootId" value={shootId} />
+          <input type="hidden" name="downloadsEnabled" value={gallery.downloadsEnabled ? "false" : "true"} />
+          <SubmitButton>{gallery.downloadsEnabled ? "Bloquear downloads" : "Liberar downloads"}</SubmitButton>
+        </form>
+        <div className="mt-3"><FormStatus state={downloadsState} /></div>
       </section>
     </div>
   );
