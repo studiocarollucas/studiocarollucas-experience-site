@@ -15,6 +15,18 @@ function validatedWhatsAppUrl(): URL {
   return url;
 }
 
+/** Digits of the configured studio WhatsApp number (e.g. "5592984140492"). */
+export function studioWhatsAppNumber() {
+  return validatedWhatsAppUrl().pathname.slice(1);
+}
+
+/** Human-readable label of the configured WhatsApp number, e.g. "(92) 98414-0492". */
+export function studioWhatsAppLabel() {
+  const digits = studioWhatsAppNumber();
+  const brazilian = /^55(\d{2})(\d{4,5})(\d{4})$/.exec(digits);
+  return brazilian ? `(${brazilian[1]}) ${brazilian[2]}-${brazilian[3]}` : `+${digits}`;
+}
+
 export function contactUrl(experience?: string) {
   const url = validatedWhatsAppUrl();
   url.searchParams.set(
@@ -53,14 +65,25 @@ export function quizContactUrl(context: QuizContactContext) {
 
 export type PaixaoClutchContactContext = {
   name: string;
-  formattedPrice: string;
+  formattedPrice?: string;
 };
 
 export function paixaoClutchContactUrl({ name, formattedPrice }: PaixaoClutchContactContext) {
   const url = validatedWhatsAppUrl();
   url.searchParams.set(
     "text",
-    `Olá! Quero consultar a disponibilidade da clutch ${name}, aluguel de ${formattedPrice}.`,
+    formattedPrice
+      ? `Olá! Quero consultar a disponibilidade da clutch ${name}, aluguel de ${formattedPrice}.`
+      : `Olá! Quero consultar a disponibilidade da clutch ${name}.`,
+  );
+  return url.toString();
+}
+
+export function paixaoClutchCollectionContactUrl() {
+  const url = validatedWhatsAppUrl();
+  url.searchParams.set(
+    "text",
+    "Olá! Quero conversar sobre uma clutch da curadoria Paixão Clutch do Stúdio Carol Lucas.",
   );
   return url.toString();
 }

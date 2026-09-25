@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
+import { ExperienceWhatsAppLink } from "@/components/site/experience-whatsapp-link";
 import { experiences } from "@/lib/site/experiences";
 import { contactUrl } from "@/lib/site/contact";
 import s from "../home.module.css";
@@ -71,9 +72,15 @@ export default function ExperiencesPage() {
             <br />o seu ponto de partida.
           </h2>
         </div>
-        <a className={s.cta} href={contactUrl()} target="_blank" rel="noreferrer">
+        <ExperienceWhatsAppLink
+          className={s.cta}
+          href={contactUrl()}
+          target="_blank"
+          rel="noreferrer"
+          source="experiences"
+        >
           Conversar com o estúdio <span aria-hidden="true">↗</span>
-        </a>
+        </ExperienceWhatsAppLink>
       </section>
     </main>
   );

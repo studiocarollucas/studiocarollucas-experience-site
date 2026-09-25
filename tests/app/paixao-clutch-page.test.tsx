@@ -65,6 +65,10 @@ describe("Paixão Clutch collection", () => {
       "href",
       expect.stringContaining("wa.me/5592984140492"),
     );
+    const text = new URL(
+      screen.getByRole("link", { name: /conversar sobre uma clutch/i }).getAttribute("href") ?? "",
+    ).searchParams.get("text");
+    expect(text).toContain("Paixão Clutch");
   });
 
   it("uses collection social metadata and keeps the site navigation available", () => {
