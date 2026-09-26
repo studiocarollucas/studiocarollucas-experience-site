@@ -30,6 +30,8 @@ Só para o **e-mail** vale também um teto: até **30 dias** depois da entrega (
 
 Motivo: `production_jobs.status = 'entregue'` é o sinal de "Entrega concluída" do PRD §7.6/§7.9 ("`Entregue` deve habilitar ações de pós-venda, review e indicação") e é o único ponto com data real de entrega; exigir a galeria publicada garante o "não pedir review antes da entrega/Reveal" do §7.10. O status do ensaio só reflete a entrega quando a máquina de estados permite, então não é usado como gatilho — apenas `cancelado` exclui.
 
+Limite conhecido: `changeProductionJobStatus` grava `delivery_at` com a data UTC do momento da entrega (`toISOString`), então uma entrega marcada depois das 20:00 de Manaus conta a partir do dia seguinte — no máximo um dia a mais de espera, nunca um pedido antes do prazo.
+
 ## Decisões
 
 ### Link de avaliação configurável

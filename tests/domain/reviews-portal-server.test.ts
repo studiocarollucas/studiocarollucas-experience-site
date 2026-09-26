@@ -11,6 +11,8 @@ const mocks = vi.hoisted(() => ({
 vi.mock("next/headers", () => ({
   cookies: async () => ({ get: mocks.cookieGet, set: mocks.cookieSet }),
 }));
+// Next's internal control-flow errors are rethrown; plain errors are not.
+vi.mock("next/navigation", () => ({ unstable_rethrow: () => undefined }));
 vi.mock("@/domain/portal/server", () => ({ getPortalRequestContext: mocks.getPortalRequestContext }));
 vi.mock("@/domain/reviews/portal", () => ({ readClientReviewPrompt: mocks.readClientReviewPrompt }));
 
