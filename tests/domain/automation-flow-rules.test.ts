@@ -1,5 +1,5 @@
 // @vitest-environment node
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   decideGalleryPublishedDelivery,
   decideShootReminderDelivery,
@@ -19,6 +19,10 @@ import { firstNameOf, normalizeRecipient } from "@/domain/automation/recipients"
 import { addCivilDays, studioWallTimeToInstant } from "@/domain/automation/studio-time";
 
 const shootId = "00000000-0000-4000-8000-00000000A101";
+
+afterEach(() => {
+  vi.unstubAllEnvs();
+});
 
 describe("studio time", () => {
   it("converts a Manaus wall-clock time into the UTC instant", () => {
@@ -50,7 +54,10 @@ describe("recipients and links", () => {
     expect(absoluteSiteUrl(portalPaths.reveal, "https://preview.studio.test")).toBe(
       "https://preview.studio.test/minha-experiencia/reveal",
     );
-    expect(absoluteSiteUrl(portalPaths.home, undefined)).toBe("https://studiocarollucas.com.br/minha-experiencia");
+    vi.stubEnv("NEXT_PUBLIC_SITE_URL", "https://studio.test/");
+    expect(absoluteSiteUrl(portalPaths.checklist)).toBe("https://studio.test/minha-experiencia/checklist");
+    vi.stubEnv("NEXT_PUBLIC_SITE_URL", "");
+    expect(absoluteSiteUrl(portalPaths.home)).toBe("https://studiocarollucas.com.br/minha-experiencia");
     expect(absoluteSiteUrl(portalPaths.home, "not a url")).toBe("https://studiocarollucas.com.br/minha-experiencia");
     expect(absoluteSiteUrl(portalPaths.home, "javascript:alert(1)")).toBe(
       "https://studiocarollucas.com.br/minha-experiencia",
@@ -60,6 +67,7 @@ describe("recipients and links", () => {
   it("formats Postgres times for templates", () => {
     expect(toTemplateTime("15:30:00")).toBe("15:30");
     expect(toTemplateTime(null)).toBeUndefined();
+    expect(toTemplateTime("24:00:00")).toBeUndefined();
   });
 });
 

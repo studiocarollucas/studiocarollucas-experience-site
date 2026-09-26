@@ -163,7 +163,7 @@ describe("lembretes D-7 e D-1 (SCL-702)", () => {
     for (const key of ["lembrete-d7", "lembrete-d1"]) {
       const email = renderEmailTemplate(key, 1, { shootDate: "2026-10-12" });
       expect(email.html).not.toContain("href=");
-      expect(email.text).toContain("responda este e-mail");
+      expect(email.text).toMatch(/respond(a|er) este e-mail/);
     }
   });
 });

@@ -24,9 +24,13 @@ export function galleryPublishedIdempotencyKey(galleryId: string): string {
   return `${GALLERY_PUBLISHED_EVENT_TYPE}:${galleryId.toLowerCase()}`;
 }
 
-/** "HH:mm[:ss]" from Postgres `time` → "HH:mm" for templates. */
+/**
+ * "HH:mm[:ss]" from Postgres `time` → "HH:mm" for templates. Anything the
+ * template would reject (e.g. Postgres' "24:00") is dropped, so a stray value
+ * can never abort the business transaction that enqueues the email.
+ */
 export function toTemplateTime(startTime: string | null | undefined): string | undefined {
-  return startTime && /^\d{2}:\d{2}/.test(startTime) ? startTime.slice(0, 5) : undefined;
+  return startTime && /^([01]\d|2[0-3]):[0-5]\d/.test(startTime) ? startTime.slice(0, 5) : undefined;
 }
 
 // ---------------------------------------------------------------------------
