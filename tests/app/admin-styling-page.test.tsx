@@ -9,6 +9,7 @@ const mocks = vi.hoisted(() => ({
   getCurrentUser: vi.fn(),
   hasMinimumRole: vi.fn(),
   readStylingReferences: vi.fn(),
+  getShootReviewPanel: vi.fn(),
   redirect: vi.fn((path: string) => {
     throw new Error(`REDIRECT:${path}`);
   }),
@@ -39,6 +40,7 @@ vi.mock("@/lib/auth/rbac", () => ({ hasMinimumRole: mocks.hasMinimumRole }));
 vi.mock("@/domain/styling/read", () => ({
   readStylingReferences: mocks.readStylingReferences,
 }));
+vi.mock("@/domain/reviews/queries", () => ({ getShootReviewPanel: mocks.getShootReviewPanel }));
 
 import ShootDetailPage from "@/app/admin/(protected)/agenda/[id]/page";
 
@@ -85,6 +87,7 @@ describe("ShootDetailPage styling management", () => {
     mocks.getShootDetail.mockResolvedValue(shootDetail);
     mocks.listContractsForShoot.mockResolvedValue([]);
     mocks.readStylingReferences.mockResolvedValue([]);
+    mocks.getShootReviewPanel.mockResolvedValue({ review: null, linkOpenedAt: null });
   });
 
   it("passes one cookie-bound Supabase client through auth and staff signed reads", async () => {
