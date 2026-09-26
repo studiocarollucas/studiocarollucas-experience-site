@@ -137,7 +137,7 @@ export async function completeReview(
     if (!current) throw new ReviewError("Avaliação inexistente.");
     if (current.status === "concluido") return { review: current, changed: false };
     if (current.status !== "solicitado") throw new ReviewError("Avaliação cancelada não pode ser concluída.");
-    if (current.requestedAt && completedAt < current.requestedAt) {
+    if (current.requestedAt && completedAt.getTime() < current.requestedAt.getTime()) {
       throw new ReviewError("A conclusão não pode ser anterior ao pedido.");
     }
 

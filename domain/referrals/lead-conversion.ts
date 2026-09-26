@@ -6,7 +6,8 @@ import { referrals, type Referral } from "@/db/schema";
 import { recordAuditEvent } from "@/domain/audit/service";
 import { REFERRAL_MESSAGES, ReferralError, referralErrorFromDatabase } from "./errors";
 
-export type ReferralWriter = Pick<typeof db, "select" | "update" | "insert">;
+/** The transaction of the caller (convertWonLead). */
+export type ReferralWriter = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
 type LinkLeadReferralInput = {
   leadId: string;
