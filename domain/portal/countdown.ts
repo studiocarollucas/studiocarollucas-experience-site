@@ -1,4 +1,4 @@
-const STUDIO_TIME_ZONE = "America/Manaus";
+export const STUDIO_TIME_ZONE = "America/Manaus";
 
 export function studioDate(now = new Date()): string {
   const parts = new Intl.DateTimeFormat("en-US", {

@@ -1,11 +1,21 @@
 import type { RegisteredEmailTemplate, RenderedEmail } from "./define";
 import { boasVindasV1 } from "./boas-vindas.v1";
+import { boasVindasV2 } from "./boas-vindas.v2";
+import { galeriaPublicadaV1 } from "./galeria-publicada.v1";
+import { lembreteD1V1 } from "./lembrete-d1.v1";
+import { lembreteD7V1 } from "./lembrete-d7.v1";
 
 /**
  * Every shipped template version stays registered for as long as a queued
  * delivery may reference it. Add new versions; never edit or remove old ones.
  */
-export const emailTemplates: readonly RegisteredEmailTemplate[] = [boasVindasV1];
+export const emailTemplates: readonly RegisteredEmailTemplate[] = [
+  boasVindasV1,
+  boasVindasV2,
+  lembreteD7V1,
+  lembreteD1V1,
+  galeriaPublicadaV1,
+];
 
 export class UnknownEmailTemplateError extends Error {
   constructor(key: string, version?: number) {
