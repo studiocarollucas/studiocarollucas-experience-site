@@ -23,6 +23,8 @@ export function buildLedger(input: {
     amount: string;
     status: string;
     clientName: string;
+    /** Set when the receipt pays an upsell order (SCL-507). */
+    upsellOrderId?: string | null;
   }[];
   expenses: { date: string; category: string | null; type: string; amount: string }[];
   openReceivable: string;
@@ -33,7 +35,7 @@ export function buildLedger(input: {
       id: `receipt-${i}`,
       date: (p.paidAt ?? p.createdAt).slice(0, 10),
       kind: "recebimento" as const,
-      description: `Recebimento — ${p.clientName}`,
+      description: p.upsellOrderId ? `Recebimento upsell — ${p.clientName}` : `Recebimento — ${p.clientName}`,
       amount: p.amount,
       signedAmount: p.amount,
     }));

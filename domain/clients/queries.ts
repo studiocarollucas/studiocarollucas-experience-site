@@ -1,4 +1,4 @@
-import { or, ilike, sql, asc, desc, count, eq, inArray, type SQL } from "drizzle-orm";
+import { and, or, ilike, sql, asc, desc, count, eq, inArray, isNull, type SQL } from "drizzle-orm";
 import { db } from "@/db/client";
 import { clients, shoots, experiencePackages, payments, type Client } from "@/db/schema";
 import { calculateBalance } from "@/domain/payments/balance";
@@ -158,7 +158,8 @@ export async function getClientDetail(id: string): Promise<ClientDetail | null> 
     ? await db
         .select({ shootId: payments.shootId, amount: payments.amount, status: payments.status })
         .from(payments)
-        .where(inArray(payments.shootId, shootIds))
+        // Shoot money only: upsell receipts belong to their order (SCL-507).
+        .where(and(inArray(payments.shootId, shootIds), isNull(payments.upsellOrderId)))
     : [];
 
   const { rows, lifetimeRevenue, openBalance } = summarizeClientHistory(shootRows, paymentRows);

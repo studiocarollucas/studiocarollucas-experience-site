@@ -12,6 +12,12 @@ describe("AdminNav", () => {
     expect(screen.getByRole("link", { name: "Leads" })).toHaveAttribute("href", "/admin/leads");
   });
 
+  it("links to the upsell catalog and orders", () => {
+    render(<AdminNav />);
+
+    expect(screen.getByRole("link", { name: "Upsells" })).toHaveAttribute("href", "/admin/upsells");
+  });
+
   it("links to contractor settings", () => {
     render(<AdminNav />);
 

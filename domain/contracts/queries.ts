@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, isNull } from "drizzle-orm";
 import { db } from "@/db/client";
 import { clients, contracts, experiencePackages, payments, shoots } from "@/db/schema";
 
@@ -71,7 +71,8 @@ export async function getContractIssueContext(
     .from(shoots)
     .innerJoin(clients, eq(shoots.clientId, clients.id))
     .innerJoin(experiencePackages, eq(shoots.experiencePackageId, experiencePackages.id))
-    .leftJoin(payments, eq(payments.shootId, shoots.id))
+    // The contract covers the Shoot's agreed price: upsell receipts (SCL-507) stay out.
+    .leftJoin(payments, and(eq(payments.shootId, shoots.id), isNull(payments.upsellOrderId)))
     .where(eq(shoots.id, shootId));
 
   const first = rows[0];

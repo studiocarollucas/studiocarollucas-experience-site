@@ -10,6 +10,7 @@ const LINKS = [
   { href: "/admin/leads", label: "Leads" },
   { href: "/admin/agenda", label: "Agenda" },
   { href: "/admin/pacotes", label: "Pacotes" },
+  { href: "/admin/upsells", label: "Upsells" },
   { href: "/admin/inventario", label: "Acervo" },
   { href: "/admin/paixao-clutch", label: "Paixão Clutch" },
   { href: "/admin/financeiro", label: "Financeiro" },

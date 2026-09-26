@@ -1,6 +1,6 @@
 import { db } from "@/db/client";
 import { payments, shoots, type Payment } from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import { calculateBalance, deriveShootPaymentStatus } from "./balance";
 import { createPaymentSchema, type CreatePaymentInput } from "./schema";
 
@@ -41,10 +41,12 @@ export async function registerPayment(
       .for("update");
     if (!shoot) throw new Error("ensaio inexistente");
 
+    // Upsell receipts (payments.upsell_order_id, SCL-507) pay their order, not
+    // the Shoot's agreed price, so they never move the Shoot balance or cache.
     const existing = await tx
       .select({ amount: payments.amount, status: payments.status })
       .from(payments)
-      .where(eq(payments.shootId, parsed.shootId));
+      .where(and(eq(payments.shootId, parsed.shootId), isNull(payments.upsellOrderId)));
 
     // The unit-tested planner is the single derivation path — no inline re-derivation.
     const { nextStatus, nextBalance } = planPaymentStatusUpdate(shoot.agreedPrice, existing, {

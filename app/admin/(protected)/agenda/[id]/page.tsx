@@ -41,6 +41,19 @@ const paymentColumns: Column<Payment>[] = [
   },
   { key: "method", header: "Forma", render: (p) => p.method ?? "—" },
   { key: "paidAt", header: "Pago em", render: (p) => (p.paidAt ? formatDateTime(p.paidAt) : "—") },
+  {
+    key: "reference",
+    header: "Referente a",
+    // SCL-507: upsell receipts are listed here but do not count toward the Shoot balance.
+    render: (p) =>
+      p.upsellOrderId ? (
+        <Link href={`/admin/upsells/pedidos/${p.upsellOrderId}`} className="underline-offset-2 hover:underline">
+          Pedido de upsell
+        </Link>
+      ) : (
+        "Ensaio"
+      ),
+  },
 ];
 
 export default async function ShootDetailPage({ params }: { params: Params }) {

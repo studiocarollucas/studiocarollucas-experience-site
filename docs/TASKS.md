@@ -102,8 +102,8 @@ Esta revisão preserva todas as tasks já concluídas e adiciona cobertura expl�
 | SCL-502 | Gestão/publicação da galeria | P1 | gallery/admin | DONE | unassigned | SCL-500,SCL-501,SCL-230 |
 | SCL-504 | Favoritos / PhotoSelection | P1 | gallery/client | DONE | agent:claude-code | SCL-500,SCL-503 |
 | SCL-505 | Downloads autorizados | P1 | gallery/client | DONE | agent:claude-code | SCL-501,SCL-503 |
-| SCL-506 | Catálogo de produtos/upsells | P1 | gallery/commerce | BACKLOG | unassigned | SCL-500,SCL-503 |
-| SCL-507 | Pedido de upsell + Financeiro | P1 | gallery/finance | BACKLOG | unassigned | SCL-104,SCL-506 |
+| SCL-506 | Catálogo de produtos/upsells | P1 | gallery/commerce | IN_REVIEW | agent:claude-code | SCL-500,SCL-503 |
+| SCL-507 | Pedido de upsell + Financeiro | P1 | gallery/finance | IN_REVIEW | agent:claude-code | SCL-104,SCL-506 |
 | SCL-550 | Schema InventoryItem | P1 | inventory/db | DONE | unassigned | SCL-005 |
 | SCL-551 | Mídia dos itens de acervo | P1 | inventory/storage | DONE | unassigned | SCL-550 |
 | SCL-552 | CRUD Admin do Acervo | P1 | inventory/admin | DONE | unassigned | SCL-550,SCL-551,SCL-200 |
@@ -117,10 +117,10 @@ Esta revisão preserva todas as tasks já concluídas e adiciona cobertura expl�
 | SCL-701 | Boas-vindas após reserva | P1 | automation | DONE | agent:claude-code | SCL-211,SCL-700 |
 | SCL-702 | Scheduler D-7 / D-1 | P1 | automation | DONE | agent:claude-code | SCL-700,SCL-103 |
 | SCL-703 | Notificações de Reveal/Galeria | P1 | automation/gallery | DONE | agent:claude-code | SCL-502,SCL-503,SCL-700 |
-| SCL-704 | Pedido de review pós-entrega | P1 | automation/growth | IN_REVIEW | agent:claude-code | SCL-503,SCL-700,SCL-720 |
+| SCL-704 | Pedido de review pós-entrega | P1 | automation/growth | DONE | agent:claude-code | SCL-503,SCL-700,SCL-720 |
 | SCL-705 | Delivery log + retry + idempotência | P1 | automation | DONE | agent:claude-code | SCL-700 |
 | SCL-720 | Schema/serviços Review + Referral | P1 | growth/db | DONE | agent:claude-code | SCL-100,SCL-103 |
-| SCL-721 | Fluxo de avaliação / Google | P1 | growth/client | IN_REVIEW | agent:claude-code | SCL-704,SCL-720 |
+| SCL-721 | Fluxo de avaliação / Google | P1 | growth/client | DONE | agent:claude-code | SCL-704,SCL-720 |
 | SCL-722 | Tracking de indicação e conversão | P1 | growth/admin | DONE | agent:claude-code | SCL-720,SCL-253 |
 | SCL-723 | Oportunidades de recorrência no CRM | P2 | growth/admin | BACKLOG | unassigned | SCL-203,SCL-720 |
 | SCL-800 | Virtual Try-On / Prévia de Styling | P3 | client/ai | DEFERRED | unassigned | SCL-554 |
@@ -2168,48 +2168,62 @@ SCL-504, SCL-505, SCL-506 e SCL-703 estão desbloqueadas, mas permanecem pendent
 
 ### SCL-506 — Catálogo de produtos/upsells
 
-- Status: BACKLOG
+- Status: IN_REVIEW
 - Priority: P1
 - Area: gallery/commerce
-- Owner: unassigned
-- Branch: —
+- Owner: agent:claude-code
+- Branch: claude/scl-506-507-upsell
 - PR: —
 - Depends on: SCL-500,SCL-503
 - Blocks: SCL-507
-- Files/Scope: upsell product schema/domain/UI
-- Migration: yes
-- Updated at: 2026-09-07 America/Manaus
+- Files/Scope: `db/schema/upsell.ts`, `db/migrations/0052_upsell_catalog_orders.sql` (+ journal/snapshot), `domain/upsell/{schema,rules,labels,errors,catalog,actions}.ts`, `app/admin/(protected)/upsells/{page,novo,[id]}`, `components/admin/upsell/{product-form,delete-product-button,gallery-offers-panel}.tsx`, `app/admin/(protected)/galerias/[shootId]/page.tsx`, `components/admin/admin-nav.tsx`, `domain/upsell/portal.ts`, `components/client/upsell-offers.tsx`, `app/(client)/minha-experiencia/galeria/page.tsx`
+- Migration: yes (`0052_upsell_catalog_orders`, compartilhada com SCL-507, empilhada sobre a `0051`)
+- Updated at: 2026-09-26 America/Manaus
 
 **Acceptance criteria**
 
-- [ ] produtos configuráveis: foto adicional, coleção completa, álbum, quadro, Reel/Stories;
-- [ ] preço interno/ativo/descrição;
-- [ ] ofertas podem ser habilitadas por Gallery/Shoot;
-- [ ] não hardcodear catálogo na UI.
+- [x] produtos configuráveis: foto adicional, coleção completa, álbum, quadro, Reel/Stories;
+- [x] preço interno/ativo/descrição;
+- [x] ofertas podem ser habilitadas por Gallery/Shoot;
+- [x] não hardcodear catálogo na UI.
+
+**Blocker/Hand-off notes**
+
+- concluído: tabela `upsell_products` (`kind` por check — `foto_adicional`, `colecao_completa`, `album`, `quadro`, `reel_stories`, `outro` —, nome único, descrição para a cliente, `internal_notes` só da equipe, `price numeric(10,2) >= 0`, `active`, `sort_order`); CRUD staff em `/admin/upsells` com auditoria na transação (`upsell_product.created|updated|deleted`); ofertas por galeria em `gallery_upsell_offers` (Gallery é 1:1 com o Shoot), marcadas no workspace da galeria e auditadas (`gallery.upsell_offers_updated`, só quando mudam); o portal mostra só produtos ativos ofertados na galeria publicada da cliente, sem campos internos, e sugere fotos adicionais = favoritos da cliente − fotos incluídas no pacote.
+- decisão: nenhum produto é semeado (o estúdio cadastra os preços); dinheiro em `numeric(10,2)`/string decimal como o resto do schema; excluir produto remove ofertas e mantém o snapshot dos pedidos — para tirar do portal sem apagar histórico, desativar.
+- testes: `tests/db/upsell-migration.test.ts`, `tests/domain/upsell-{rules,catalog,portal}.test.ts`, `tests/app/admin-upsell-pages.test.tsx`, `tests/app/admin-gallery-page.test.tsx`, `tests/app/client-gallery-page.test.tsx`, `tests/components/{client-upsell-offers,admin-nav}.test.tsx`; integração live opt-in em `tests/domain/upsell.integration.test.ts`. Sem `node_modules` no ambiente desta task: lint/typecheck/test/build validados pelo CI do PR.
+- próximo passo: aplicar `0052` no Supabase depois da `0051`.
 
 ---
 
 ### SCL-507 — Pedido de upsell + Financeiro
 
-- Status: BACKLOG
+- Status: IN_REVIEW
 - Priority: P1
 - Area: gallery/finance
-- Owner: unassigned
-- Branch: —
+- Owner: agent:claude-code
+- Branch: claude/scl-506-507-upsell
 - PR: —
 - Depends on: SCL-104,SCL-506
 - Blocks: none
-- Files/Scope: UpsellOrder/OrderItem, finance integration
-- Migration: yes
-- Updated at: 2026-09-07 America/Manaus
+- Files/Scope: `db/schema/{upsell,payments}.ts`, `db/migrations/0052_upsell_catalog_orders.sql` (+ journal/snapshot), `domain/upsell/{portal,orders,payments,actions}.ts`, `app/(client)/minha-experiencia/galeria/{page,upsell-actions}.ts*`, `app/admin/(protected)/upsells/pedidos/**`, `components/admin/upsell/{order-status-control,order-payment-form}.tsx`, `domain/payments/register-payment.ts`, `domain/{shoots,clients,dashboard,contracts,finance}/queries.ts`, `domain/finance/ledger.ts`, `app/admin/(protected)/agenda/[id]/page.tsx`
+- Migration: yes (`0052_upsell_catalog_orders`, compartilhada com SCL-506)
+- Updated at: 2026-09-26 America/Manaus
 
 **Acceptance criteria**
 
-- [ ] pedido vinculado a Client/Shoot/Gallery;
-- [ ] itens e valor snapshotados no pedido;
-- [ ] status de pedido separado de pagamento;
-- [ ] cobrança reutiliza Payment/Financeiro ou fluxo documentado, sem saldo paralelo;
-- [ ] Admin acompanha pedidos.
+- [x] pedido vinculado a Client/Shoot/Gallery;
+- [x] itens e valor snapshotados no pedido;
+- [x] status de pedido separado de pagamento;
+- [x] cobrança reutiliza Payment/Financeiro ou fluxo documentado, sem saldo paralelo;
+- [x] Admin acompanha pedidos.
+
+**Blocker/Hand-off notes**
+
+- concluído: `upsell_orders` (FKs para `clients`/`shoots`/`galleries` sem cascade, trigger `upsell_orders_consistent` — Shoot da Cliente e Gallery do Shoot —, `total` snapshot, `request_key` único por cliente) e `upsell_order_items` (tipo/nome/descrição/preço/quantidade/subtotal snapshotados, check `line_total = unit_price * quantity`); enum `upsell_order_status` `solicitado → confirmado → em_producao → entregue` / `cancelado`, com transições validadas e auditadas (`upsell_order.status_changed`); a cliente pede no portal (Server Action: cliente e ator pela sessão, preço calculado no servidor a partir das ofertas ativas, `ON CONFLICT DO NOTHING` na chave de idempotência, auditoria `upsell_order.requested`); Admin lista/filtra pedidos em `/admin/upsells/pedidos` e gerencia status e pagamentos no detalhe.
+- decisão (ver `docs/DECISIONS.md`, 2026-09-26): recebimento de upsell é Payment do Shoot com `payments.upsell_order_id` (FK composta com o Shoot); fica fora do saldo do ensaio (register-payment, ficha do ensaio/cliente, dashboard, contrato e portal via `payments_client_read`), entra no livro-caixa ("Recebimento upsell") e o saldo aberto dos pedidos confirmados entra em "A receber". Pagamento só depois de confirmado; `shoots.payment_status` não muda. O pedido da cliente nasce `solicitado` para a equipe confirmar.
+- fora de escopo: gateway/pagamento online, e-mail de pedido, entrega automática do que foi comprado, receita de upsell no dashboard/LTV da cliente e estorno automático ao cancelar (estorno segue como Payment `estornado`).
+- testes: `tests/domain/upsell-{rules,portal,orders}.test.ts`, `tests/domain/finance-ledger.test.ts`, `tests/app/client-upsell-actions.test.ts`, `tests/app/admin-upsell-pages.test.tsx`, `tests/components/client-upsell-offers.test.tsx`; integração live opt-in (`RUN_LIVE_DB_TESTS=true`) em `tests/domain/upsell.integration.test.ts`, dentro de transação sempre revertida.
 
 ---
 
@@ -2598,12 +2612,12 @@ Evoluir a consulta pública para um fluxo completo de aluguel independente de en
 
 ### SCL-704 — Pedido de review pós-entrega
 
-- Status: IN_REVIEW
+- Status: DONE
 - Priority: P1
 - Area: automation/growth
 - Owner: agent:claude-code
 - Branch: claude/scl-704-721-review-flow
-- PR: —
+- PR: #8 (merge `24680b5`)
 - Depends on: SCL-503,SCL-700,SCL-720
 - Blocks: SCL-721
 - Files/Scope: `domain/automation/flows/{rules,review-requests}.ts`, `domain/automation/guard.ts`, `domain/automation/templates/{pedido-avaliacao.v1,registry}.ts`, `domain/reviews/{config,service}.ts`, `app/api/cron/review-requests/route.ts`, `.env.example`, `docs/runbooks/email-automation.md`
@@ -2691,12 +2705,12 @@ Evoluir a consulta pública para um fluxo completo de aluguel independente de en
 
 ### SCL-721 — Fluxo de avaliação / Google
 
-- Status: IN_REVIEW
+- Status: DONE
 - Priority: P1
 - Area: growth/client
 - Owner: agent:claude-code
 - Branch: claude/scl-704-721-review-flow
-- PR: —
+- PR: #8 (merge `24680b5`)
 - Depends on: SCL-704,SCL-720
 - Blocks: none
 - Files/Scope: `domain/reviews/{portal,portal-server,queries}.ts`, `app/(client)/minha-experiencia/{page.tsx,galeria/page.tsx,avaliacao/actions.ts}`, `components/client/review-prompt.tsx`, `app/admin/(protected)/agenda/[id]/{page.tsx,review-actions.ts}`, `components/admin/shoot-review.tsx`
