@@ -4,6 +4,7 @@ import { useActionState, useEffect, useId, useRef, useState } from "react";
 import {
   createShootInventoryReservationAction,
   cancelShootInventoryReservationAction,
+  confirmShootInventoryReservationAction,
   searchInventoryItemsAction,
 } from "@/app/admin/(protected)/agenda/[id]/inventory-actions";
 import { inventoryStatusLabels, inventoryTypeLabels } from "@/components/admin/inventory-labels";
@@ -28,8 +29,10 @@ type Reservation = {
   overrideReason: string | null;
 };
 
+// On a shoot, 'pending' is only written by the client portal (SCL-554): staff
+// reservations are created confirmed and public rental holds have no shoot.
 const statusLabel: Record<string, string> = {
-  pending: "Pendente",
+  pending: "Preferência da cliente",
   confirmed: "Confirmada",
   cancelled: "Cancelada",
   released: "Liberada",
@@ -58,6 +61,58 @@ function ReservationCancelForm({
       >
         Cancelar reserva
       </button>
+    </form>
+  );
+}
+
+function ReservationConfirmForm({
+  reservationId,
+  shootId,
+}: {
+  reservationId: string;
+  shootId: string;
+}) {
+  const fieldId = useId();
+  const [state, formAction] = useActionState(
+    toFormAction(confirmShootInventoryReservationAction, { booleans: ["overrideConflict"] }),
+    null as ActionResult<{ id: string }> | null
+  );
+  if (state?.ok) return null;
+  // The exception fields only appear after the domain reported a conflict.
+  const needsOverride = Boolean(state && !state.ok && state.fieldErrors?.overrideConflict);
+  return (
+    <form action={formAction} className="mt-2 grid gap-2">
+      <FormStatus state={state} />
+      <input type="hidden" name="reservationId" value={reservationId} />
+      <input type="hidden" name="shootId" value={shootId} />
+      {needsOverride ? (
+        <>
+          <label className="flex items-start gap-2 font-sans text-sm text-ink">
+            <input
+              id={`${fieldId}-override`}
+              name="overrideConflict"
+              type="checkbox"
+              className="mt-1"
+            />
+            <span>Registrar exceção por conflito</span>
+          </label>
+          <Field
+            label="Motivo da exceção"
+            htmlFor={`${fieldId}-reason`}
+            error={state && !state.ok ? state.fieldErrors?.overrideReason?.[0] : undefined}
+          >
+            <Textarea id={`${fieldId}-reason`} name="overrideReason" />
+          </Field>
+        </>
+      ) : null}
+      <div>
+        <button
+          type="submit"
+          className="font-sans text-xs text-ink underline underline-offset-2 hover:no-underline"
+        >
+          Confirmar reserva
+        </button>
+      </div>
     </form>
   );
 }
@@ -181,12 +236,19 @@ export function InventoryReservations({
                     ? "success"
                     : reservation.status === "cancelled"
                       ? "danger"
-                      : "neutral"
+                      : reservation.status === "pending"
+                        ? "warning"
+                        : "neutral"
                 }
               >
                 {statusLabel[reservation.status] ?? reservation.status}
               </Badge>
             </div>
+            {reservation.status === "pending" ? (
+              <p className="mt-1 text-muted">
+                Escolhida pela cliente no portal. Confirme ou cancele para liberar a peça.
+              </p>
+            ) : null}
             <p className="mt-1 text-muted">
               Período: {reservation.startsOn} a {reservation.endsOn}
             </p>
@@ -195,6 +257,9 @@ export function InventoryReservations({
             ) : null}
             {reservation.overrideReason ? (
               <p className="mt-1 text-muted">Exceção: {reservation.overrideReason}</p>
+            ) : null}
+            {reservation.status === "pending" ? (
+              <ReservationConfirmForm reservationId={reservation.id} shootId={shootId} />
             ) : null}
             {reservation.status !== "cancelled" && reservation.status !== "released" ? (
               <ReservationCancelForm reservationId={reservation.id} shootId={shootId} />

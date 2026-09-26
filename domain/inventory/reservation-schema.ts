@@ -20,3 +20,17 @@ export const createShootInventoryReservationSchema = z
   });
 
 export type CreateShootInventoryReservationInput = z.input<typeof createShootInventoryReservationSchema>;
+
+export const confirmShootInventoryReservationSchema = z
+  .object({
+    reservationId: z.string().uuid(),
+    shootId: z.string().uuid(),
+    overrideConflict: z.boolean().default(false),
+    overrideReason: z.string().trim().min(1).optional(),
+  })
+  .refine((value) => !value.overrideConflict || Boolean(value.overrideReason), {
+    path: ["overrideReason"],
+    message: "justificativa obrigatória",
+  });
+
+export type ConfirmShootInventoryReservationInput = z.input<typeof confirmShootInventoryReservationSchema>;

@@ -1,11 +1,13 @@
 import "server-only";
 
-import { and, desc, eq, gt, gte, inArray, isNotNull, lte, or, sql } from "drizzle-orm";
+import { and, desc, eq, gt, gte, inArray, isNotNull, lte, ne, or, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { inventoryItems, inventoryReservations, profiles, type InventoryReservation } from "@/db/schema";
 import { recordAuditEvent } from "@/domain/audit/service";
 import {
+  confirmShootInventoryReservationSchema,
   createShootInventoryReservationSchema,
+  type ConfirmShootInventoryReservationInput,
   type CreateShootInventoryReservationInput,
 } from "./reservation-schema";
 
@@ -119,6 +121,104 @@ export async function createShootInventoryReservation(
           inventoryItemId: reservation.inventoryItemId,
           shootId: reservation.shootId,
           purpose: reservation.purpose,
+          startsOn: reservation.startsOn,
+          endsOn: reservation.endsOn,
+          status: reservation.status,
+          overrideReason: reservation.overrideReason,
+        },
+      },
+      tx,
+    );
+
+    return reservation;
+  });
+}
+
+/**
+ * Staff decision on a client preference (SCL-554): a 'pending' shoot
+ * reservation becomes 'confirmed' under the same item lock and conflict rules
+ * as createShootInventoryReservation. The reservation's own row is excluded
+ * from the conflict search; any other overlap needs an explicit, justified
+ * exception, recorded like a creation override.
+ */
+export async function confirmShootInventoryReservation(
+  input: ConfirmShootInventoryReservationInput,
+  actorUserId: string,
+): Promise<InventoryReservation> {
+  const parsed = confirmShootInventoryReservationSchema.parse(input);
+  await requireInventoryReservationActor(actorUserId);
+
+  return db.transaction(async (tx) => {
+    const pendingOfShoot = and(
+      eq(inventoryReservations.id, parsed.reservationId),
+      eq(inventoryReservations.shootId, parsed.shootId),
+      eq(inventoryReservations.status, "pending"),
+    );
+    const [candidate] = await tx
+      .select({ inventoryItemId: inventoryReservations.inventoryItemId })
+      .from(inventoryReservations)
+      .where(pendingOfShoot)
+      .limit(1);
+    if (!candidate) throw new Error("reserva inexistente ou não confirmável");
+
+    await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${canonicalizeInventoryReservationLockId(candidate.inventoryItemId)}))`);
+    const [current] = await tx.select().from(inventoryReservations).where(pendingOfShoot).limit(1).for("update");
+    if (!current || current.inventoryItemId !== candidate.inventoryItemId) {
+      throw new Error("reserva inexistente ou não confirmável");
+    }
+
+    const [item] = await tx.select({ active: inventoryItems.active, status: inventoryItems.status })
+      .from(inventoryItems).where(eq(inventoryItems.id, current.inventoryItemId)).limit(1).for("update");
+    if (!item?.active || item.status !== "available") throw new InventoryItemUnavailableError();
+
+    const [conflict] = await tx
+      .select({ id: inventoryReservations.id })
+      .from(inventoryReservations)
+      .where(
+        and(
+          eq(inventoryReservations.inventoryItemId, current.inventoryItemId),
+          inventoryReservationBlockingPredicate(new Date()),
+          lte(inventoryReservations.startsOn, current.endsOn),
+          gte(inventoryReservations.endsOn, current.startsOn),
+          ne(inventoryReservations.id, current.id),
+        ),
+      )
+      .limit(1);
+
+    if (conflict && !parsed.overrideConflict) {
+      throw new InventoryReservationConflictError();
+    }
+
+    const confirmedAt = new Date();
+    const isApprovedOverride = Boolean(conflict && parsed.overrideConflict);
+    const [reservation] = await tx
+      .update(inventoryReservations)
+      .set({
+        status: "confirmed",
+        updatedAt: confirmedAt,
+        ...(isApprovedOverride
+          ? {
+              overrideReason: parsed.overrideReason,
+              overriddenByUserId: actorUserId,
+              overriddenAt: confirmedAt,
+            }
+          : {}),
+      })
+      .where(pendingOfShoot)
+      .returning();
+
+    if (!reservation) throw new Error("reserva inexistente ou não confirmável");
+
+    await recordAuditEvent(
+      {
+        actorUserId,
+        action: "inventory_reservation.confirmed",
+        entityType: "inventory_reservation",
+        entityId: reservation.id,
+        before: { status: current.status },
+        after: {
+          inventoryItemId: reservation.inventoryItemId,
+          shootId: reservation.shootId,
           startsOn: reservation.startsOn,
           endsOn: reservation.endsOn,
           status: reservation.status,
