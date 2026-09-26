@@ -123,6 +123,8 @@ export function summarizeUpsellOrderMoney(
   };
 }
 
+export type UpsellOrderMoney = ReturnType<typeof summarizeUpsellOrderMoney>;
+
 /** Favorites beyond the photos included in the package (SCL-504 count → SCL-506 offer). */
 export function suggestExtraPhotos(favorites: number, includedPhotos: number | null): number {
   if (includedPhotos === null) return 0;
