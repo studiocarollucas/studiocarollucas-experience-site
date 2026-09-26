@@ -3,6 +3,7 @@ import "server-only";
 import { and, asc, eq, inArray } from "drizzle-orm";
 import { db } from "@/db/client";
 import { galleries, galleryAssets } from "@/db/schema";
+import { enqueueGalleryPublished } from "@/domain/automation/flows/gallery-published";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import {
   publishGallerySchema,
@@ -182,18 +183,24 @@ export async function removeGalleryAsset(input: unknown): Promise<void> {
 
 export async function publishGallery(galleryId: string) {
   const id = publishGallerySchema.parse(galleryId);
-  const [gallery] = await db
-    .update(galleries)
-    .set({ status: "published" })
-    .where(eq(galleries.id, id))
-    .returning();
-  if (!gallery) throw new Error("Galeria não encontrada.");
+  return db.transaction(async (transaction) => {
+    const [gallery] = await transaction
+      .update(galleries)
+      .set({ status: "published" })
+      .where(eq(galleries.id, id))
+      .returning();
+    if (!gallery) throw new Error("Galeria não encontrada.");
 
-  const assets = await db
-    .select({ id: galleryAssets.id })
-    .from(galleryAssets)
-    .where(eq(galleryAssets.galleryId, id))
-    .orderBy(asc(galleryAssets.sortOrder), asc(galleryAssets.createdAt));
+    const assets = await transaction
+      .select({ id: galleryAssets.id })
+      .from(galleryAssets)
+      .where(eq(galleryAssets.galleryId, id))
+      .orderBy(asc(galleryAssets.sortOrder), asc(galleryAssets.createdAt));
 
-  return { ...gallery, assetIds: assets.map((asset) => asset.id) };
+    // SCL-703: publishing and communicating are separate facts; the Reveal
+    // notice is an idempotent outbox event (one per gallery) committed with it.
+    await enqueueGalleryPublished({ gallery, photoCount: assets.length }, transaction);
+
+    return { ...gallery, assetIds: assets.map((asset) => asset.id) };
+  });
 }

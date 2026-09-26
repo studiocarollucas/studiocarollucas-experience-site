@@ -20,6 +20,7 @@ const mocks = vi.hoisted(() => ({
   update: vi.fn(),
   upload: vi.fn(),
   remove: vi.fn(),
+  enqueueGalleryPublished: vi.fn(),
 }));
 
 vi.mock("@/db/client", () => ({
@@ -30,6 +31,10 @@ vi.mock("@/db/client", () => ({
     transaction: mocks.transaction,
     update: mocks.update,
   },
+}));
+
+vi.mock("@/domain/automation/flows/gallery-published", () => ({
+  enqueueGalleryPublished: mocks.enqueueGalleryPublished,
 }));
 
 vi.mock("@/lib/supabase/server", () => ({
@@ -269,6 +274,7 @@ describe("gallery asset lifecycle", () => {
 
   it("marks a draft gallery published and returns the ordered asset ids", async () => {
     mocks.updateReturning.mockResolvedValue([{ id: GALLERY_ID, status: "published" }]);
+    mocks.enqueueGalleryPublished.mockResolvedValue({ status: "enqueued", eventId: "event-1" });
     mocks.updateWhere.mockReturnValue({ returning: mocks.updateReturning });
     mocks.updateSet.mockReturnValue({ where: mocks.updateWhere });
     mocks.update.mockReturnValue({ set: mocks.updateSet });
@@ -282,6 +288,31 @@ describe("gallery asset lifecycle", () => {
       status: "published",
       assetIds: [OTHER_ASSET_ID, ASSET_ID],
     });
+    // SCL-703: the Reveal notice is enqueued inside the publish transaction.
+    expect(mocks.transaction).toHaveBeenCalledOnce();
+    expect(mocks.enqueueGalleryPublished).toHaveBeenCalledWith(
+      { gallery: { id: GALLERY_ID, status: "published" }, photoCount: 2 },
+      expect.objectContaining({ select: mocks.select, update: mocks.update }),
+    );
+  });
+
+  it("rolls the publication back when the notification cannot be enqueued", async () => {
+    mocks.updateReturning.mockResolvedValue([{ id: GALLERY_ID, status: "published" }]);
+    mocks.updateWhere.mockReturnValue({ returning: mocks.updateReturning });
+    mocks.updateSet.mockReturnValue({ where: mocks.updateWhere });
+    mocks.update.mockReturnValue({ set: mocks.updateSet });
+    mocks.orderBy.mockResolvedValue([{ id: ASSET_ID }]);
+    mocks.selectWhere.mockReturnValue({ orderBy: mocks.orderBy });
+    mocks.selectFrom.mockReturnValue({ where: mocks.selectWhere });
+    mocks.select.mockReturnValue({ from: mocks.selectFrom });
+    mocks.enqueueGalleryPublished.mockRejectedValue(new Error("outbox write failed"));
+
+    await expect(publishGallery(GALLERY_ID)).rejects.toThrow("outbox write failed");
+  });
+
+  it("never enqueues a notification while only managing draft photos", async () => {
+    await uploadGalleryAsset({ galleryId: GALLERY_ID, file: imageFile() });
+    expect(mocks.enqueueGalleryPublished).not.toHaveBeenCalled();
   });
 
   it("rejects publication when the gallery does not exist", async () => {
@@ -291,5 +322,6 @@ describe("gallery asset lifecycle", () => {
     mocks.update.mockReturnValue({ set: mocks.updateSet });
 
     await expect(publishGallery(GALLERY_ID)).rejects.toThrow("Galeria não encontrada.");
+    expect(mocks.enqueueGalleryPublished).not.toHaveBeenCalled();
   });
 });
