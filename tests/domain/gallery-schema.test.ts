@@ -5,8 +5,10 @@ import {
   galleries,
   galleryAssets,
   galleryStatusValues,
+  photoSelections,
   type Gallery,
   type GalleryAsset,
+  type PhotoSelection,
 } from "@/db/schema";
 
 const migrationPath = path.resolve("db/migrations/0036_gallery_foundation.sql");
@@ -38,6 +40,23 @@ describe("gallery schema", () => {
 
     const asset: GalleryAsset | undefined = undefined;
     expect(asset).toBeUndefined();
+  });
+
+  it("blocks downloads by default on every Gallery", () => {
+    expect(galleries.downloadsEnabled.notNull).toBe(true);
+    expect(galleries.downloadsEnabled.default).toBe(false);
+  });
+
+  it("models a PhotoSelection per client, gallery and asset", () => {
+    expect(Object.keys(photoSelections)).toEqual(
+      expect.arrayContaining(["id", "galleryId", "assetId", "clientId", "createdAt"]),
+    );
+    expect(photoSelections.galleryId.notNull).toBe(true);
+    expect(photoSelections.assetId.notNull).toBe(true);
+    expect(photoSelections.clientId.notNull).toBe(true);
+
+    const selection: PhotoSelection | undefined = undefined;
+    expect(selection).toBeUndefined();
   });
 });
 

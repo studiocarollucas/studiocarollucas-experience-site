@@ -100,8 +100,8 @@ Esta revisão preserva todas as tasks já concluídas e adiciona cobertura expl�
 | SCL-406 | SEO técnico + Analytics | P1 | site | BACKLOG | unassigned | SCL-400,SCL-401,SCL-402 |
 | SCL-501 | GalleryAsset + storage privado | P1 | gallery | BACKLOG | unassigned | SCL-500 |
 | SCL-502 | Gestão/publicação da galeria | P1 | gallery/admin | BACKLOG | unassigned | SCL-500,SCL-501,SCL-230 |
-| SCL-504 | Favoritos / PhotoSelection | P1 | gallery/client | BACKLOG | unassigned | SCL-500,SCL-503 |
-| SCL-505 | Downloads autorizados | P1 | gallery/client | BACKLOG | unassigned | SCL-501,SCL-503 |
+| SCL-504 | Favoritos / PhotoSelection | P1 | gallery/client | IN_REVIEW | agent:claude-code | SCL-500,SCL-503 |
+| SCL-505 | Downloads autorizados | P1 | gallery/client | IN_REVIEW | agent:claude-code | SCL-501,SCL-503 |
 | SCL-506 | Catálogo de produtos/upsells | P1 | gallery/commerce | BACKLOG | unassigned | SCL-500,SCL-503 |
 | SCL-507 | Pedido de upsell + Financeiro | P1 | gallery/finance | BACKLOG | unassigned | SCL-104,SCL-506 |
 | SCL-550 | Schema InventoryItem | P1 | inventory/db | BACKLOG | unassigned | SCL-005 |
@@ -2051,47 +2051,61 @@ SCL-504, SCL-505, SCL-506 e SCL-703 estão desbloqueadas, mas permanecem pendent
 
 ### SCL-504 — Favoritos / PhotoSelection
 
-- Status: BACKLOG
+- Status: IN_REVIEW
 - Priority: P1
 - Area: gallery/client
-- Owner: unassigned
-- Branch: —
+- Owner: agent:claude-code
+- Branch: claude/scl-504-505-gallery-selection
 - PR: —
 - Depends on: SCL-500,SCL-503
 - Blocks: SCL-506
-- Files/Scope: gallery selections domain/UI
-- Migration: yes
-- Updated at: 2026-09-07 America/Manaus
+- Files/Scope: `db/schema/galleries.ts`, `db/migrations/0050_gallery_selections_downloads.sql` (+ journal/snapshot), `domain/gallery/{selections,schema}.ts`, `app/(client)/minha-experiencia/galeria/{page,actions}.ts*`, `components/client/gallery-grid.tsx`, `app/admin/(protected)/galerias/[shootId]/*`, `components/admin/gallery-manager.tsx`
+- Migration: yes (`0050_gallery_selections_downloads`, empilhada sobre a `0049` de SCL-700)
+- Updated at: 2026-09-25 America/Manaus
 
 **Acceptance criteria**
 
-- [ ] cliente favorita/desfavorita somente assets da própria Gallery;
-- [ ] persistência única por cliente/gallery/asset;
-- [ ] contagem disponível para Admin e upsell;
-- [ ] concorrência/idempotência tratadas.
+- [x] cliente favorita/desfavorita somente assets da própria Gallery;
+- [x] persistência única por cliente/gallery/asset;
+- [x] contagem disponível para Admin e upsell;
+- [x] concorrência/idempotência tratadas.
+
+**Blocker/Hand-off notes**
+
+- concluído: tabela `photo_selections` (unique `client_id`+`gallery_id`+`asset_id`, FKs `cascade`, RLS com leitura só de staff e nenhum grant de escrita para `anon`/`authenticated`); a Server Action do portal resolve a cliente pela sessão e o domínio autoriza a foto por asset → gallery publicada → shoot da cliente; a ação recebe o estado desejado (`selected`), grava com `ON CONFLICT DO NOTHING` e remove pela chave; UI otimista com botão `aria-pressed`, contador `aria-live` e reversão em erro; Admin mostra favoritos por galeria e por foto; `getGallerySelectionSummary(galleryId)` pronta para SCL-506.
+- fora de escopo: limite de seleção pelo pacote, notificação de seleção e uso da contagem no upsell (SCL-506).
+- testes: `tests/db/gallery-selections-migration.test.ts`, `tests/domain/gallery-{schema,selections}.test.ts`, `tests/app/client-gallery-{page,actions}.test.ts*`, `tests/components/client-gallery-grid.test.tsx`, `tests/app/admin-gallery-page.test.tsx`; integração live opt-in em `tests/domain/gallery-selections.integration.test.ts`. Sem `node_modules` no ambiente desta task: lint/typecheck/test/build validados pelo CI do PR.
+- próximo passo: aplicar `0050` no Supabase depois da `0049` (branch empilhada sobre `claude/scl-700-705-email-foundation`; revisar/mergear aquela primeiro).
 
 ---
 
 ### SCL-505 — Downloads autorizados
 
-- Status: BACKLOG
+- Status: IN_REVIEW
 - Priority: P1
 - Area: gallery/client
-- Owner: unassigned
-- Branch: —
+- Owner: agent:claude-code
+- Branch: claude/scl-504-505-gallery-selection
 - PR: —
 - Depends on: SCL-501,SCL-503
 - Blocks: none
-- Files/Scope: download authorization, signed URLs
-- Migration: no
-- Updated at: 2026-09-07 America/Manaus
+- Files/Scope: `domain/gallery/{downloads,storage}.ts`, `app/(client)/minha-experiencia/galeria/fotos/[assetId]/download/route.ts`, `components/client/gallery-grid.tsx`, `app/admin/(protected)/galerias/[shootId]/*`, `components/admin/gallery-manager.tsx`
+- Migration: yes (coluna `galleries.downloads_enabled` na `0050_gallery_selections_downloads`, compartilhada com SCL-504)
+- Updated at: 2026-09-25 America/Manaus
 
 **Acceptance criteria**
 
-- [ ] download só de assets autorizados;
-- [ ] signed URL com expiração;
-- [ ] opção de bloquear originais/download por Gallery;
-- [ ] nenhuma chave privada no browser.
+- [x] download só de assets autorizados;
+- [x] signed URL com expiração;
+- [x] opção de bloquear originais/download por Gallery;
+- [x] nenhuma chave privada no browser.
+
+**Blocker/Hand-off notes**
+
+- concluído: `galleries.downloads_enabled boolean not null default false` (bloqueado por padrão, inclusive nas galerias já publicadas); o link da galeria aponta para `/minha-experiencia/galeria/fotos/[assetId]/download`, que resolve a cliente pela sessão, autoriza a foto (404 neutro para foto alheia/rascunho, 403 quando bloqueado) e redireciona (`307`, `no-store`) para URL assinada de 60 s com nome de arquivo neutro; a service role só existe no servidor; Admin libera/bloqueia por galeria via `defineAdminAction` (staff) com `gallery.downloads_updated` no `audit_log` na mesma transação, apenas quando o valor muda.
+- decisão: o modelo guarda um único arquivo por foto; "bloquear originais" = bloquear download da galeria. Quando SCL-501 introduzir variantes web, uma segunda coluna pode liberar apenas a variante sem mudar o endpoint.
+- fora de escopo: download em lote (.zip) e expiração/limite de downloads por cliente.
+- testes: `tests/domain/gallery-{downloads,storage}.test.ts`, `tests/app/client-gallery-download-route.test.ts`, `tests/components/client-gallery-grid.test.tsx`, `tests/app/admin-gallery-page.test.tsx`.
 
 ---
 

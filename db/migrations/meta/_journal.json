@@ -351,6 +351,13 @@
       "when": 1790375295580,
       "tag": "0049_email_automation_outbox",
       "breakpoints": true
+    },
+    {
+      "idx": 50,
+      "version": "7",
+      "when": 1790376658423,
+      "tag": "0050_gallery_selections_downloads",
+      "breakpoints": true
     }
   ]
 }

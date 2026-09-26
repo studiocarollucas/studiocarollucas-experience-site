@@ -94,8 +94,10 @@ describe("email automation outbox migration", () => {
       "cancelled",
     ]);
 
-    const last = journal.entries[journal.entries.length - 1];
-    expect(last).toMatchObject({ idx: 49, version: "7", tag: "0049_email_automation_outbox", breakpoints: true });
-    expect(last.when).toBeGreaterThan(journal.entries[journal.entries.length - 2].when);
+    // Later migrations chain after 0049, so locate the entry by tag instead of position.
+    const position = journal.entries.findIndex((entry: { tag: string }) => entry.tag === "0049_email_automation_outbox");
+    const entry = journal.entries[position];
+    expect(entry).toMatchObject({ idx: 49, version: "7", tag: "0049_email_automation_outbox", breakpoints: true });
+    expect(entry.when).toBeGreaterThan(journal.entries[position - 1].when);
   });
 });

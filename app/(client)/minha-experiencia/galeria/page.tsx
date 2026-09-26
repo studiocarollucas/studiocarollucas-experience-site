@@ -1,8 +1,17 @@
+import { ClientGalleryGrid } from "@/components/client/gallery-grid";
 import { readClientGallery } from "@/domain/gallery/portal";
+import { listClientSelectedAssetIds } from "@/domain/gallery/selections";
 import { getPortalRequestContext } from "@/domain/portal/server";
 
+// Only the id and the view URL reach the browser — never the storage path.
+function toBrowserAsset(asset: { id: string; signedUrl: string }) {
+  return { id: asset.id, signedUrl: asset.signedUrl };
+}
+
 export default async function ClientGalleryPage() {
-  const gallery = await readClientGallery(await getPortalRequestContext());
+  const context = await getPortalRequestContext();
+  const gallery = await readClientGallery(context);
+  const selectedAssetIds = gallery ? await listClientSelectedAssetIds(context.client.id, gallery.id) : [];
 
   return (
     <section aria-labelledby="gallery-title">
@@ -14,16 +23,11 @@ export default async function ClientGalleryPage() {
       </header>
 
       {gallery ? (
-        <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {gallery.assets.map((asset, index) => (
-            <img
-              key={asset.id}
-              src={asset.signedUrl}
-              alt={`Foto ${index + 1} da sua galeria`}
-              className="aspect-[4/5] w-full object-cover"
-            />
-          ))}
-        </div>
+        <ClientGalleryGrid
+          assets={gallery.assets.map(toBrowserAsset)}
+          initialSelectedAssetIds={selectedAssetIds}
+          downloadsEnabled={gallery.downloadsEnabled}
+        />
       ) : (
         <p className="mt-8 border-l-2 border-ink py-3 pl-5 font-sans text-sm leading-6 text-muted">
           Sua galeria ficará disponível quando for publicada pelo estúdio.
