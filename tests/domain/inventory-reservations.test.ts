@@ -27,6 +27,7 @@ vi.mock("@/domain/audit/service", () => ({ recordAuditEvent: mocks.recordAuditEv
 import {
   cancelInventoryReservation,
   canonicalizeInventoryReservationLockId,
+  confirmShootInventoryReservation,
   createShootInventoryReservation,
   listReservationsForShoot,
 } from "@/domain/inventory/reservations";
@@ -253,6 +254,122 @@ describe("inventory reservations", () => {
 
     await expect(cancelInventoryReservation(reservationId, actorUserId, shootId)).rejects.toThrow("não cancelável");
     expect(mocks.recordAuditEvent).not.toHaveBeenCalled();
+  });
+
+  describe("confirming a client preference", () => {
+    const pendingRow = {
+      id: reservationId,
+      inventoryItemId,
+      shootId,
+      purpose: "shoot",
+      startsOn: "2030-05-10",
+      endsOn: "2030-05-10",
+      status: "pending",
+    };
+
+    function rows(value: unknown[], locked = false) {
+      const limit = locked
+        ? vi.fn().mockReturnValue({ for: vi.fn().mockResolvedValue(value) })
+        : vi.fn().mockResolvedValue(value);
+      return { from: vi.fn().mockReturnValue({ where: vi.fn().mockReturnValue({ limit }) }) };
+    }
+
+    function queueConfirmation(conflict: unknown[] = []) {
+      mocks.transactionSelect
+        .mockReturnValueOnce(rows([{ inventoryItemId }]))
+        .mockReturnValueOnce(rows([pendingRow], true))
+        .mockReturnValueOnce(rows(conflict));
+      mocks.update.mockReturnValueOnce({
+        set: vi.fn().mockImplementation((values) => ({
+          where: vi.fn().mockImplementation(() => returning({ ...pendingRow, ...values })),
+        })),
+      });
+    }
+
+    it("turns the pending preference into a confirmed reservation under the item lock and audits it", async () => {
+      queueConfirmation();
+
+      await expect(
+        confirmShootInventoryReservation({ reservationId, shootId }, actorUserId),
+      ).resolves.toMatchObject({ status: "confirmed" });
+
+      expect(mocks.execute).toHaveBeenCalledOnce();
+      expect(mocks.itemFor).toHaveBeenCalledWith("update");
+      const set = mocks.update.mock.results[0]?.value.set;
+      expect(set).toHaveBeenCalledWith({ status: "confirmed", updatedAt: expect.any(Date) });
+      expect(mocks.recordAuditEvent).toHaveBeenCalledWith(
+        expect.objectContaining({
+          actorUserId,
+          action: "inventory_reservation.confirmed",
+          entityId: reservationId,
+          before: { status: "pending" },
+          after: expect.objectContaining({ status: "confirmed" }),
+        }),
+        expect.objectContaining({ update: mocks.update }),
+      );
+    });
+
+    it("rejects another overlapping reservation without an explicit exception", async () => {
+      queueConfirmation([{ id: "00000000-0000-4000-8000-000000000009" }]);
+
+      await expect(
+        confirmShootInventoryReservation({ reservationId, shootId }, actorUserId),
+      ).rejects.toThrow("conflito de reserva");
+      expect(mocks.update).not.toHaveBeenCalled();
+      expect(mocks.recordAuditEvent).not.toHaveBeenCalled();
+    });
+
+    it("records the approver and reason when staff confirms over a conflict", async () => {
+      queueConfirmation([{ id: "00000000-0000-4000-8000-000000000009" }]);
+
+      await expect(
+        confirmShootInventoryReservation(
+          { reservationId, shootId, overrideConflict: true, overrideReason: "Troca combinada" },
+          actorUserId,
+        ),
+      ).resolves.toMatchObject({ status: "confirmed", overrideReason: "Troca combinada" });
+      const set = mocks.update.mock.results[0]?.value.set;
+      expect(set).toHaveBeenCalledWith(
+        expect.objectContaining({
+          overrideReason: "Troca combinada",
+          overriddenByUserId: actorUserId,
+          overriddenAt: expect.any(Date),
+        }),
+      );
+    });
+
+    it("refuses a reservation that is not pending for this shoot before locking", async () => {
+      mocks.transactionSelect.mockReturnValueOnce(rows([]));
+
+      await expect(
+        confirmShootInventoryReservation({ reservationId, shootId }, actorUserId),
+      ).rejects.toThrow("não confirmável");
+      expect(mocks.execute).not.toHaveBeenCalled();
+      expect(mocks.update).not.toHaveBeenCalled();
+    });
+
+    it("refuses an item that left the available catalog", async () => {
+      queueConfirmation();
+      mocks.itemFor.mockResolvedValueOnce([{ active: true, status: "maintenance" }]);
+
+      await expect(
+        confirmShootInventoryReservation({ reservationId, shootId }, actorUserId),
+      ).rejects.toThrow(/indisponível/);
+      expect(mocks.update).not.toHaveBeenCalled();
+    });
+
+    it("requires a staff actor", async () => {
+      mocks.select.mockReturnValueOnce({
+        from: vi.fn().mockReturnValue({
+          where: vi.fn().mockReturnValue({ limit: vi.fn().mockResolvedValue([{ role: "client" }]) }),
+        }),
+      });
+
+      await expect(
+        confirmShootInventoryReservation({ reservationId, shootId }, actorUserId),
+      ).rejects.toThrow("não autorizado");
+      expect(mocks.transaction).not.toHaveBeenCalled();
+    });
   });
 
   it("lists reservations for a shoot without creating a UI read model", async () => {

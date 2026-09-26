@@ -3,10 +3,14 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { ActionableAdminActionError, defineAdminAction } from "@/lib/auth/admin-action";
-import { createShootInventoryReservationSchema } from "@/domain/inventory/reservation-schema";
+import {
+  confirmShootInventoryReservationSchema,
+  createShootInventoryReservationSchema,
+} from "@/domain/inventory/reservation-schema";
 import { searchReservableInventoryItems } from "@/domain/inventory/queries";
 import {
   cancelInventoryReservation,
+  confirmShootInventoryReservation,
   createShootInventoryReservation,
   InventoryReservationConflictError,
   InventoryItemUnavailableError,
@@ -62,6 +66,40 @@ export const cancelShootInventoryReservationAction = defineAdminAction(
       ctx.user.id,
       input.shootId
     );
+    revalidatePath(`/admin/agenda/${input.shootId}`);
+    revalidatePath("/admin/inventario");
+    revalidatePath("/admin/inventario/[id]", "page");
+    revalidatePath("/admin/paixao-clutch");
+    return { id: reservation.id };
+  }
+);
+
+export const confirmShootInventoryReservationAction = defineAdminAction(
+  {
+    role: "staff",
+    input: confirmShootInventoryReservationSchema,
+  },
+  async (input, ctx) => {
+    let reservation;
+    try {
+      reservation = await confirmShootInventoryReservation(input, ctx.user.id);
+    } catch (err) {
+      if (err instanceof InventoryItemUnavailableError) {
+        throw new ActionableAdminActionError(
+          "Este item está indisponível (inativo ou em manutenção). Cancele a preferência e combine outra peça com a cliente."
+        );
+      }
+      if (err instanceof InventoryReservationConflictError) {
+        throw new ActionableAdminActionError(
+          'O item já está reservado neste período. Cancele a preferência ou marque "Registrar exceção por conflito" e informe o motivo.',
+          {
+            overrideConflict: ["Confirme a exceção para continuar."],
+            overrideReason: ["Informe o motivo da exceção."],
+          }
+        );
+      }
+      throw err;
+    }
     revalidatePath(`/admin/agenda/${input.shootId}`);
     revalidatePath("/admin/inventario");
     revalidatePath("/admin/inventario/[id]", "page");

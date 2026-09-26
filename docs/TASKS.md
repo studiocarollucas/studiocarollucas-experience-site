@@ -100,25 +100,25 @@ Esta revisão preserva todas as tasks já concluídas e adiciona cobertura expl�
 | SCL-406 | SEO técnico + Analytics | P1 | site | DONE | agent:claude-code | SCL-400,SCL-401,SCL-402 |
 | SCL-501 | GalleryAsset + storage privado | P1 | gallery | DONE | unassigned | SCL-500 |
 | SCL-502 | Gestão/publicação da galeria | P1 | gallery/admin | DONE | unassigned | SCL-500,SCL-501,SCL-230 |
-| SCL-504 | Favoritos / PhotoSelection | P1 | gallery/client | IN_REVIEW | agent:claude-code | SCL-500,SCL-503 |
-| SCL-505 | Downloads autorizados | P1 | gallery/client | IN_REVIEW | agent:claude-code | SCL-501,SCL-503 |
+| SCL-504 | Favoritos / PhotoSelection | P1 | gallery/client | DONE | agent:claude-code | SCL-500,SCL-503 |
+| SCL-505 | Downloads autorizados | P1 | gallery/client | DONE | agent:claude-code | SCL-501,SCL-503 |
 | SCL-506 | Catálogo de produtos/upsells | P1 | gallery/commerce | BACKLOG | unassigned | SCL-500,SCL-503 |
 | SCL-507 | Pedido de upsell + Financeiro | P1 | gallery/finance | BACKLOG | unassigned | SCL-104,SCL-506 |
 | SCL-550 | Schema InventoryItem | P1 | inventory/db | DONE | unassigned | SCL-005 |
 | SCL-551 | Mídia dos itens de acervo | P1 | inventory/storage | DONE | unassigned | SCL-550 |
 | SCL-552 | CRUD Admin do Acervo | P1 | inventory/admin | DONE | unassigned | SCL-550,SCL-551,SCL-200 |
 | SCL-553 | InventoryReservation + conflitos | P1 | inventory/db | DONE (742f545) | unassigned | SCL-103,SCL-550 |
-| SCL-554 | Seleção de figurinos/clutches pela cliente | P1 | inventory/client | BACKLOG | unassigned | SCL-305,SCL-553 |
+| SCL-554 | Seleção de figurinos/clutches pela cliente | P1 | inventory/client | IN_REVIEW | agent:claude-code | SCL-305,SCL-553 |
 | SCL-555 | Styling ↔ itens reais reservados | P1 | inventory/client/admin | BACKLOG | unassigned | SCL-305,SCL-553 |
 | SCL-556 | Curadoria Paixão Clutch no Admin | P1 | inventory/admin | DONE | unassigned | SCL-552 |
 | SCL-557 | Paixão Clutch pública | P1 | site/inventory | DONE | unassigned | SCL-551,SCL-556,SCL-400 |
 | SCL-558 | Aluguel avulso Paixão Clutch | P2 | inventory/commerce | DEFERRED | unassigned | SCL-553,SCL-557 |
-| SCL-700 | Infra eventos + Resend + templates | P1 | automation | IN_REVIEW | agent:claude-code | SCL-008 |
+| SCL-700 | Infra eventos + Resend + templates | P1 | automation | DONE | agent:claude-code | SCL-008 |
 | SCL-701 | Boas-vindas após reserva | P1 | automation | BACKLOG | unassigned | SCL-211,SCL-700 |
 | SCL-702 | Scheduler D-7 / D-1 | P1 | automation | BACKLOG | unassigned | SCL-700,SCL-103 |
 | SCL-703 | Notificações de Reveal/Galeria | P1 | automation/gallery | BACKLOG | unassigned | SCL-502,SCL-503,SCL-700 |
 | SCL-704 | Pedido de review pós-entrega | P1 | automation/growth | BACKLOG | unassigned | SCL-503,SCL-700,SCL-720 |
-| SCL-705 | Delivery log + retry + idempotência | P1 | automation | IN_REVIEW | agent:claude-code | SCL-700 |
+| SCL-705 | Delivery log + retry + idempotência | P1 | automation | DONE | agent:claude-code | SCL-700 |
 | SCL-720 | Schema/serviços Review + Referral | P1 | growth/db | BACKLOG | unassigned | SCL-100,SCL-103 |
 | SCL-721 | Fluxo de avaliação / Google | P1 | growth/client | BACKLOG | unassigned | SCL-704,SCL-720 |
 | SCL-722 | Tracking de indicação e conversão | P1 | growth/admin | BACKLOG | unassigned | SCL-720,SCL-253 |
@@ -2108,17 +2108,17 @@ SCL-504, SCL-505, SCL-506 e SCL-703 estão desbloqueadas, mas permanecem pendent
 
 ### SCL-504 — Favoritos / PhotoSelection
 
-- Status: IN_REVIEW
+- Status: DONE
 - Priority: P1
 - Area: gallery/client
 - Owner: agent:claude-code
 - Branch: claude/scl-504-505-gallery-selection
-- PR: —
+- PR: #2 (merge `927698b`; SCL-504/505 via #3)
 - Depends on: SCL-500,SCL-503
 - Blocks: SCL-506
 - Files/Scope: `db/schema/galleries.ts`, `db/migrations/0050_gallery_selections_downloads.sql` (+ journal/snapshot), `domain/gallery/{selections,schema}.ts`, `app/(client)/minha-experiencia/galeria/{page,actions}.ts*`, `components/client/gallery-grid.tsx`, `app/admin/(protected)/galerias/[shootId]/*`, `components/admin/gallery-manager.tsx`
 - Migration: yes (`0050_gallery_selections_downloads`, empilhada sobre a `0049` de SCL-700)
-- Updated at: 2026-09-25 America/Manaus
+- Updated at: 2026-09-26 America/Manaus
 
 **Acceptance criteria**
 
@@ -2138,17 +2138,17 @@ SCL-504, SCL-505, SCL-506 e SCL-703 estão desbloqueadas, mas permanecem pendent
 
 ### SCL-505 — Downloads autorizados
 
-- Status: IN_REVIEW
+- Status: DONE
 - Priority: P1
 - Area: gallery/client
 - Owner: agent:claude-code
 - Branch: claude/scl-504-505-gallery-selection
-- PR: —
+- PR: #2 (merge `927698b`; SCL-504/505 via #3)
 - Depends on: SCL-501,SCL-503
 - Blocks: none
 - Files/Scope: `domain/gallery/{downloads,storage}.ts`, `app/(client)/minha-experiencia/galeria/fotos/[assetId]/download/route.ts`, `components/client/gallery-grid.tsx`, `app/admin/(protected)/galerias/[shootId]/*`, `components/admin/gallery-manager.tsx`
 - Migration: yes (coluna `galleries.downloads_enabled` na `0050_gallery_selections_downloads`, compartilhada com SCL-504)
-- Updated at: 2026-09-25 America/Manaus
+- Updated at: 2026-09-26 America/Manaus
 
 **Acceptance criteria**
 
@@ -2331,25 +2331,33 @@ Criar fonte de verdade para o acervo físico do estúdio, incluindo Paixão Clut
 
 ### SCL-554 — Seleção de figurinos/clutches pela cliente
 
-- Status: BACKLOG
+- Status: IN_REVIEW
 - Priority: P1
 - Area: inventory/client
-- Owner: unassigned
-- Branch: —
+- Owner: agent:claude-code
+- Branch: claude/scl-554-555-portal-inventory
 - PR: —
 - Depends on: SCL-305,SCL-553
 - Blocks: none
-- Files/Scope: Minha Experiência styling inventory UI
+- Files/Scope: `domain/inventory/{portal-selection,portal-selection-rules,reservations,reservation-schema,media-storage}.ts`, `app/(client)/minha-experiencia/styling/{page,actions}.ts*`, `components/client/inventory-selection.tsx`, `app/admin/(protected)/agenda/[id]/inventory-actions.ts`, `components/admin/inventory-reservations.tsx`
 - Migration: no
-- Updated at: 2026-09-07 America/Manaus
+- Updated at: 2026-09-26 America/Manaus
 
 **Acceptance criteria**
 
-- [ ] cliente vê somente itens elegíveis/ativos para seu fluxo;
-- [ ] diferencia preferência de reserva confirmada;
-- [ ] fotos e detalhes suficientes para decisão;
-- [ ] staff confirma/ajusta reserva;
-- [ ] indisponibilidade aparece sem prometer item conflitante.
+- [x] cliente vê somente itens elegíveis/ativos para seu fluxo;
+- [x] diferencia preferência de reserva confirmada;
+- [x] fotos e detalhes suficientes para decisão;
+- [x] staff confirma/ajusta reserva;
+- [x] indisponibilidade aparece sem prometer item conflitante.
+
+**Blocker/Hand-off notes**
+
+- concluído: preferência = `inventory_reservations` `pending` com `shoot_id` (nenhum outro fluxo grava esse par), confirmação = `confirmed`; a Server Action do portal resolve cliente/ensaio/Auth user pela sessão e o domínio revalida a posse no banco, trava o item (mesmo advisory lock das reservas) e a linha do ensaio, exige item ativo/`available` do tipo elegível (figurino pelo `outfits_limit`, ou 3 quando "a combinar"; clutch só com `clutch_included`), aplica o limite do pacote e a regra de conflito na data do ensaio, e audita `inventory_reservation.preference_created`/`preference_withdrawn`; a cliente só retira `pending`. Admin mostra "Preferência da cliente" e confirma via `defineAdminAction` (conflito excluindo a própria reserva, exceção explícita com motivo, auditoria `inventory_reservation.confirmed`); ajuste = cancelar + reservar pelo fluxo existente.
+- dados ao browser: só nome, tipo, cor, tamanho, estado e até 4 fotos assinadas (service role no servidor, 10 min); nunca código, descrição interna, preços, `storage_path` ou dados de outras reservas. Itens bloqueados por terceiros aparecem como "Indisponível na data do seu ensaio".
+- decisão: a preferência `pending` bloqueia a peça na data até a equipe decidir (pré-reserva), para não prometer a mesma peça a duas pessoas; o limite por pacote evita retenção excessiva.
+- testes: `tests/domain/inventory-portal-selection{,-rules}.test.ts`, `tests/domain/inventory-reservations.test.ts`, `tests/app/client-styling-{actions,page}.test.ts*`, `tests/components/client-inventory-selection.test.tsx`, `tests/app/admin-inventory-reservations.test.tsx`. Sem `node_modules` no ambiente desta task: lint/typecheck/test/build validados pelo CI do PR.
+- SCL-555 avaliada no spec `docs/superpowers/specs/2026-09-26-scl554-scl555-portal-inventory-design.md`: o vínculo referência ↔ item exige migration; desenho registrado como follow-up.
 
 ---
 
@@ -2470,17 +2478,17 @@ Evoluir a consulta pública para um fluxo completo de aluguel independente de en
 
 ### SCL-700 — Infra de eventos + Resend + templates
 
-- Status: IN_REVIEW
+- Status: DONE
 - Priority: P1
 - Area: automation
 - Owner: agent:claude-code
 - Branch: claude/scl-700-705-email-foundation
-- PR: —
+- PR: #2 (merge `927698b`; SCL-504/505 via #3)
 - Depends on: SCL-008
 - Blocks: SCL-701,SCL-702,SCL-703,SCL-704,SCL-705
 - Files/Scope: `db/schema/automation.ts`, `db/migrations/0049_email_automation_outbox.sql` (+ journal/snapshot), `domain/automation/**`, `lib/email/**`, `lib/observability/report-error.ts`, `.env.example`
 - Migration: yes (`0049_email_automation_outbox`)
-- Updated at: 2026-09-25 America/Manaus
+- Updated at: 2026-09-26 America/Manaus
 
 **Acceptance criteria**
 
@@ -2594,17 +2602,17 @@ Evoluir a consulta pública para um fluxo completo de aluguel independente de en
 
 ### SCL-705 — Delivery log + retry + idempotência
 
-- Status: IN_REVIEW
+- Status: DONE
 - Priority: P1
 - Area: automation
 - Owner: agent:claude-code
 - Branch: claude/scl-700-705-email-foundation
-- PR: —
+- PR: #2 (merge `927698b`; SCL-504/505 via #3)
 - Depends on: SCL-700
 - Blocks: production reliability gate
 - Files/Scope: `domain/automation/{processor,delivery-store,retry,sanitize,reprocess}.ts`, `app/api/cron/email-deliveries/route.ts`, `lib/auth/cron-secret.ts`, `docs/runbooks/email-automation.md`
 - Migration: yes (compartilhada com SCL-700: `0049_email_automation_outbox`)
-- Updated at: 2026-09-25 America/Manaus
+- Updated at: 2026-09-26 America/Manaus
 
 **Acceptance criteria**
 

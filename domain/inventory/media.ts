@@ -13,9 +13,8 @@ import {
   setInventoryMediaCoverSchema,
   uploadInventoryMediaSchema,
 } from "./media-schema";
-import { inventoryMediaPath } from "./media-storage";
+import { INVENTORY_MEDIA_BUCKET, inventoryMediaPath } from "./media-storage";
 
-const INVENTORY_MEDIA_BUCKET = "inventory-media";
 const SIGNED_URL_TTL_SECONDS = 60 * 10;
 type MediaTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 

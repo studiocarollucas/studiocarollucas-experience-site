@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const shootId = "00000000-0000-4000-8000-000000000001";
@@ -8,6 +8,7 @@ const mocks = vi.hoisted(() => ({
   getCurrentUser: vi.fn(),
   createReservation: vi.fn(),
   cancelReservation: vi.fn(),
+  confirmReservation: vi.fn(),
   dbSelect: vi.fn(),
   revalidatePath: vi.fn(),
   search: vi.fn(),
@@ -17,6 +18,7 @@ vi.mock("@/lib/auth/session", () => ({ getCurrentUser: mocks.getCurrentUser }));
 vi.mock("@/domain/inventory/reservations", () => ({
   createShootInventoryReservation: mocks.createReservation,
   cancelInventoryReservation: mocks.cancelReservation,
+  confirmShootInventoryReservation: mocks.confirmReservation,
   InventoryReservationConflictError: class InventoryReservationConflictError extends Error {},
   InventoryItemUnavailableError: class InventoryItemUnavailableError extends Error {},
 }));
@@ -236,6 +238,102 @@ describe("shoot inventory reservations", () => {
     expect(screen.getByText(/Aprovada pela produção/)).toBeInTheDocument();
     expect(screen.getByLabelText("Item do acervo")).toBeInTheDocument();
     expect(screen.getByLabelText("Registrar exceção por conflito")).toBeInTheDocument();
+  });
+
+  it("labels a client preference and lets staff confirm it through the action", async () => {
+    mocks.confirmReservation.mockResolvedValue({ id: "reservation-3" });
+    render(
+      <InventoryReservations
+        shootId={shootId}
+        shootDate="2030-05-10"
+        reservations={[
+          {
+            id: "00000000-0000-4000-8000-000000000003",
+            itemName: "Vestido rosé",
+            itemCode: "VT-03",
+            itemType: "outfit",
+            startsOn: "2030-05-10",
+            endsOn: "2030-05-10",
+            status: "pending",
+            overrideReason: null,
+          },
+        ]}
+      />
+    );
+
+    expect(screen.getByText("Preferência da cliente")).toBeInTheDocument();
+    expect(screen.getByText(/Escolhida pela cliente no portal/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Cancelar reserva" })).toBeInTheDocument();
+    fireEvent.submit(screen.getByRole("button", { name: "Confirmar reserva" }).closest("form")!);
+
+    await waitFor(() => expect(mocks.confirmReservation).toHaveBeenCalledTimes(1));
+    expect(mocks.confirmReservation).toHaveBeenCalledWith(
+      {
+        reservationId: "00000000-0000-4000-8000-000000000003",
+        shootId,
+        overrideConflict: false,
+      },
+      "staff-1"
+    );
+    await waitFor(() =>
+      expect(screen.queryByRole("button", { name: "Confirmar reserva" })).not.toBeInTheDocument()
+    );
+    expect(mocks.revalidatePath).toHaveBeenCalledWith(`/admin/agenda/${shootId}`);
+  });
+
+  it("reveals an explicit exception only after a conflicting confirmation", async () => {
+    mocks.confirmReservation
+      .mockRejectedValueOnce(new InventoryReservationConflictError())
+      .mockResolvedValueOnce({ id: "reservation-3" });
+    render(
+      <InventoryReservations
+        shootId={shootId}
+        shootDate="2030-05-10"
+        reservations={[
+          {
+            id: "00000000-0000-4000-8000-000000000003",
+            itemName: "Vestido rosé",
+            itemCode: "VT-03",
+            itemType: "outfit",
+            startsOn: "2030-05-10",
+            endsOn: "2030-05-10",
+            status: "pending",
+            overrideReason: null,
+          },
+        ]}
+      />
+    );
+
+    expect(screen.getAllByLabelText("Registrar exceção por conflito")).toHaveLength(1);
+    fireEvent.submit(screen.getByRole("button", { name: "Confirmar reserva" }).closest("form")!);
+    await screen.findByText(/Cancele a preferência ou marque/);
+    const confirmForm = screen.getByRole("button", { name: "Confirmar reserva" }).closest("form")!;
+    const [overrideCheckbox] = within(confirmForm).getAllByLabelText("Registrar exceção por conflito");
+    fireEvent.click(overrideCheckbox);
+    fireEvent.change(within(confirmForm).getByLabelText("Motivo da exceção"), {
+      target: { value: "Troca combinada" },
+    });
+    fireEvent.submit(confirmForm);
+
+    await waitFor(() => expect(mocks.confirmReservation).toHaveBeenCalledTimes(2));
+    expect(mocks.confirmReservation).toHaveBeenLastCalledWith(
+      expect.objectContaining({ overrideConflict: true, overrideReason: "Troca combinada" }),
+      "staff-1"
+    );
+  });
+
+  it("requires staff to confirm a client preference", async () => {
+    mocks.getCurrentUser.mockResolvedValue({ id: "client-1", role: "client" });
+    const { confirmShootInventoryReservationAction } =
+      await import("@/app/admin/(protected)/agenda/[id]/inventory-actions");
+
+    await expect(
+      confirmShootInventoryReservationAction({
+        reservationId: "00000000-0000-4000-8000-000000000003",
+        shootId,
+      })
+    ).resolves.toMatchObject({ ok: false });
+    expect(mocks.confirmReservation).not.toHaveBeenCalled();
   });
 
   it("revalidates the shoot detail after a staff cancellation", async () => {
