@@ -5,12 +5,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({
   processDueDeliveries: vi.fn(),
   createDrizzleDeliveryStore: vi.fn(),
+  createAutomationDeliveryGuard: vi.fn(),
   resolveEmailDelivery: vi.fn(),
   reportError: vi.fn(),
 }));
 
 vi.mock("@/domain/automation/processor", () => ({ processDueDeliveries: mocks.processDueDeliveries }));
 vi.mock("@/domain/automation/delivery-store", () => ({ createDrizzleDeliveryStore: mocks.createDrizzleDeliveryStore }));
+vi.mock("@/domain/automation/guard", () => ({ createAutomationDeliveryGuard: mocks.createAutomationDeliveryGuard }));
 vi.mock("@/lib/observability/report-error", () => ({ reportError: mocks.reportError }));
 vi.mock("@/lib/email/config", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/email/config")>()),
@@ -22,8 +24,9 @@ import { EmailConfigError } from "@/lib/email/config";
 
 const secret = "c".repeat(48);
 const url = "https://studio.test/api/cron/email-deliveries";
-const summary = { staleFailed: 0, claimed: 2, sent: 1, retried: 1, failed: 0, lostLease: 0, errors: 0 };
+const summary = { staleFailed: 0, claimed: 2, sent: 1, retried: 1, failed: 0, cancelled: 0, lostLease: 0, errors: 0 };
 const store = { kind: "store" };
+const guard = vi.fn();
 const provider = { name: "resend", send: vi.fn() };
 
 function request(authorization?: string, method = "GET") {
@@ -36,6 +39,7 @@ beforeEach(() => {
   vi.spyOn(console, "error").mockImplementation(() => {});
   vi.stubEnv("CRON_SECRET", secret);
   mocks.createDrizzleDeliveryStore.mockReturnValue(store);
+  mocks.createAutomationDeliveryGuard.mockReturnValue(guard);
   mocks.resolveEmailDelivery.mockReturnValue({
     mode: "resend",
     provider,
@@ -68,7 +72,7 @@ describe("/api/cron/email-deliveries", () => {
     expect(mocks.processDueDeliveries).not.toHaveBeenCalled();
   });
 
-  it("processes due deliveries for GET (Vercel Cron) and POST, returning only counters", async () => {
+  it("processes due deliveries for GET (Vercel Cron) and POST with the send-time guard, returning only counters", async () => {
     for (const method of ["GET", "POST"] as const) {
       const handler = method === "GET" ? GET : POST;
       const response = await handler(request(`Bearer ${secret}`, method));
@@ -80,6 +84,7 @@ describe("/api/cron/email-deliveries", () => {
       provider,
       from: "Stúdio <ola@studiocarollucas.com.br>",
       replyTo: undefined,
+      guard,
     });
   });
 

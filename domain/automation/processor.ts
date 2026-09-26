@@ -38,7 +38,18 @@ export interface DeliveryStore {
   }): Promise<boolean>;
   markRetry(input: { id: string; attemptCount: number; nextAttemptAt: Date; error: string; now: Date }): Promise<boolean>;
   markFailed(input: { id: string; attemptCount: number; error: string; now: Date }): Promise<boolean>;
+  /** The guard vetoed the send: `cancelled`, never retried. `reason` holds no personal data. */
+  markCancelled(input: { id: string; attemptCount: number; reason: string; now: Date }): Promise<boolean>;
 }
+
+export type DeliveryGuardDecision = { send: true } | { send: false; reason: string };
+
+/**
+ * Send-time eligibility check (e.g. a reminder for a shoot that was cancelled
+ * or moved after it was enqueued). A thrown error counts as a transient
+ * failure and the delivery is retried.
+ */
+export type DeliveryGuard = (delivery: ClaimedDelivery, now: Date) => Promise<DeliveryGuardDecision>;
 
 export type ProcessDeliveriesSummary = {
   staleFailed: number;
@@ -46,6 +57,7 @@ export type ProcessDeliveriesSummary = {
   sent: number;
   retried: number;
   failed: number;
+  cancelled: number;
   lostLease: number;
   errors: number;
 };
@@ -60,7 +72,13 @@ type ProcessDueDeliveriesOptions = {
   leaseMs?: number;
   retryPolicy?: RetryPolicy;
   reportError?: ErrorReporter;
+  guard?: DeliveryGuard;
 };
+
+type AttemptOutcome =
+  | { kind: "sent"; provider: string; messageId: string | null }
+  | { kind: "cancelled"; reason: string }
+  | { kind: "error"; error: unknown };
 
 class EmailDeliveryFailure extends Error {
   constructor(message: string) {
@@ -96,6 +114,7 @@ export async function processDueDeliveries(options: ProcessDueDeliveriesOptions)
     sent: 0,
     retried: 0,
     failed: 0,
+    cancelled: 0,
     lostLease: 0,
     errors: 0,
   };
@@ -116,6 +135,34 @@ export async function processDueDeliveries(options: ProcessDueDeliveriesOptions)
   });
   summary.claimed = deliveries.length;
 
+  async function attemptDelivery(delivery: ClaimedDelivery): Promise<AttemptOutcome> {
+    try {
+      if (options.guard) {
+        const decision = await options.guard(delivery, now());
+        if (!decision.send) return { kind: "cancelled", reason: decision.reason };
+      }
+      const rendered = getEmailTemplate(delivery.templateKey, delivery.templateVersion).render(delivery.templateData);
+      const result = await provider.send(
+        {
+          from: options.from,
+          to: delivery.recipient,
+          replyTo: options.replyTo,
+          subject: rendered.subject,
+          html: rendered.html,
+          text: rendered.text,
+          tags: [
+            { name: "template", value: delivery.templateKey },
+            { name: "template_version", value: String(delivery.templateVersion) },
+          ],
+        },
+        { idempotencyKey: deliveryIdempotencyKey(delivery.id) },
+      );
+      return { kind: "sent", provider: result.provider, messageId: result.messageId };
+    } catch (error) {
+      return { kind: "error", error };
+    }
+  }
+
   for (const delivery of deliveries) {
     const context = {
       deliveryId: delivery.id,
@@ -128,30 +175,26 @@ export async function processDueDeliveries(options: ProcessDueDeliveriesOptions)
     };
 
     try {
-      let outcome: { ok: true; provider: string; messageId: string | null } | { ok: false; error: unknown };
-      try {
-        const rendered = getEmailTemplate(delivery.templateKey, delivery.templateVersion).render(delivery.templateData);
-        const result = await provider.send(
-          {
-            from: options.from,
-            to: delivery.recipient,
-            replyTo: options.replyTo,
-            subject: rendered.subject,
-            html: rendered.html,
-            text: rendered.text,
-            tags: [
-              { name: "template", value: delivery.templateKey },
-              { name: "template_version", value: String(delivery.templateVersion) },
-            ],
-          },
-          { idempotencyKey: deliveryIdempotencyKey(delivery.id) },
-        );
-        outcome = { ok: true, provider: result.provider, messageId: result.messageId };
-      } catch (error) {
-        outcome = { ok: false, error };
+      const outcome = await attemptDelivery(delivery);
+
+      if (outcome.kind === "cancelled") {
+        const marked = await store.markCancelled({
+          id: delivery.id,
+          attemptCount: delivery.attemptCount,
+          reason: outcome.reason,
+          now: now(),
+        });
+        if (marked) {
+          summary.cancelled += 1;
+          logger.info("email delivery cancelled at send time", { ...context, reason: outcome.reason });
+        } else {
+          summary.lostLease += 1;
+          logger.warn("email delivery lease lost before it was marked cancelled", context);
+        }
+        continue;
       }
 
-      if (outcome.ok) {
+      if (outcome.kind === "sent") {
         const marked = await store.markSent({
           id: delivery.id,
           attemptCount: delivery.attemptCount,

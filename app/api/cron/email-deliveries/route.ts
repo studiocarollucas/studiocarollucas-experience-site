@@ -1,6 +1,7 @@
 import "server-only";
 
 import { createDrizzleDeliveryStore } from "@/domain/automation/delivery-store";
+import { createAutomationDeliveryGuard } from "@/domain/automation/guard";
 import { processDueDeliveries } from "@/domain/automation/processor";
 import { sanitizeDeliveryError } from "@/domain/automation/sanitize";
 import { isAuthorizedCronRequest, isCronSecretConfigured } from "@/lib/auth/cron-secret";
@@ -47,6 +48,7 @@ async function handle(request: Request): Promise<Response> {
       provider: delivery.provider,
       from: delivery.from,
       replyTo: delivery.replyTo,
+      guard: createAutomationDeliveryGuard(),
     });
     logger.info("email cron finished", { mode: delivery.mode, ...summary });
     return json({ ok: true, mode: delivery.mode, ...summary }, 200);

@@ -126,5 +126,15 @@ export function createDrizzleDeliveryStore(database: typeof db = db): DeliverySt
         .returning({ id: notificationDeliveries.id });
       return rows.length > 0;
     },
+
+    async markCancelled({ id, attemptCount, reason, now }) {
+      // `last_error` keeps the (non-personal) reason the guard gave, for the runbook queries.
+      const rows = await database
+        .update(notificationDeliveries)
+        .set({ status: "cancelled", lockedUntil: null, lastError: reason, updatedAt: now })
+        .where(ownsClaim(id, attemptCount))
+        .returning({ id: notificationDeliveries.id });
+      return rows.length > 0;
+    },
   };
 }
