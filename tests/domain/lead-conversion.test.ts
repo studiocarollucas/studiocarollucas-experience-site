@@ -6,11 +6,16 @@ const mocks = vi.hoisted(() => ({
   select: vi.fn(),
   insert: vi.fn(),
   update: vi.fn(),
+  linkLeadReferralOnConversion: vi.fn(),
 }));
 
 vi.mock("@/db/client", () => ({ db: mocks }));
+vi.mock("@/domain/referrals/lead-conversion", () => ({
+  linkLeadReferralOnConversion: mocks.linkLeadReferralOnConversion,
+}));
 
 import { convertWonLead, findLeadClientCandidates } from "@/domain/leads/conversion";
+import { ReferralError } from "@/domain/referrals/errors";
 
 const LEAD_ID = "00000000-0000-4000-8000-000000000001";
 const STAFF_ID = "00000000-0000-4000-8000-000000000002";
@@ -60,6 +65,7 @@ describe("lead conversion", () => {
     });
     expect(tx.insert).not.toHaveBeenCalled();
     expect(tx.update).not.toHaveBeenCalled();
+    expect(mocks.linkLeadReferralOnConversion).not.toHaveBeenCalled();
   });
 
   it("rejects a Lead that is not won before creating any records", async () => {
@@ -140,7 +146,7 @@ describe("lead conversion", () => {
   it("creates a Client from the Lead, persists one conversion, updates the Lead, and audits it", async () => {
     const lead = { id: LEAD_ID, status: "ganho", clientId: null, name: "Maria Silva", email: "maria@example.com", phone: "92999990000" };
     const client = { id: "client-1", name: lead.name, email: lead.email, phone: lead.phone, source: "lead_conversion" };
-    const conversion = { leadId: LEAD_ID, clientId: client.id, convertedByUserId: STAFF_ID };
+    const conversion = { leadId: LEAD_ID, clientId: client.id, convertedByUserId: STAFF_ID, createdAt: new Date("2026-09-26T12:00:00.000Z") };
     const lock = vi.fn().mockResolvedValue([lead]);
     const lockedLimit = vi.fn().mockReturnValue({ for: lock });
     const limit = vi.fn().mockResolvedValueOnce([]);
@@ -175,5 +181,53 @@ describe("lead conversion", () => {
       before: { clientId: null },
       after: { clientId: client.id },
     });
+    expect(mocks.linkLeadReferralOnConversion).toHaveBeenCalledWith(tx, {
+      leadId: LEAD_ID,
+      clientId: client.id,
+      convertedAt: conversion.createdAt,
+      actorUserId: STAFF_ID,
+    });
+  });
+
+  it("links the Lead's referral to the converted Client inside the same transaction and rolls back on conflict", async () => {
+    const lead = { id: LEAD_ID, status: "ganho", clientId: null, name: "Maria Silva", email: null, phone: null };
+    const existingClientId = "00000000-0000-4000-8000-000000000003";
+    const conversion = { leadId: LEAD_ID, clientId: existingClientId, convertedByUserId: STAFF_ID, createdAt: new Date("2026-09-26T12:00:00.000Z") };
+    const persisted = { conversions: [] as string[] };
+    const staged = { conversions: [] as string[] };
+    const lock = vi.fn().mockResolvedValue([lead]);
+    const lockedLimit = vi.fn().mockReturnValue({ for: lock });
+    const limit = vi.fn().mockResolvedValueOnce([]).mockResolvedValueOnce([{ id: existingClientId, name: "Maria" }]);
+    const where = vi.fn().mockReturnValueOnce({ limit: lockedLimit }).mockReturnValue({ limit });
+    const from = vi.fn().mockReturnValue({ where });
+    const conversionValues = vi.fn().mockReturnValue({ returning: vi.fn().mockImplementation(async () => {
+      staged.conversions.push(existingClientId);
+      return [conversion];
+    }) });
+    const updateSet = vi.fn().mockReturnValue({ where: vi.fn().mockReturnValue({ returning: vi.fn().mockResolvedValue([]) }) });
+    const tx = {
+      select: vi.fn().mockReturnValue({ from }),
+      insert: vi.fn().mockReturnValueOnce({ values: conversionValues }),
+      update: vi.fn().mockReturnValue({ set: updateSet }),
+    };
+    mocks.transaction.mockImplementation(async (operation) => {
+      await operation(tx);
+      persisted.conversions.push(...staged.conversions);
+    });
+    mocks.linkLeadReferralOnConversion.mockRejectedValue(
+      new ReferralError("A cliente escolhida é a própria indicadora deste Lead."),
+    );
+
+    await expect(
+      convertWonLead({ leadId: LEAD_ID, actorUserId: STAFF_ID, client: { mode: "existing", clientId: existingClientId } }),
+    ).rejects.toThrow("A cliente escolhida é a própria indicadora deste Lead.");
+    expect(mocks.linkLeadReferralOnConversion).toHaveBeenCalledWith(tx, {
+      leadId: LEAD_ID,
+      clientId: existingClientId,
+      convertedAt: conversion.createdAt,
+      actorUserId: STAFF_ID,
+    });
+    expect(tx.insert).toHaveBeenCalledTimes(1);
+    expect(persisted.conversions).toEqual([]);
   });
 });

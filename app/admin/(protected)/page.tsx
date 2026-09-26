@@ -14,7 +14,7 @@ function currentMonthRange(): { from: string; to: string } {
 
 export default async function DashboardPage() {
   const range = currentMonthRange();
-  const { kpis, attention } = await getDashboardData(range);
+  const { kpis, attention, referrals } = await getDashboardData(range);
 
   return (
     <div>
@@ -32,6 +32,11 @@ export default async function DashboardPage() {
           label="Produção"
           value={String(kpis.productionInProgress)}
           sub={`${kpis.finishedShoots} finalizados · ${kpis.upcomingDeliveries} entregas vencidas`}
+        />
+        <KpiTile
+          label="Indicações"
+          value={String(referrals.informed)}
+          sub={`${referrals.converted} ${referrals.converted === 1 ? "convertida" : "convertidas"} no período`}
         />
       </div>
 

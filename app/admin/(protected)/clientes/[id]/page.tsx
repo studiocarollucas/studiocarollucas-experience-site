@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getClientDetail } from "@/domain/clients/queries";
 import { listContractsForClient } from "@/domain/contracts/queries";
+import { getClientReferralSummary } from "@/domain/referrals/queries";
 import { PageHeader } from "@/components/ui/page-header";
 import { Badge } from "@/components/ui/badge";
 import { DataTable, type Column } from "@/components/ui/data-table";
@@ -40,7 +41,11 @@ const shootColumns: Column<ClientShootSummary>[] = [
 
 export default async function ClientDetailPage({ params }: { params: Params }) {
   const { id } = await params;
-  const [detail, contracts] = await Promise.all([getClientDetail(id), listContractsForClient(id)]);
+  const [detail, contracts, referrals] = await Promise.all([
+    getClientDetail(id),
+    listContractsForClient(id),
+    getClientReferralSummary(id),
+  ]);
   if (!detail) notFound();
 
   const { client, shoots, lifetimeRevenue, openBalance } = detail;
@@ -77,6 +82,25 @@ export default async function ClientDetailPage({ params }: { params: Params }) {
           <DetailRow label="Receita acumulada" value={formatBRL(lifetimeRevenue)} />
           <DetailRow label="Saldo em aberto" value={formatBRL(openBalance)} />
           <DetailRow label="Ensaios" value={String(shoots.length)} />
+          <DetailRow
+            label="Indicada por"
+            value={
+              referrals.referredBy ? (
+                <Link
+                  href={`/admin/clientes/${referrals.referredBy.id}`}
+                  className="text-ink underline-offset-2 hover:underline"
+                >
+                  {referrals.referredBy.name}
+                </Link>
+              ) : (
+                "—"
+              )
+            }
+          />
+          <DetailRow
+            label="Indicações feitas"
+            value={`${referrals.made} · ${referrals.converted} ${referrals.converted === 1 ? "convertida" : "convertidas"}`}
+          />
           {client.notes ? (
             <p className="mt-3 whitespace-pre-wrap font-sans text-sm text-muted">{client.notes}</p>
           ) : null}

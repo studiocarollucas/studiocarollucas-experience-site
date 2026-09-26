@@ -11,6 +11,7 @@ const mocks = vi.hoisted(() => ({
   createShootAction: vi.fn(),
   createConfirmedShootFromLead: vi.fn(),
   listActivePackages: vi.fn(),
+  getLeadReferralPanel: vi.fn(),
 }));
 
 vi.mock("@/lib/auth/session", () => ({ getCurrentUser: mocks.getCurrentUser }));
@@ -25,6 +26,7 @@ vi.mock("@/domain/leads/conversion", () => ({
 vi.mock("@/domain/shoots/actions", () => ({ createShootAction: mocks.createShootAction }));
 vi.mock("@/domain/leads/converted-shoot", () => ({ createConfirmedShootFromLead: mocks.createConfirmedShootFromLead }));
 vi.mock("@/domain/catalog/queries", () => ({ listActivePackages: mocks.listActivePackages }));
+vi.mock("@/domain/referrals/queries", () => ({ getLeadReferralPanel: mocks.getLeadReferralPanel }));
 vi.mock("next/cache", () => ({ revalidatePath: mocks.revalidatePath }));
 vi.mock("next/navigation", () => ({
   redirect: (path: string) => {
@@ -46,6 +48,7 @@ const clientId = "00000000-0000-4000-8000-000000000003";
 describe("protected Lead conversion", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.getLeadReferralPanel.mockResolvedValue({ referral: null, referrerOptions: [] });
     mocks.getCurrentUser.mockResolvedValue({ id: actorUserId, role: "staff" });
     mocks.listActivePackages.mockResolvedValue([]);
   });

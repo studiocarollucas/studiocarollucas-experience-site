@@ -4,6 +4,7 @@ import { PageHeader } from "@/components/ui/page-header";
 import { listActivePackages } from "@/domain/catalog/queries";
 import { findLeadClientCandidates } from "@/domain/leads/conversion";
 import { getLeadDetail } from "@/domain/leads/detail";
+import { getLeadReferralPanel } from "@/domain/referrals/queries";
 import { hasMinimumRole } from "@/lib/auth/rbac";
 import { getCurrentUser } from "@/lib/auth/session";
 
@@ -17,11 +18,12 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
   const [candidates, packages] = lead.status === "ganho"
     ? await Promise.all([findLeadClientCandidates(lead.id), listActivePackages()])
     : [[], []];
+  const referralPanel = await getLeadReferralPanel(lead.id);
 
   return (
     <div>
       <PageHeader title={lead.name ?? "Lead sem nome"} description="Ficha comercial e histórico do Lead." />
-      <LeadDetail lead={lead} candidates={candidates} packages={packages} />
+      <LeadDetail lead={lead} candidates={candidates} packages={packages} referralPanel={referralPanel} />
     </div>
   );
 }

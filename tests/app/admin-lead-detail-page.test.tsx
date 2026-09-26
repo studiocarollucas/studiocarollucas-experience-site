@@ -6,10 +6,12 @@ const mocks = vi.hoisted(() => ({
   getLeadDetail: vi.fn(),
   transitionLeadStatus: vi.fn(),
   revalidatePath: vi.fn(),
+  getLeadReferralPanel: vi.fn(),
 }));
 
 vi.mock("@/lib/auth/session", () => ({ getCurrentUser: mocks.getCurrentUser }));
 vi.mock("@/domain/leads/detail", () => ({ getLeadDetail: mocks.getLeadDetail, transitionLeadStatus: mocks.transitionLeadStatus }));
+vi.mock("@/domain/referrals/queries", () => ({ getLeadReferralPanel: mocks.getLeadReferralPanel }));
 vi.mock("next/cache", () => ({ revalidatePath: mocks.revalidatePath }));
 vi.mock("next/navigation", () => ({
   redirect: (path: string) => {
@@ -26,6 +28,7 @@ import { transitionLeadStatusAction } from "@/app/admin/(protected)/leads/[id]/a
 describe("LeadDetailPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.getLeadReferralPanel.mockResolvedValue({ referral: null, referrerOptions: [] });
     mocks.getCurrentUser.mockResolvedValue({ id: "staff-1", email: "staff@example.test", role: "staff" });
   });
 

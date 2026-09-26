@@ -4,8 +4,10 @@ import { useActionState } from "react";
 import { transitionLeadStatusAction } from "@/app/admin/(protected)/leads/[id]/actions";
 import { Badge } from "@/components/ui/badge";
 import { LeadConversion } from "@/components/admin/lead-conversion";
+import { LeadReferral } from "@/components/admin/lead-referral";
 import type { ClientCandidate } from "@/domain/leads/conversion";
 import type { LeadDetail as LeadDetailData } from "@/domain/leads/detail";
+import type { LeadReferralPanel } from "@/domain/referrals/queries";
 import { canTransitionLeadStatus } from "@/domain/leads/status";
 import { leadStatusValues } from "@/domain/leads/schema";
 import { toFormAction, type ActionResult } from "@/lib/auth/action-result";
@@ -19,10 +21,12 @@ export function LeadDetail({
   lead,
   candidates = [],
   packages = [],
+  referralPanel,
 }: {
   lead: LeadDetailData;
   candidates?: ClientCandidate[];
   packages?: { id: string; name: string; familyName: string }[];
+  referralPanel?: LeadReferralPanel;
 }) {
   const nextStatuses = leadStatusValues.filter((status) => canTransitionLeadStatus(lead.status, status));
   const [state, formAction] = useActionState(toFormAction(transitionLeadStatusAction), null as ActionResult<{ id: string }> | null);
@@ -47,6 +51,8 @@ export function LeadDetail({
       </section>
 
       {lead.lostReason ? <p className="font-sans text-sm text-muted">Motivo da perda: {lead.lostReason}</p> : null}
+
+      {referralPanel ? <LeadReferral leadId={lead.id} panel={referralPanel} /> : null}
 
       {lead.status === "ganho" ? <LeadConversion leadId={lead.id} candidates={candidates} packages={packages} /> : null}
 

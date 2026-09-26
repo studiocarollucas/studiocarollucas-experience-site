@@ -22,6 +22,9 @@ export const clients = pgTable("clients", {
   addressState: text("address_state"),
   addressPostalCode: text("address_postal_code"),
   source: text("source"),
+  // Legacy (SCL-720): copied into `referrals` (source 'legado') and frozen by the
+  // trigger clients_referrer_client_id_frozen in migration 0051. Never read or
+  // write it — `referrals` is the only source of truth for referrals.
   referrerClientId: uuid("referrer_client_id"),
   styleProfile: text("style_profile"),
   notes: text("notes"),

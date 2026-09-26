@@ -1,6 +1,7 @@
 import { and, eq, gte, lte, ne, inArray } from "drizzle-orm";
 import { db } from "@/db/client";
 import { shoots, payments, expenses, productionJobs } from "@/db/schema";
+import { getReferralMetrics, type ReferralMetrics } from "@/domain/referrals/queries";
 import { computeDashboardKpis, shootsNeedingPayment, type DashboardKpis } from "./kpis";
 
 export type AttentionItem = {
@@ -12,6 +13,7 @@ export type AttentionItem = {
 export async function getDashboardData(range: { from: string; to: string }): Promise<{
   kpis: DashboardKpis;
   attention: AttentionItem[];
+  referrals: ReferralMetrics;
 }> {
   const periodShoots = await db
     .select({
@@ -75,5 +77,9 @@ export async function getDashboardData(range: { from: string; to: string }): Pro
     })),
   ];
 
-  return { kpis, attention };
+  // SCL-722: informed vs converted referrals in the same period, counted from the
+  // referrals rows (never stored as an aggregate).
+  const referrals = await getReferralMetrics(range);
+
+  return { kpis, attention, referrals };
 }
