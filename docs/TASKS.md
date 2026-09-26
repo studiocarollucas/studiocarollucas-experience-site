@@ -100,8 +100,8 @@ Esta revisão preserva todas as tasks já concluídas e adiciona cobertura expl�
 | SCL-406 | SEO técnico + Analytics | P1 | site | DONE | agent:claude-code | SCL-400,SCL-401,SCL-402 |
 | SCL-501 | GalleryAsset + storage privado | P1 | gallery | DONE | unassigned | SCL-500 |
 | SCL-502 | Gestão/publicação da galeria | P1 | gallery/admin | DONE | unassigned | SCL-500,SCL-501,SCL-230 |
-| SCL-504 | Favoritos / PhotoSelection | P1 | gallery/client | IN_REVIEW | agent:claude-code | SCL-500,SCL-503 |
-| SCL-505 | Downloads autorizados | P1 | gallery/client | IN_REVIEW | agent:claude-code | SCL-501,SCL-503 |
+| SCL-504 | Favoritos / PhotoSelection | P1 | gallery/client | DONE | agent:claude-code | SCL-500,SCL-503 |
+| SCL-505 | Downloads autorizados | P1 | gallery/client | DONE | agent:claude-code | SCL-501,SCL-503 |
 | SCL-506 | Catálogo de produtos/upsells | P1 | gallery/commerce | BACKLOG | unassigned | SCL-500,SCL-503 |
 | SCL-507 | Pedido de upsell + Financeiro | P1 | gallery/finance | BACKLOG | unassigned | SCL-104,SCL-506 |
 | SCL-550 | Schema InventoryItem | P1 | inventory/db | DONE | unassigned | SCL-005 |
@@ -113,12 +113,12 @@ Esta revisão preserva todas as tasks já concluídas e adiciona cobertura expl�
 | SCL-556 | Curadoria Paixão Clutch no Admin | P1 | inventory/admin | DONE | unassigned | SCL-552 |
 | SCL-557 | Paixão Clutch pública | P1 | site/inventory | DONE | unassigned | SCL-551,SCL-556,SCL-400 |
 | SCL-558 | Aluguel avulso Paixão Clutch | P2 | inventory/commerce | DEFERRED | unassigned | SCL-553,SCL-557 |
-| SCL-700 | Infra eventos + Resend + templates | P1 | automation | IN_REVIEW | agent:claude-code | SCL-008 |
+| SCL-700 | Infra eventos + Resend + templates | P1 | automation | DONE | agent:claude-code | SCL-008 |
 | SCL-701 | Boas-vindas após reserva | P1 | automation | BACKLOG | unassigned | SCL-211,SCL-700 |
 | SCL-702 | Scheduler D-7 / D-1 | P1 | automation | BACKLOG | unassigned | SCL-700,SCL-103 |
 | SCL-703 | Notificações de Reveal/Galeria | P1 | automation/gallery | BACKLOG | unassigned | SCL-502,SCL-503,SCL-700 |
 | SCL-704 | Pedido de review pós-entrega | P1 | automation/growth | BACKLOG | unassigned | SCL-503,SCL-700,SCL-720 |
-| SCL-705 | Delivery log + retry + idempotência | P1 | automation | IN_REVIEW | agent:claude-code | SCL-700 |
+| SCL-705 | Delivery log + retry + idempotência | P1 | automation | DONE | agent:claude-code | SCL-700 |
 | SCL-720 | Schema/serviços Review + Referral | P1 | growth/db | BACKLOG | unassigned | SCL-100,SCL-103 |
 | SCL-721 | Fluxo de avaliação / Google | P1 | growth/client | BACKLOG | unassigned | SCL-704,SCL-720 |
 | SCL-722 | Tracking de indicação e conversão | P1 | growth/admin | BACKLOG | unassigned | SCL-720,SCL-253 |
@@ -2108,17 +2108,17 @@ SCL-504, SCL-505, SCL-506 e SCL-703 estão desbloqueadas, mas permanecem pendent
 
 ### SCL-504 — Favoritos / PhotoSelection
 
-- Status: IN_REVIEW
+- Status: DONE
 - Priority: P1
 - Area: gallery/client
 - Owner: agent:claude-code
 - Branch: claude/scl-504-505-gallery-selection
-- PR: —
+- PR: #2 (merge `927698b`; SCL-504/505 via #3)
 - Depends on: SCL-500,SCL-503
 - Blocks: SCL-506
 - Files/Scope: `db/schema/galleries.ts`, `db/migrations/0050_gallery_selections_downloads.sql` (+ journal/snapshot), `domain/gallery/{selections,schema}.ts`, `app/(client)/minha-experiencia/galeria/{page,actions}.ts*`, `components/client/gallery-grid.tsx`, `app/admin/(protected)/galerias/[shootId]/*`, `components/admin/gallery-manager.tsx`
 - Migration: yes (`0050_gallery_selections_downloads`, empilhada sobre a `0049` de SCL-700)
-- Updated at: 2026-09-25 America/Manaus
+- Updated at: 2026-09-26 America/Manaus
 
 **Acceptance criteria**
 
@@ -2138,17 +2138,17 @@ SCL-504, SCL-505, SCL-506 e SCL-703 estão desbloqueadas, mas permanecem pendent
 
 ### SCL-505 — Downloads autorizados
 
-- Status: IN_REVIEW
+- Status: DONE
 - Priority: P1
 - Area: gallery/client
 - Owner: agent:claude-code
 - Branch: claude/scl-504-505-gallery-selection
-- PR: —
+- PR: #2 (merge `927698b`; SCL-504/505 via #3)
 - Depends on: SCL-501,SCL-503
 - Blocks: none
 - Files/Scope: `domain/gallery/{downloads,storage}.ts`, `app/(client)/minha-experiencia/galeria/fotos/[assetId]/download/route.ts`, `components/client/gallery-grid.tsx`, `app/admin/(protected)/galerias/[shootId]/*`, `components/admin/gallery-manager.tsx`
 - Migration: yes (coluna `galleries.downloads_enabled` na `0050_gallery_selections_downloads`, compartilhada com SCL-504)
-- Updated at: 2026-09-25 America/Manaus
+- Updated at: 2026-09-26 America/Manaus
 
 **Acceptance criteria**
 
@@ -2470,17 +2470,17 @@ Evoluir a consulta pública para um fluxo completo de aluguel independente de en
 
 ### SCL-700 — Infra de eventos + Resend + templates
 
-- Status: IN_REVIEW
+- Status: DONE
 - Priority: P1
 - Area: automation
 - Owner: agent:claude-code
 - Branch: claude/scl-700-705-email-foundation
-- PR: —
+- PR: #2 (merge `927698b`; SCL-504/505 via #3)
 - Depends on: SCL-008
 - Blocks: SCL-701,SCL-702,SCL-703,SCL-704,SCL-705
 - Files/Scope: `db/schema/automation.ts`, `db/migrations/0049_email_automation_outbox.sql` (+ journal/snapshot), `domain/automation/**`, `lib/email/**`, `lib/observability/report-error.ts`, `.env.example`
 - Migration: yes (`0049_email_automation_outbox`)
-- Updated at: 2026-09-25 America/Manaus
+- Updated at: 2026-09-26 America/Manaus
 
 **Acceptance criteria**
 
@@ -2594,17 +2594,17 @@ Evoluir a consulta pública para um fluxo completo de aluguel independente de en
 
 ### SCL-705 — Delivery log + retry + idempotência
 
-- Status: IN_REVIEW
+- Status: DONE
 - Priority: P1
 - Area: automation
 - Owner: agent:claude-code
 - Branch: claude/scl-700-705-email-foundation
-- PR: —
+- PR: #2 (merge `927698b`; SCL-504/505 via #3)
 - Depends on: SCL-700
 - Blocks: production reliability gate
 - Files/Scope: `domain/automation/{processor,delivery-store,retry,sanitize,reprocess}.ts`, `app/api/cron/email-deliveries/route.ts`, `lib/auth/cron-secret.ts`, `docs/runbooks/email-automation.md`
 - Migration: yes (compartilhada com SCL-700: `0049_email_automation_outbox`)
-- Updated at: 2026-09-25 America/Manaus
+- Updated at: 2026-09-26 America/Manaus
 
 **Acceptance criteria**
 
