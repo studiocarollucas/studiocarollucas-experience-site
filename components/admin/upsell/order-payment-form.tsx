@@ -2,7 +2,7 @@
 
 import { useActionState } from "react";
 import { registerUpsellPaymentAction } from "@/domain/upsell/actions";
-import { toFormAction, type ActionResult } from "@/lib/auth/action-result";
+import { toFormAction } from "@/lib/auth/action-result";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
@@ -10,7 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { FormStatus } from "@/components/admin/form-status";
 import { SubmitButton } from "@/components/admin/submit-button";
 
-type Result = ActionResult<{ orderId: string; balance: string; paymentStatus: string }>;
+type Result = Awaited<ReturnType<typeof registerUpsellPaymentAction>>;
 
 // Same fields as the Shoot payment form (agenda/[id]/pagamento): the receipt is
 // an ordinary Payment of the order's Shoot, tagged with the order.
