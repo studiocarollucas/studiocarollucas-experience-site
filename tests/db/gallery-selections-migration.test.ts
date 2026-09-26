@@ -85,8 +85,10 @@ describe("gallery selections and downloads migration", () => {
       selections.indexes.photo_selections_gallery_asset_idx.columns.map((c: { expression: string }) => c.expression),
     ).toEqual(["gallery_id", "asset_id"]);
 
-    const last = journal.entries[journal.entries.length - 1];
-    expect(last).toMatchObject({ idx: 50, version: "7", tag: "0050_gallery_selections_downloads", breakpoints: true });
-    expect(last.when).toBeGreaterThan(journal.entries[journal.entries.length - 2].when);
+    // Later migrations chain after 0050, so locate the entry by tag instead of position.
+    const position = journal.entries.findIndex((entry: { tag: string }) => entry.tag === "0050_gallery_selections_downloads");
+    const entry = journal.entries[position];
+    expect(entry).toMatchObject({ idx: 50, version: "7", tag: "0050_gallery_selections_downloads", breakpoints: true });
+    expect(entry.when).toBeGreaterThan(journal.entries[position - 1].when);
   });
 });
