@@ -1,6 +1,7 @@
 import { db } from "@/db/client";
 import { auditLog, clients, leadConversions, leads, type Client, type LeadConversion } from "@/db/schema";
 import { eq, or, sql } from "drizzle-orm";
+import { linkLeadReferralOnConversion } from "@/domain/referrals/lead-conversion";
 
 export type ClientCandidate = Pick<Client, "id" | "name" | "email" | "phone">;
 
@@ -83,6 +84,14 @@ export async function convertWonLead(input: ConvertWonLeadInput): Promise<{ clie
       .returning();
 
     await tx.update(leads).set({ clientId: client.id }).where(eq(leads.id, lead.id)).returning();
+    // SCL-722: a Lead that came by referral carries the relation to its Client in
+    // the same transaction; an inconsistent referral rolls the conversion back.
+    await linkLeadReferralOnConversion(tx, {
+      leadId: lead.id,
+      clientId: client.id,
+      convertedAt: conversion.createdAt,
+      actorUserId: input.actorUserId,
+    });
     await tx.insert(auditLog).values({
       actorUserId: input.actorUserId,
       action: "lead.converted",
