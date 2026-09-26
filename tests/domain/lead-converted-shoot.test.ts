@@ -5,10 +5,12 @@ const mocks = vi.hoisted(() => ({
   select: vi.fn(),
   transaction: vi.fn(),
   recordAuditEvent: vi.fn(),
+  enqueueShootWelcome: vi.fn(),
 }));
 
 vi.mock("@/db/client", () => ({ db: { select: mocks.select, transaction: mocks.transaction } }));
 vi.mock("@/domain/audit/service", () => ({ recordAuditEvent: mocks.recordAuditEvent }));
+vi.mock("@/domain/automation/flows/shoot-welcome", () => ({ enqueueShootWelcome: mocks.enqueueShootWelcome }));
 
 import { createConfirmedShootFromLead } from "@/domain/leads/converted-shoot";
 
@@ -84,8 +86,9 @@ describe("createConfirmedShootFromLead", () => {
   it("creates one confirmed reservation from the linked Client and audits it", async () => {
     const persisted = { shoots: [] as string[], jobs: [] as string[], tasks: [] as string[][] };
     mockConversion(clientId);
-    const { confirmedShoot } = mockConfirmedShootTransaction(persisted);
+    const { confirmedShoot, tx } = mockConfirmedShootTransaction(persisted);
     mocks.recordAuditEvent.mockResolvedValue({});
+    mocks.enqueueShootWelcome.mockResolvedValue({ status: "enqueued", eventId: "event-1" });
 
     await expect(createConfirmedShootFromLead({ leadId, actorUserId, shoot })).resolves.toMatchObject({
       shoot: { clientId },
@@ -105,6 +108,8 @@ describe("createConfirmedShootFromLead", () => {
       },
       expect.anything(),
     );
+    // SCL-701: the Lead path confirms a reservation too, so it enqueues the welcome in the same transaction.
+    expect(mocks.enqueueShootWelcome).toHaveBeenCalledWith(confirmedShoot, tx);
   });
 
   it("rolls back the confirmed Shoot lifecycle when its audit write fails", async () => {
