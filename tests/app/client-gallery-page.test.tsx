@@ -6,6 +6,10 @@ const mocks = vi.hoisted(() => ({
   readClientGallery: vi.fn(),
   listClientSelectedAssetIds: vi.fn(),
   setPhotoSelectionAction: vi.fn(),
+  listClientGalleryOffers: vi.fn(),
+  listClientUpsellOrders: vi.fn(),
+  newUpsellRequestKey: vi.fn(),
+  requestUpsellOrderAction: vi.fn(),
 }));
 
 vi.mock("@/domain/portal/server", () => ({ getPortalRequestContext: mocks.getPortalRequestContext }));
@@ -13,6 +17,14 @@ vi.mock("@/domain/gallery/portal", () => ({ readClientGallery: mocks.readClientG
 vi.mock("@/domain/gallery/selections", () => ({ listClientSelectedAssetIds: mocks.listClientSelectedAssetIds }));
 vi.mock("@/app/(client)/minha-experiencia/galeria/actions", () => ({
   setPhotoSelectionAction: mocks.setPhotoSelectionAction,
+}));
+vi.mock("@/domain/upsell/portal", () => ({
+  listClientGalleryOffers: mocks.listClientGalleryOffers,
+  listClientUpsellOrders: mocks.listClientUpsellOrders,
+  newUpsellRequestKey: mocks.newUpsellRequestKey,
+}));
+vi.mock("@/app/(client)/minha-experiencia/galeria/upsell-actions", () => ({
+  requestUpsellOrderAction: mocks.requestUpsellOrderAction,
 }));
 
 import ClientGalleryPage from "@/app/(client)/minha-experiencia/galeria/page";
@@ -24,6 +36,9 @@ describe("ClientGalleryPage", () => {
   beforeEach(() => {
     vi.resetAllMocks();
     mocks.getPortalRequestContext.mockResolvedValue(context);
+    mocks.listClientGalleryOffers.mockResolvedValue({ offers: [], includedPhotos: 20 });
+    mocks.listClientUpsellOrders.mockResolvedValue([]);
+    mocks.newUpsellRequestKey.mockReturnValue("00000000-0000-4000-8000-000000000b01");
   });
 
   it("renders the favorites of the signed-in client without leaking storage paths", async () => {
@@ -73,5 +88,49 @@ describe("ClientGalleryPage", () => {
 
     expect(screen.getByText(/ficará disponível quando for publicada pelo estúdio/i)).toBeInTheDocument();
     expect(mocks.listClientSelectedAssetIds).not.toHaveBeenCalled();
+    expect(mocks.listClientGalleryOffers).not.toHaveBeenCalled();
+    expect(mocks.listClientUpsellOrders).not.toHaveBeenCalled();
+  });
+
+  it("offers the gallery's products with the extra favorites suggestion and lists her orders (SCL-506/507)", async () => {
+    mocks.readClientGallery.mockResolvedValue({
+      id: "gallery-1",
+      status: "published",
+      downloadsEnabled: false,
+      assets: [{ id: "asset-1", storagePath, signedUrl: "https://private.example.test/asset-1?signed=1" }],
+    });
+    mocks.listClientSelectedAssetIds.mockResolvedValue(["asset-1", "asset-2", "asset-3"]);
+    mocks.listClientGalleryOffers.mockResolvedValue({
+      offers: [
+        {
+          productId: "00000000-0000-4000-8000-000000000b02",
+          kind: "foto_adicional",
+          name: "Foto adicional",
+          description: "Tratamento completo",
+          price: "35.00",
+        },
+      ],
+      includedPhotos: 1,
+    });
+    mocks.listClientUpsellOrders.mockResolvedValue([
+      {
+        id: "order-1",
+        status: "confirmado",
+        total: "890.00",
+        createdAt: "2026-09-26T12:00:00.000Z",
+        items: [{ name: "Álbum 20x30", kind: "album", quantity: 1, lineTotal: "890.00" }],
+      },
+    ]);
+
+    render(await ClientGalleryPage());
+
+    expect(mocks.listClientGalleryOffers).toHaveBeenCalledWith("client-1", "gallery-1");
+    expect(mocks.listClientUpsellOrders).toHaveBeenCalledWith("client-1", "gallery-1");
+    expect(screen.getByRole("heading", { name: "Produtos e extras" })).toBeInTheDocument();
+    expect(screen.getByText(/Você favoritou 3 fotos — 2 além das incluídas no seu pacote/)).toBeInTheDocument();
+    expect(screen.getByLabelText("Quantidade de Foto adicional")).toHaveValue(2);
+    expect(screen.getByRole("heading", { name: "Seus pedidos" })).toBeInTheDocument();
+    expect(screen.getByText("Confirmado")).toBeInTheDocument();
+    expect(screen.getByText("1 × Álbum 20x30")).toBeInTheDocument();
   });
 });
