@@ -14,6 +14,8 @@ const mocks = vi.hoisted(() => ({
   reorderGalleryAssets: vi.fn(),
   uploadGalleryAsset: vi.fn(),
   revalidatePath: vi.fn(),
+  listUpsellProducts: vi.fn(),
+  listGalleryUpsellOfferProductIds: vi.fn(),
 }));
 
 vi.mock("@/lib/auth/session", () => ({ getCurrentUser: mocks.getCurrentUser }));
@@ -27,6 +29,10 @@ vi.mock("@/domain/gallery/assets", () => ({
 vi.mock("@/domain/gallery/selections", () => ({ getGallerySelectionSummary: mocks.getGallerySelectionSummary }));
 vi.mock("@/domain/gallery/downloads", () => ({ setGalleryDownloadsEnabled: mocks.setGalleryDownloadsEnabled }));
 vi.mock("next/cache", () => ({ revalidatePath: mocks.revalidatePath }));
+vi.mock("@/domain/upsell/catalog", () => ({
+  listUpsellProducts: mocks.listUpsellProducts,
+  listGalleryUpsellOfferProductIds: mocks.listGalleryUpsellOfferProductIds,
+}));
 
 import GalleryPage from "@/app/admin/(protected)/galerias/[shootId]/page";
 import { publishGalleryAction, setGalleryDownloadsAction } from "@/app/admin/(protected)/galerias/[shootId]/actions";
@@ -35,6 +41,8 @@ describe("GalleryPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.getCurrentUser.mockResolvedValue({ id: "staff-user", role: "staff" });
+    mocks.listUpsellProducts.mockResolvedValue([]);
+    mocks.listGalleryUpsellOfferProductIds.mockResolvedValue([]);
   });
 
   it("blocks client roles before loading a gallery", async () => {
@@ -72,6 +80,48 @@ describe("GalleryPage", () => {
     expect(screen.getByText("· 1 favorito")).toBeInTheDocument();
     expect(screen.getByText(/Downloads bloqueados/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Liberar downloads" })).toBeInTheDocument();
+  });
+
+  it("lists the upsell catalog with the products this gallery offers (SCL-506)", async () => {
+    mocks.getGalleryForShoot.mockResolvedValue({
+      id: galleryId,
+      shootId,
+      status: "published",
+      downloadsEnabled: false,
+      createdAt: new Date("2026-09-25T12:00:00Z"),
+      assets: [],
+    });
+    mocks.getGallerySelectionSummary.mockResolvedValue({ totalSelections: 0, byAssetId: {} });
+    mocks.listUpsellProducts.mockResolvedValue([
+      {
+        id: "00000000-0000-4000-8000-000000000011",
+        kind: "album",
+        name: "Álbum 20x30",
+        description: null,
+        internalNotes: null,
+        price: "890.00",
+        active: true,
+        sortOrder: 0,
+      },
+      {
+        id: "00000000-0000-4000-8000-000000000012",
+        kind: "quadro",
+        name: "Quadro 60x90",
+        description: null,
+        internalNotes: null,
+        price: "650.00",
+        active: false,
+        sortOrder: 1,
+      },
+    ]);
+    mocks.listGalleryUpsellOfferProductIds.mockResolvedValue(["00000000-0000-4000-8000-000000000011"]);
+
+    render(await GalleryPage({ params: Promise.resolve({ shootId }) }));
+
+    expect(mocks.listGalleryUpsellOfferProductIds).toHaveBeenCalledWith(galleryId);
+    expect(screen.getByRole("heading", { name: "Produtos ofertados nesta galeria" })).toBeInTheDocument();
+    expect(screen.getByRole("checkbox", { name: /Álbum 20x30/ })).toBeChecked();
+    expect(screen.getByRole("checkbox", { name: /Quadro 60x90 · Quadro \/ impressão · R\$ 650,00 \(inativo\)/ })).not.toBeChecked();
   });
 
   it("toggles downloads through an audited staff action", async () => {
