@@ -108,7 +108,7 @@ Esta revisão preserva todas as tasks já concluídas e adiciona cobertura expl�
 | SCL-551 | Mídia dos itens de acervo | P1 | inventory/storage | DONE | unassigned | SCL-550 |
 | SCL-552 | CRUD Admin do Acervo | P1 | inventory/admin | DONE | unassigned | SCL-550,SCL-551,SCL-200 |
 | SCL-553 | InventoryReservation + conflitos | P1 | inventory/db | DONE (742f545) | unassigned | SCL-103,SCL-550 |
-| SCL-554 | Seleção de figurinos/clutches pela cliente | P1 | inventory/client | BACKLOG | unassigned | SCL-305,SCL-553 |
+| SCL-554 | Seleção de figurinos/clutches pela cliente | P1 | inventory/client | IN_REVIEW | agent:claude-code | SCL-305,SCL-553 |
 | SCL-555 | Styling ↔ itens reais reservados | P1 | inventory/client/admin | BACKLOG | unassigned | SCL-305,SCL-553 |
 | SCL-556 | Curadoria Paixão Clutch no Admin | P1 | inventory/admin | DONE | unassigned | SCL-552 |
 | SCL-557 | Paixão Clutch pública | P1 | site/inventory | DONE | unassigned | SCL-551,SCL-556,SCL-400 |
@@ -2331,25 +2331,33 @@ Criar fonte de verdade para o acervo físico do estúdio, incluindo Paixão Clut
 
 ### SCL-554 — Seleção de figurinos/clutches pela cliente
 
-- Status: BACKLOG
+- Status: IN_REVIEW
 - Priority: P1
 - Area: inventory/client
-- Owner: unassigned
-- Branch: —
+- Owner: agent:claude-code
+- Branch: claude/scl-554-555-portal-inventory
 - PR: —
 - Depends on: SCL-305,SCL-553
 - Blocks: none
-- Files/Scope: Minha Experiência styling inventory UI
+- Files/Scope: `domain/inventory/{portal-selection,portal-selection-rules,reservations,reservation-schema,media-storage}.ts`, `app/(client)/minha-experiencia/styling/{page,actions}.ts*`, `components/client/inventory-selection.tsx`, `app/admin/(protected)/agenda/[id]/inventory-actions.ts`, `components/admin/inventory-reservations.tsx`
 - Migration: no
-- Updated at: 2026-09-07 America/Manaus
+- Updated at: 2026-09-26 America/Manaus
 
 **Acceptance criteria**
 
-- [ ] cliente vê somente itens elegíveis/ativos para seu fluxo;
-- [ ] diferencia preferência de reserva confirmada;
-- [ ] fotos e detalhes suficientes para decisão;
-- [ ] staff confirma/ajusta reserva;
-- [ ] indisponibilidade aparece sem prometer item conflitante.
+- [x] cliente vê somente itens elegíveis/ativos para seu fluxo;
+- [x] diferencia preferência de reserva confirmada;
+- [x] fotos e detalhes suficientes para decisão;
+- [x] staff confirma/ajusta reserva;
+- [x] indisponibilidade aparece sem prometer item conflitante.
+
+**Blocker/Hand-off notes**
+
+- concluído: preferência = `inventory_reservations` `pending` com `shoot_id` (nenhum outro fluxo grava esse par), confirmação = `confirmed`; a Server Action do portal resolve cliente/ensaio/Auth user pela sessão e o domínio revalida a posse no banco, trava o item (mesmo advisory lock das reservas) e a linha do ensaio, exige item ativo/`available` do tipo elegível (figurino pelo `outfits_limit`, ou 3 quando "a combinar"; clutch só com `clutch_included`), aplica o limite do pacote e a regra de conflito na data do ensaio, e audita `inventory_reservation.preference_created`/`preference_withdrawn`; a cliente só retira `pending`. Admin mostra "Preferência da cliente" e confirma via `defineAdminAction` (conflito excluindo a própria reserva, exceção explícita com motivo, auditoria `inventory_reservation.confirmed`); ajuste = cancelar + reservar pelo fluxo existente.
+- dados ao browser: só nome, tipo, cor, tamanho, estado e até 4 fotos assinadas (service role no servidor, 10 min); nunca código, descrição interna, preços, `storage_path` ou dados de outras reservas. Itens bloqueados por terceiros aparecem como "Indisponível na data do seu ensaio".
+- decisão: a preferência `pending` bloqueia a peça na data até a equipe decidir (pré-reserva), para não prometer a mesma peça a duas pessoas; o limite por pacote evita retenção excessiva.
+- testes: `tests/domain/inventory-portal-selection{,-rules}.test.ts`, `tests/domain/inventory-reservations.test.ts`, `tests/app/client-styling-{actions,page}.test.ts*`, `tests/components/client-inventory-selection.test.tsx`, `tests/app/admin-inventory-reservations.test.tsx`. Sem `node_modules` no ambiente desta task: lint/typecheck/test/build validados pelo CI do PR.
+- SCL-555 avaliada no spec `docs/superpowers/specs/2026-09-26-scl554-scl555-portal-inventory-design.md`: o vínculo referência ↔ item exige migration; desenho registrado como follow-up.
 
 ---
 
