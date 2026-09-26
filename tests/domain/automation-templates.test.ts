@@ -222,3 +222,43 @@ describe("defineEmailTemplate", () => {
     expect(escapeHtml(`&<>"'`)).toBe("&amp;&lt;&gt;&quot;&#39;");
   });
 });
+
+describe("pedido-avaliacao v1 (SCL-704)", () => {
+  const reviewUrl = "https://g.page/r/studio-carol-lucas/review";
+
+  it("is registered as the latest version of the review request", () => {
+    expect(getLatestEmailTemplate("pedido-avaliacao")).toMatchObject({ key: "pedido-avaliacao", version: 1 });
+  });
+
+  it("invites the client to review on Google without pressure or incentives", () => {
+    const email = renderEmailTemplate("pedido-avaliacao", 1, { firstName: "Ana", reviewUrl });
+
+    expect(email.subject).toBe("Como foi a sua experiência no Stúdio Carol Lucas?");
+    expect(email.text).toContain("Olá, Ana!");
+    expect(email.text).toContain(`Avaliar no Google: ${reviewUrl}`);
+    expect(email.text).toContain("Se fizer sentido para você");
+    expect(email.html).toContain(`href="${reviewUrl}"`);
+    expect(email.html).toContain('<html lang="pt-BR">');
+    const all = `${email.subject}\n${email.html}\n${email.text}`.toLowerCase();
+    for (const pressure of ["desconto", "brinde", "sorteio", "5 estrelas", "cinco estrelas"]) {
+      expect(all).not.toContain(pressure);
+    }
+    expectNoInternalData(email);
+  });
+
+  it("works without a first name", () => {
+    const email = renderEmailTemplate("pedido-avaliacao", 1, { reviewUrl });
+    expect(email.text).toContain("Olá!");
+    expectNoInternalData(email);
+  });
+
+  it("requires an http(s) review link and escapes the name", () => {
+    expect(() => renderEmailTemplate("pedido-avaliacao", 1, { firstName: "Ana" })).toThrow(EmailTemplateDataError);
+    expect(() => renderEmailTemplate("pedido-avaliacao", 1, { reviewUrl: "javascript:alert(1)" })).toThrow(
+      EmailTemplateDataError,
+    );
+    const email = renderEmailTemplate("pedido-avaliacao", 1, { firstName: '<b>"x"</b>', reviewUrl });
+    expect(email.html).not.toContain("<b>");
+    expect(email.html).toContain("&lt;b&gt;&quot;x&quot;&lt;/b&gt;");
+  });
+});
