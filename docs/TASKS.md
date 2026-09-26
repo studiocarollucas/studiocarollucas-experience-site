@@ -119,9 +119,9 @@ Esta revisão preserva todas as tasks já concluídas e adiciona cobertura expl�
 | SCL-703 | Notificações de Reveal/Galeria | P1 | automation/gallery | BACKLOG | unassigned | SCL-502,SCL-503,SCL-700 |
 | SCL-704 | Pedido de review pós-entrega | P1 | automation/growth | BACKLOG | unassigned | SCL-503,SCL-700,SCL-720 |
 | SCL-705 | Delivery log + retry + idempotência | P1 | automation | IN_REVIEW | agent:claude-code | SCL-700 |
-| SCL-720 | Schema/serviços Review + Referral | P1 | growth/db | BACKLOG | unassigned | SCL-100,SCL-103 |
+| SCL-720 | Schema/serviços Review + Referral | P1 | growth/db | IN_REVIEW | agent:claude-code | SCL-100,SCL-103 |
 | SCL-721 | Fluxo de avaliação / Google | P1 | growth/client | BACKLOG | unassigned | SCL-704,SCL-720 |
-| SCL-722 | Tracking de indicação e conversão | P1 | growth/admin | BACKLOG | unassigned | SCL-720,SCL-253 |
+| SCL-722 | Tracking de indicação e conversão | P1 | growth/admin | IN_REVIEW | agent:claude-code | SCL-720,SCL-253 |
 | SCL-723 | Oportunidades de recorrência no CRM | P2 | growth/admin | BACKLOG | unassigned | SCL-203,SCL-720 |
 | SCL-800 | Virtual Try-On / Prévia de Styling | P3 | client/ai | DEFERRED | unassigned | SCL-554 |
 | SCL-810 | Assistente contextual de preparação | P3 | client/ai | DEFERRED | unassigned | SCL-302,SCL-303 |
@@ -2625,25 +2625,33 @@ Evoluir a consulta pública para um fluxo completo de aluguel independente de en
 
 ### SCL-720 — Schema/serviços Review + Referral
 
-- Status: BACKLOG
+- Status: IN_REVIEW
 - Priority: P1
 - Area: growth/db
-- Owner: unassigned
-- Branch: —
+- Owner: agent:claude-code
+- Branch: claude/scl-720-722-reviews-referrals
 - PR: —
 - Depends on: SCL-100,SCL-103
 - Blocks: SCL-704,SCL-721,SCL-722
-- Files/Scope: review/referral schema/domain
-- Migration: yes
-- Updated at: 2026-09-07 America/Manaus
+- Files/Scope: `db/schema/growth.ts`, `db/migrations/0051_reviews_referrals.sql` (+ snapshot/journal), `domain/reviews/{schema,service}.ts`, `domain/referrals/{schema,errors,service,lead-conversion,queries}.ts`, `domain/clients/schema.ts`
+- Migration: yes (`0051_reviews_referrals`)
+- Updated at: 2026-09-26 America/Manaus
 
 **Acceptance criteria**
 
-- [ ] Review vincula Client/Shoot quando aplicável, requestedAt/completedAt/source/external target;
-- [ ] Referral registra referrer e referred Client/Lead quando conhecido;
-- [ ] conversão de indicação mensurável;
-- [ ] RLS/admin access definidos;
-- [ ] não duplicar `clients.referrer_client_id`: decidir papel do campo legado e registrar em DECISIONS.
+- [x] Review vincula Client/Shoot quando aplicável, requestedAt/completedAt/source/external target;
+- [x] Referral registra referrer e referred Client/Lead quando conhecido;
+- [x] conversão de indicação mensurável;
+- [x] RLS/admin access definidos;
+- [x] não duplicar `clients.referrer_client_id`: decidir papel do campo legado e registrar em DECISIONS.
+
+**Blocker/Hand-off notes**
+
+- concluído: `reviews` (Client obrigatório, Shoot opcional com trigger de posse, `status` `solicitado`/`concluido`/`cancelado`, `source`, `target` externo + `target_url`, `requested_at`/`completed_at` com checks de consistência, único parcial por Shoot + destino enquanto não cancelado) e `referrals` (indicadora, Client e/ou Lead indicado, `source` `lead`/`cliente`/`legado`, `created_at`/`converted_at`; "convertida" ⇔ aponta para uma Cliente; sem auto-indicação; um referrer por Cliente/Lead indicado; trigger `referrals_guard_graph` rejeita ciclos sob advisory lock). Serviços com Zod e auditoria na mesma transação (`review.requested/completed/cancelled`, `lead.referral_*`, `client.referral_recorded`). RLS: staff/admin via policies `*_staff_access`, nada para `anon`.
+- campo legado: `clients.referrer_client_id` copiado para `referrals` (`legado`) e congelado por trigger; `referrerClientId` saiu do schema do formulário de cliente. Ver `docs/DECISIONS.md` (2026-09-26).
+- fora de escopo: tela de reviews no Admin e automação/CTA (SCL-704/SCL-721); receita por indicação (SCL-723).
+- testes: `tests/db/reviews-referrals-migration.test.ts`, `tests/domain/reviews-service.test.ts`, `tests/domain/referrals-{service,lead-conversion,errors,queries}.test.ts`, `tests/domain/reviews-referrals.integration.test.ts` (opt-in `RUN_LIVE_DB_TESTS`); validação final no CI do PR (sem `node_modules` neste ambiente).
+- próximo passo: aplicar a 0051 e conferir o backfill `legado` em produção antes de remover a coluna legada numa migration futura.
 
 ---
 
@@ -2672,24 +2680,30 @@ Evoluir a consulta pública para um fluxo completo de aluguel independente de en
 
 ### SCL-722 — Tracking de indicação e conversão
 
-- Status: BACKLOG
+- Status: IN_REVIEW
 - Priority: P1
 - Area: growth/admin
-- Owner: unassigned
-- Branch: —
+- Owner: agent:claude-code
+- Branch: claude/scl-720-722-reviews-referrals
 - PR: —
 - Depends on: SCL-720,SCL-253
 - Blocks: none
-- Files/Scope: referral conversion/domain/admin
-- Migration: no
-- Updated at: 2026-09-07 America/Manaus
+- Files/Scope: `domain/referrals/{service,lead-conversion,queries}.ts`, `domain/leads/conversion.ts`, `app/admin/(protected)/leads/[id]/{actions.ts,page.tsx}`, `components/admin/{lead-referral,lead-detail}.tsx`, `domain/dashboard/queries.ts`, `app/admin/(protected)/page.tsx`, `app/admin/(protected)/clientes/[id]/page.tsx`
+- Migration: no (usa a `0051` de SCL-720)
+- Updated at: 2026-09-26 America/Manaus
 
 **Acceptance criteria**
 
-- [ ] Lead pode apontar origem por indicação;
-- [ ] conversão preserva a relação;
-- [ ] dashboard/CRM conseguem medir indicações convertidas;
-- [ ] não criar loops/relações inconsistentes.
+- [x] Lead pode apontar origem por indicação;
+- [x] conversão preserva a relação;
+- [x] dashboard/CRM conseguem medir indicações convertidas;
+- [x] não criar loops/relações inconsistentes.
+
+**Blocker/Hand-off notes**
+
+- concluído: seção **Indicação** na ficha do Lead (registrar/trocar/remover a cliente indicadora enquanto não convertida) via `setLeadReferralAction`/`removeLeadReferralAction` (`defineAdminAction`, ator da sessão, validação no servidor); `convertWonLead` chama `linkLeadReferralOnConversion` na mesma transação (a indicação recebe a Cliente e `converted_at` = data da conversão; auto-indicação, Cliente já indicada ou ciclo desfazem a conversão com mensagem acionável); tile **Indicações** no dashboard (informadas × convertidas no período) e linhas "Indicada por"/"Indicações feitas" na ficha da cliente.
+- fora de escopo: formulário de criação de Lead no Admin (não existe; Leads nascem do quiz) e receita por indicação (SCL-723).
+- testes: `tests/app/admin-lead-referral.test.tsx`, `tests/domain/lead-conversion.test.ts`, `tests/domain/referrals-*.test.ts`; validação final no CI do PR.
 
 ---
 
