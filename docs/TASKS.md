@@ -114,9 +114,9 @@ Esta revisão preserva todas as tasks já concluídas e adiciona cobertura expl�
 | SCL-557 | Paixão Clutch pública | P1 | site/inventory | DONE | unassigned | SCL-551,SCL-556,SCL-400 |
 | SCL-558 | Aluguel avulso Paixão Clutch | P2 | inventory/commerce | DEFERRED | unassigned | SCL-553,SCL-557 |
 | SCL-700 | Infra eventos + Resend + templates | P1 | automation | DONE | agent:claude-code | SCL-008 |
-| SCL-701 | Boas-vindas após reserva | P1 | automation | BACKLOG | unassigned | SCL-211,SCL-700 |
-| SCL-702 | Scheduler D-7 / D-1 | P1 | automation | BACKLOG | unassigned | SCL-700,SCL-103 |
-| SCL-703 | Notificações de Reveal/Galeria | P1 | automation/gallery | BACKLOG | unassigned | SCL-502,SCL-503,SCL-700 |
+| SCL-701 | Boas-vindas após reserva | P1 | automation | IN_REVIEW | agent:claude-code | SCL-211,SCL-700 |
+| SCL-702 | Scheduler D-7 / D-1 | P1 | automation | IN_REVIEW | agent:claude-code | SCL-700,SCL-103 |
+| SCL-703 | Notificações de Reveal/Galeria | P1 | automation/gallery | IN_REVIEW | agent:claude-code | SCL-502,SCL-503,SCL-700 |
 | SCL-704 | Pedido de review pós-entrega | P1 | automation/growth | BACKLOG | unassigned | SCL-503,SCL-700,SCL-720 |
 | SCL-705 | Delivery log + retry + idempotência | P1 | automation | DONE | agent:claude-code | SCL-700 |
 | SCL-720 | Schema/serviços Review + Referral | P1 | growth/db | BACKLOG | unassigned | SCL-100,SCL-103 |
@@ -2510,70 +2510,89 @@ Evoluir a consulta pública para um fluxo completo de aluguel independente de en
 
 ### SCL-701 — Boas-vindas após reserva
 
-- Status: BACKLOG
+- Status: IN_REVIEW
 - Priority: P1
 - Area: automation
-- Owner: unassigned
-- Branch: —
+- Owner: agent:claude-code
+- Branch: claude/scl-701-703-email-flows
 - PR: —
 - Depends on: SCL-211,SCL-700
 - Blocks: none
-- Files/Scope: reservation event handler/template
+- Files/Scope: `domain/automation/flows/{rules,shoot-welcome}.ts`, `domain/automation/{links,recipients,studio-time}.ts`, `domain/automation/templates/{boas-vindas.v2,format,registry}.ts`, `domain/shoots/create-confirmed-shoot.ts`
 - Migration: no
-- Updated at: 2026-09-07 America/Manaus
+- Updated at: 2026-09-26 America/Manaus
 
 **Acceptance criteria**
 
-- [ ] 1 envio por reserva confirmada/idempotente;
-- [ ] CTA para Minha Experiência;
-- [ ] conteúdo não expõe informação interna;
-- [ ] falha entra no retry/log.
+- [x] 1 envio por reserva confirmada/idempotente;
+- [x] CTA para Minha Experiência;
+- [x] conteúdo não expõe informação interna;
+- [x] falha entra no retry/log.
+
+**Blocker/Hand-off notes**
+
+- concluído: `createConfirmedShoot` (Admin e conversão de Lead) enfileira na mesma transação o evento `shoot.confirmed` com chave `shoot.confirmed:<shootId>` e o template `boas-vindas` v2 (v1 continua registrada); dados só com primeiro nome, data/horário e URL absoluta de Minha Experiência (`NEXT_PUBLIC_SITE_URL`, login obrigatório); sem e-mail válido ou ensaio histórico/cancelado, nada é enfileirado e a reserva segue; a guarda de envio cancela a boas-vindas de ensaio cancelado.
+- decisão: o CTA só aparece quando o ensaio tem `portal_enabled` (o portal não mostra ensaios sem acesso liberado); sem portal, o texto orienta a responder o e-mail. Spec: `docs/superpowers/specs/2026-09-26-scl701-scl703-email-flows-design.md`.
+- testes: `tests/domain/automation-{flow-rules,templates,shoot-welcome}.test.ts`, `tests/domain/create-confirmed-shoot-welcome.test.ts`, `tests/domain/lead-converted-shoot.test.ts`; validação final no CI do PR.
 
 ---
 
 ### SCL-702 — Scheduler D-7 / D-1
 
-- Status: BACKLOG
+- Status: IN_REVIEW
 - Priority: P1
 - Area: automation
-- Owner: unassigned
-- Branch: —
+- Owner: agent:claude-code
+- Branch: claude/scl-701-703-email-flows
 - PR: —
 - Depends on: SCL-700,SCL-103
 - Blocks: none
-- Files/Scope: scheduler/reminders
+- Files/Scope: `domain/automation/flows/shoot-reminders.ts`, `domain/automation/guard.ts`, `domain/automation/{processor,delivery-store}.ts`, `domain/automation/templates/lembrete-{d7,d1}.v1.ts`, `app/api/cron/shoot-reminders/route.ts`, `app/api/cron/email-deliveries/route.ts`, `docs/runbooks/email-automation.md`
 - Migration: no
-- Updated at: 2026-09-07 America/Manaus
+- Updated at: 2026-09-26 America/Manaus
 
 **Acceptance criteria**
 
-- [ ] calcula datas em timezone do estúdio;
-- [ ] não envia para ensaio cancelado/reagendado fora da janela;
-- [ ] D-7 e D-1 idempotentes;
-- [ ] conteúdo contextualiza preparação/portal.
+- [x] calcula datas em timezone do estúdio;
+- [x] não envia para ensaio cancelado/reagendado fora da janela;
+- [x] D-7 e D-1 idempotentes;
+- [x] conteúdo contextualiza preparação/portal.
+
+**Blocker/Hand-off notes**
+
+- concluído: `scheduleShootReminders` (rota protegida `/api/cron/shoot-reminders`, mesmo contrato `CRON_SECRET`) calcula o dia civil em `America/Manaus` e enfileira D-7 (7 a 2 dias antes, só se a reserva existia antes do dia D-7) ou D-1 (exatamente 1 dia antes) para ensaios em `reserva`/`preparacao`, com chave `shoot.reminder_<d7|d1>:<shootId>:<data>` e envio a partir das 09:00 de Manaus; o processador ganhou guarda de elegibilidade no envio que marca `cancelled` o lembrete de ensaio cancelado, reagendado, com outra data ou fora da janela (também durante retries). Templates `lembrete-d7` (checklist) e `lembrete-d1` (detalhes do ensaio no portal).
+- operação: agendar `/api/cron/shoot-reminders` de hora em hora (mínimo diário antes das 09:00 de Manaus), conforme `docs/runbooks/email-automation.md` §3.
+- limite conhecido: o Admin ainda não edita `shoot_date` (reagendar = status `reagendado`); se a data mudar por outro caminho, a chave nova gera o lembrete da nova data e a guarda cancela o antigo.
+- testes: `tests/domain/automation-{shoot-reminders,guard,processor,flow-rules}.test.ts`, `tests/app/{shoot-reminders,email-deliveries}-cron-route.test.ts`; validação final no CI do PR.
 
 ---
 
 ### SCL-703 — Notificações de Reveal/Galeria
 
-- Status: BACKLOG
+- Status: IN_REVIEW
 - Priority: P1
 - Area: automation/gallery
-- Owner: unassigned
-- Branch: —
+- Owner: agent:claude-code
+- Branch: claude/scl-701-703-email-flows
 - PR: —
 - Depends on: SCL-502,SCL-503,SCL-700
 - Blocks: none
-- Files/Scope: gallery publish event/templates
+- Files/Scope: `domain/automation/flows/gallery-published.ts`, `domain/automation/templates/galeria-publicada.v1.ts`, `domain/gallery/assets.ts`
 - Migration: no
-- Updated at: 2026-09-07 America/Manaus
+- Updated at: 2026-09-26 America/Manaus
 
 **Acceptance criteria**
 
-- [ ] publica e comunica em eventos separados/idempotentes;
-- [ ] link autenticado para Reveal;
-- [ ] draft nunca dispara comunicação;
-- [ ] retry sem duplicar envio.
+- [x] publica e comunica em eventos separados/idempotentes;
+- [x] link autenticado para Reveal;
+- [x] draft nunca dispara comunicação;
+- [x] retry sem duplicar envio.
+
+**Blocker/Hand-off notes**
+
+- concluído: `publishGallery` roda em transação e, além de marcar `published`, grava o evento de comunicação `gallery.published` com chave `gallery.published:<galleryId>` e o template `galeria-publicada` v1, cujo link é `/minha-experiencia/reveal` (login obrigatório, sem token nem URL assinada); rascunho, upload/reordenação/remoção de fotos e galeria sem fotos não disparam; a guarda de envio cancela o aviso se a galeria não estiver publicada; retry sem duplicar pelo evento único, entrega única e `Idempotency-Key` estável.
+- decisão: republicar a mesma galeria nunca reenvia (chave por galeria; não há despublicação); a primeira publicação com fotos é a que comunica.
+- testes: `tests/domain/automation-gallery-published.test.ts`, `tests/domain/gallery-assets.test.ts`, `tests/domain/automation-guard.test.ts`; validação final no CI do PR.
 
 ---
 

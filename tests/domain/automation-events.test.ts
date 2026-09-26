@@ -21,7 +21,9 @@ const baseInput: EnqueueAutomationEventInput = {
   entityId: shootId,
   idempotencyKey: `shoot.confirmed:${shootId}`,
   payload: { shootId },
-  deliveries: [{ templateKey: "boas-vindas", recipient: "  Ana@Example.TEST ", data: { firstName: " Ana " } }],
+  deliveries: [
+    { templateKey: "boas-vindas", recipient: "  Ana@Example.TEST ", data: { firstName: " Ana ", shootDate: "2030-05-10" } },
+  ],
 };
 
 type Row = Record<string, unknown>;
@@ -92,9 +94,9 @@ describe("enqueueAutomationEvent", () => {
         eventId,
         channel: "email",
         templateKey: "boas-vindas",
-        templateVersion: 1,
+        templateVersion: 2,
         recipient: "ana@example.test",
-        templateData: { firstName: "Ana" },
+        templateData: { firstName: "Ana", shootDate: "2030-05-10" },
         maxAttempts: 5,
       }),
     ]);
@@ -115,8 +117,8 @@ describe("enqueueAutomationEvent", () => {
       {
         ...baseInput,
         deliveries: [
-          { templateKey: "boas-vindas", recipient: "ana@example.test", data: { firstName: "Ana" }, sendAt },
-          { templateKey: "boas-vindas", recipient: "ANA@example.test", data: { firstName: "Ana" }, sendAt },
+          { templateKey: "boas-vindas", recipient: "ana@example.test", data: { shootDate: "2030-05-10" }, sendAt },
+          { templateKey: "boas-vindas", recipient: "ANA@example.test", data: { shootDate: "2030-05-10" }, sendAt },
         ],
       },
       fake.writer,
@@ -157,7 +159,7 @@ describe("enqueueAutomationEvent", () => {
       enqueueAutomationEvent({ ...baseInput, deliveries: [{ templateKey: "boas-vindas", recipient: "a@b.test", data: {} }] }, fake.writer),
     ).rejects.toThrow(EmailTemplateDataError);
     await expect(
-      enqueueAutomationEvent({ ...baseInput, deliveries: [{ templateKey: "boas-vindas", recipient: "não é e-mail", data: { firstName: "Ana" } }] }, fake.writer),
+      enqueueAutomationEvent({ ...baseInput, deliveries: [{ templateKey: "boas-vindas", recipient: "não é e-mail", data: { shootDate: "2030-05-10" } }] }, fake.writer),
     ).rejects.toThrow();
     await expect(enqueueAutomationEvent({ ...baseInput, entityId: "not-a-uuid" }, fake.writer)).rejects.toThrow();
     await expect(enqueueAutomationEvent({ ...baseInput, eventType: "Shoot Confirmed" }, fake.writer)).rejects.toThrow();

@@ -8,6 +8,7 @@ import {
   deliveryIdempotencyKey,
   processDueDeliveries,
   type ClaimedDelivery,
+  type DeliveryGuard,
   type DeliveryStore,
 } from "@/domain/automation/processor";
 
@@ -35,6 +36,7 @@ function createStore(rows: ClaimedDelivery[]) {
     markSent: vi.fn<DeliveryStore["markSent"]>().mockResolvedValue(true),
     markRetry: vi.fn<DeliveryStore["markRetry"]>().mockResolvedValue(true),
     markFailed: vi.fn<DeliveryStore["markFailed"]>().mockResolvedValue(true),
+    markCancelled: vi.fn<DeliveryStore["markCancelled"]>().mockResolvedValue(true),
   } satisfies DeliveryStore;
 }
 
@@ -60,7 +62,7 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-function run(store: DeliveryStore, provider: EmailProvider, reportError = vi.fn()) {
+function run(store: DeliveryStore, provider: EmailProvider, reportError = vi.fn(), guard?: DeliveryGuard) {
   return processDueDeliveries({
     store,
     provider,
@@ -68,6 +70,7 @@ function run(store: DeliveryStore, provider: EmailProvider, reportError = vi.fn(
     replyTo: "experiencia@studiocarollucas.com.br",
     now: () => now,
     reportError,
+    guard,
   });
 }
 
@@ -82,6 +85,7 @@ describe("processDueDeliveries", () => {
       sent: 1,
       retried: 0,
       failed: 0,
+      cancelled: 0,
       lostLease: 0,
       errors: 0,
     });
@@ -194,6 +198,53 @@ describe("processDueDeliveries", () => {
     await expect(run(store, provider, reportError)).resolves.toMatchObject({ staleFailed: 2, claimed: 0 });
     expect(send).not.toHaveBeenCalled();
     expect(reportError).toHaveBeenCalledOnce();
+  });
+
+  it("cancels, without sending, a delivery the send-time guard vetoes", async () => {
+    const store = createStore([claimed({ id: "a" }), claimed({ id: "b" })]);
+    const { provider, send } = createProvider(async () => ({ provider: "fake", messageId: "m" }));
+    const guard = vi.fn<DeliveryGuard>(async (delivery) =>
+      delivery.id === "a" ? { send: false, reason: "ensaio cancelado ou reagendado" } : { send: true },
+    );
+    const reportError = vi.fn();
+
+    await expect(run(store, provider, reportError, guard)).resolves.toMatchObject({ claimed: 2, sent: 1, cancelled: 1 });
+
+    expect(guard).toHaveBeenCalledWith(expect.objectContaining({ id: "a" }), now);
+    expect(store.markCancelled).toHaveBeenCalledWith({
+      id: "a",
+      attemptCount: 1,
+      reason: "ensaio cancelado ou reagendado",
+      now,
+    });
+    expect(send).toHaveBeenCalledOnce();
+    expect(store.markSent.mock.calls.map(([call]) => call.id)).toEqual(["b"]);
+    expect(store.markRetry).not.toHaveBeenCalled();
+    expect(store.markFailed).not.toHaveBeenCalled();
+    expect(reportError).not.toHaveBeenCalled();
+  });
+
+  it("counts a lost lease when the cancelled mark no longer owns the claim", async () => {
+    const store = createStore([claimed()]);
+    store.markCancelled.mockResolvedValue(false);
+    const { provider } = createProvider(async () => ({ provider: "fake", messageId: "m" }));
+
+    await expect(
+      run(store, provider, vi.fn(), async () => ({ send: false, reason: "lembrete fora da janela" })),
+    ).resolves.toMatchObject({ cancelled: 0, lostLease: 1 });
+  });
+
+  it("retries when the guard itself fails instead of sending blindly", async () => {
+    const store = createStore([claimed({ attemptCount: 1 })]);
+    const { provider, send } = createProvider(async () => ({ provider: "fake", messageId: "m" }));
+
+    await expect(
+      run(store, provider, vi.fn(), async () => {
+        throw new Error("connection reset");
+      }),
+    ).resolves.toMatchObject({ retried: 1, sent: 0 });
+    expect(send).not.toHaveBeenCalled();
+    expect(store.markRetry).toHaveBeenCalledWith(expect.objectContaining({ error: "connection reset" }));
   });
 
   it("never logs recipients, subjects or template data", async () => {

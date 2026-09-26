@@ -1,5 +1,6 @@
 import { db } from "@/db/client";
 import { shoots, productionJobs, preparationTasks, type Shoot, type ProductionJob } from "@/db/schema";
+import { enqueueShootWelcome } from "@/domain/automation/flows/shoot-welcome";
 import { createShootSchema, type CreateShootInput } from "./schema";
 
 type ConfirmedShootCreation = {
@@ -64,6 +65,10 @@ export async function createConfirmedShoot(
         clientActionable: t.clientActionable,
       })),
     );
+
+    // SCL-701: the welcome email is enqueued in this same transaction, so every
+    // path that confirms a reservation (Admin, Lead conversion) sends exactly one.
+    await enqueueShootWelcome(shoot, tx);
 
     const creation = { shoot, productionJob, preparationTaskCount: starter.length };
     await opts.onCreated?.(creation, tx);

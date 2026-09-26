@@ -28,7 +28,7 @@ describeIfLiveDb("automation outbox (live database)", () => {
       entityType: "test",
       entityId,
       idempotencyKey,
-      deliveries: [{ templateKey: "boas-vindas", recipient: "live-test@example.invalid", data: { firstName: "Teste" } }],
+      deliveries: [{ templateKey: "boas-vindas", recipient: "live-test@example.invalid", data: { firstName: "Teste", shootDate: "2030-05-10" } }],
     };
 
     const first = await db.transaction((tx) => enqueueAutomationEvent(input, tx));
@@ -37,7 +37,7 @@ describeIfLiveDb("automation outbox (live database)", () => {
 
     expect(first).toMatchObject({ created: true });
     expect(first.deliveries).toHaveLength(1);
-    expect(first.deliveries[0]).toMatchObject({ status: "pending", attemptCount: 0, templateVersion: 1 });
+    expect(first.deliveries[0]).toMatchObject({ status: "pending", attemptCount: 0, templateVersion: 2 });
     expect(replay).toMatchObject({ created: false, event: { id: first.event.id } });
     expect(replay.deliveries.map((delivery) => delivery.id)).toEqual(first.deliveries.map((delivery) => delivery.id));
   });
