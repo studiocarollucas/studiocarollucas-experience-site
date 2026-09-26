@@ -108,20 +108,20 @@ Esta revisão preserva todas as tasks já concluídas e adiciona cobertura expl�
 | SCL-551 | Mídia dos itens de acervo | P1 | inventory/storage | DONE | unassigned | SCL-550 |
 | SCL-552 | CRUD Admin do Acervo | P1 | inventory/admin | DONE | unassigned | SCL-550,SCL-551,SCL-200 |
 | SCL-553 | InventoryReservation + conflitos | P1 | inventory/db | DONE (742f545) | unassigned | SCL-103,SCL-550 |
-| SCL-554 | Seleção de figurinos/clutches pela cliente | P1 | inventory/client | IN_REVIEW | agent:claude-code | SCL-305,SCL-553 |
+| SCL-554 | Seleção de figurinos/clutches pela cliente | P1 | inventory/client | DONE | agent:claude-code | SCL-305,SCL-553 |
 | SCL-555 | Styling ↔ itens reais reservados | P1 | inventory/client/admin | BACKLOG | unassigned | SCL-305,SCL-553 |
 | SCL-556 | Curadoria Paixão Clutch no Admin | P1 | inventory/admin | DONE | unassigned | SCL-552 |
 | SCL-557 | Paixão Clutch pública | P1 | site/inventory | DONE | unassigned | SCL-551,SCL-556,SCL-400 |
 | SCL-558 | Aluguel avulso Paixão Clutch | P2 | inventory/commerce | DEFERRED | unassigned | SCL-553,SCL-557 |
 | SCL-700 | Infra eventos + Resend + templates | P1 | automation | DONE | agent:claude-code | SCL-008 |
-| SCL-701 | Boas-vindas após reserva | P1 | automation | IN_REVIEW | agent:claude-code | SCL-211,SCL-700 |
-| SCL-702 | Scheduler D-7 / D-1 | P1 | automation | IN_REVIEW | agent:claude-code | SCL-700,SCL-103 |
-| SCL-703 | Notificações de Reveal/Galeria | P1 | automation/gallery | IN_REVIEW | agent:claude-code | SCL-502,SCL-503,SCL-700 |
+| SCL-701 | Boas-vindas após reserva | P1 | automation | DONE | agent:claude-code | SCL-211,SCL-700 |
+| SCL-702 | Scheduler D-7 / D-1 | P1 | automation | DONE | agent:claude-code | SCL-700,SCL-103 |
+| SCL-703 | Notificações de Reveal/Galeria | P1 | automation/gallery | DONE | agent:claude-code | SCL-502,SCL-503,SCL-700 |
 | SCL-704 | Pedido de review pós-entrega | P1 | automation/growth | IN_REVIEW | agent:claude-code | SCL-503,SCL-700,SCL-720 |
 | SCL-705 | Delivery log + retry + idempotência | P1 | automation | DONE | agent:claude-code | SCL-700 |
-| SCL-720 | Schema/serviços Review + Referral | P1 | growth/db | IN_REVIEW | agent:claude-code | SCL-100,SCL-103 |
+| SCL-720 | Schema/serviços Review + Referral | P1 | growth/db | DONE | agent:claude-code | SCL-100,SCL-103 |
 | SCL-721 | Fluxo de avaliação / Google | P1 | growth/client | IN_REVIEW | agent:claude-code | SCL-704,SCL-720 |
-| SCL-722 | Tracking de indicação e conversão | P1 | growth/admin | IN_REVIEW | agent:claude-code | SCL-720,SCL-253 |
+| SCL-722 | Tracking de indicação e conversão | P1 | growth/admin | DONE | agent:claude-code | SCL-720,SCL-253 |
 | SCL-723 | Oportunidades de recorrência no CRM | P2 | growth/admin | BACKLOG | unassigned | SCL-203,SCL-720 |
 | SCL-800 | Virtual Try-On / Prévia de Styling | P3 | client/ai | DEFERRED | unassigned | SCL-554 |
 | SCL-810 | Assistente contextual de preparação | P3 | client/ai | DEFERRED | unassigned | SCL-302,SCL-303 |
@@ -2331,12 +2331,12 @@ Criar fonte de verdade para o acervo físico do estúdio, incluindo Paixão Clut
 
 ### SCL-554 — Seleção de figurinos/clutches pela cliente
 
-- Status: IN_REVIEW
+- Status: DONE
 - Priority: P1
 - Area: inventory/client
 - Owner: agent:claude-code
 - Branch: claude/scl-554-555-portal-inventory
-- PR: —
+- PR: #4 (merge `764eeb6`)
 - Depends on: SCL-305,SCL-553
 - Blocks: none
 - Files/Scope: `domain/inventory/{portal-selection,portal-selection-rules,reservations,reservation-schema,media-storage}.ts`, `app/(client)/minha-experiencia/styling/{page,actions}.ts*`, `components/client/inventory-selection.tsx`, `app/admin/(protected)/agenda/[id]/inventory-actions.ts`, `components/admin/inventory-reservations.tsx`
@@ -2510,12 +2510,12 @@ Evoluir a consulta pública para um fluxo completo de aluguel independente de en
 
 ### SCL-701 — Boas-vindas após reserva
 
-- Status: IN_REVIEW
+- Status: DONE
 - Priority: P1
 - Area: automation
 - Owner: agent:claude-code
 - Branch: claude/scl-701-703-email-flows
-- PR: —
+- PR: #5 (merge `ec381fc`)
 - Depends on: SCL-211,SCL-700
 - Blocks: none
 - Files/Scope: `domain/automation/flows/{rules,shoot-welcome}.ts`, `domain/automation/{links,recipients,studio-time}.ts`, `domain/automation/templates/{boas-vindas.v2,format,registry}.ts`, `domain/shoots/create-confirmed-shoot.ts`
@@ -2539,12 +2539,12 @@ Evoluir a consulta pública para um fluxo completo de aluguel independente de en
 
 ### SCL-702 — Scheduler D-7 / D-1
 
-- Status: IN_REVIEW
+- Status: DONE
 - Priority: P1
 - Area: automation
 - Owner: agent:claude-code
 - Branch: claude/scl-701-703-email-flows
-- PR: —
+- PR: #5 (merge `ec381fc`)
 - Depends on: SCL-700,SCL-103
 - Blocks: none
 - Files/Scope: `domain/automation/flows/shoot-reminders.ts`, `domain/automation/guard.ts`, `domain/automation/{processor,delivery-store}.ts`, `domain/automation/templates/lembrete-{d7,d1}.v1.ts`, `app/api/cron/shoot-reminders/route.ts`, `app/api/cron/email-deliveries/route.ts`, `docs/runbooks/email-automation.md`
@@ -2569,12 +2569,12 @@ Evoluir a consulta pública para um fluxo completo de aluguel independente de en
 
 ### SCL-703 — Notificações de Reveal/Galeria
 
-- Status: IN_REVIEW
+- Status: DONE
 - Priority: P1
 - Area: automation/gallery
 - Owner: agent:claude-code
 - Branch: claude/scl-701-703-email-flows
-- PR: —
+- PR: #5 (merge `ec381fc`)
 - Depends on: SCL-502,SCL-503,SCL-700
 - Blocks: none
 - Files/Scope: `domain/automation/flows/gallery-published.ts`, `domain/automation/templates/galeria-publicada.v1.ts`, `domain/gallery/assets.ts`
@@ -2659,12 +2659,12 @@ Evoluir a consulta pública para um fluxo completo de aluguel independente de en
 
 ### SCL-720 — Schema/serviços Review + Referral
 
-- Status: IN_REVIEW
+- Status: DONE
 - Priority: P1
 - Area: growth/db
 - Owner: agent:claude-code
 - Branch: claude/scl-720-722-reviews-referrals
-- PR: —
+- PR: #6 (merge `1be30fe`)
 - Depends on: SCL-100,SCL-103
 - Blocks: SCL-704,SCL-721,SCL-722
 - Files/Scope: `db/schema/growth.ts`, `db/migrations/0051_reviews_referrals.sql` (+ snapshot/journal), `domain/reviews/{schema,service}.ts`, `domain/referrals/{schema,errors,service,lead-conversion,queries}.ts`, `domain/clients/schema.ts`
@@ -2721,12 +2721,12 @@ Evoluir a consulta pública para um fluxo completo de aluguel independente de en
 
 ### SCL-722 — Tracking de indicação e conversão
 
-- Status: IN_REVIEW
+- Status: DONE
 - Priority: P1
 - Area: growth/admin
 - Owner: agent:claude-code
 - Branch: claude/scl-720-722-reviews-referrals
-- PR: —
+- PR: #6 (merge `1be30fe`)
 - Depends on: SCL-720,SCL-253
 - Blocks: none
 - Files/Scope: `domain/referrals/{service,lead-conversion,queries}.ts`, `domain/leads/conversion.ts`, `app/admin/(protected)/leads/[id]/{actions.ts,page.tsx}`, `components/admin/{lead-referral,lead-detail}.tsx`, `domain/dashboard/queries.ts`, `app/admin/(protected)/page.tsx`, `app/admin/(protected)/clientes/[id]/page.tsx`
