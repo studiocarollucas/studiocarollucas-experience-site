@@ -56,7 +56,7 @@
 
 ### Task 5: Portal
 
-**Files:** Create `app/(client)/minha-experiencia/styling/actions.ts`, `components/client/inventory-selection.tsx`; Modify `domain/portal/server.ts`, `app/(client)/minha-experiencia/styling/page.tsx`; tests.
+**Files:** Create `app/(client)/minha-experiencia/styling/actions.ts`, `components/client/inventory-selection.tsx`; Modify `app/(client)/minha-experiencia/styling/page.tsx` (usa o snapshot já resolvido como `PortalContext`); tests.
 
 - [x] Action resolve o contexto pela sessão; mensagens neutras.
 - [x] Componente: "Peças do seu ensaio" (preferência × reservada), catálogo por tipo com "Indisponível na data do seu ensaio", contador de limite, foco/44 px/aria-live.
