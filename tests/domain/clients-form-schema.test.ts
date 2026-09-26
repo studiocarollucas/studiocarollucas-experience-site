@@ -48,7 +48,12 @@ describe("clientFormSchema", () => {
     expect(clientFormSchema.safeParse({ name: "Maria", addressState: "A" }).success).toBe(false);
   });
 
-  it("rejects a referrerClientId that is not a uuid", () => {
-    expect(clientFormSchema.safeParse({ name: "Maria", referrerClientId: "x" }).success).toBe(false);
+  it("never carries the legacy referrerClientId (referrals are recorded in the referrals table)", () => {
+    const result = clientFormSchema.safeParse({
+      name: "Maria",
+      referrerClientId: "00000000-0000-4000-8000-000000000001",
+    });
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data).not.toHaveProperty("referrerClientId");
   });
 });

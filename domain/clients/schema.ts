@@ -25,7 +25,9 @@ export const createClientSchema = z.object({
   addressState: z.string().trim().length(2).transform((value) => value.toUpperCase()).optional(),
   addressPostalCode: z.string().transform(normalizePostalCode).refine(isValidPostalCode, "CEP inválido").optional(),
   source: z.string().optional(),
-  referrerClientId: z.string().uuid().optional(),
+  // No `referrerClientId`: the legacy clients.referrer_client_id is frozen and
+  // referrals live in `referrals` (domain/referrals, docs/DECISIONS.md 2026-09-26).
+  // Zod strips the unknown key, so an old form field can never write it.
   styleProfile: z.string().optional(),
   notes: z.string().optional(),
   marketingConsent: z.boolean().default(false),
