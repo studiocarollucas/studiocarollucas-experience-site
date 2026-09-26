@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import type { PublicQuizFamily, PublicQuizRecommendation } from "@/domain/quiz/catalog";
 import type { QuizAnswers } from "@/domain/quiz/recommendation";
 import { captureQuizLeadAction, recommendQuizPackageAction } from "@/app/(site)/quiz/actions";
+import { trackPublicEvent } from "@/lib/site/analytics";
 import { QUIZ_STEPS } from "./quiz-copy";
 import { QuizResult } from "./quiz-result";
 import styles from "@/app/(site)/quiz/quiz.module.css";
@@ -22,6 +23,7 @@ export function QuizFlow({
   const [result, setResult] = useState<PublicQuizRecommendation | null>(null);
   const [error, setError] = useState("");
   const [isPending, startTransition] = useTransition();
+  const [started, setStarted] = useState(false);
   const current = QUIZ_STEPS[step];
   const selected = answers[current.id as QuizKey];
   const options = current.id === "familySlug"
@@ -29,6 +31,10 @@ export function QuizFlow({
     : current.options;
 
   function choose(value: string) {
+    if (!started) {
+      setStarted(true);
+      trackPublicEvent({ name: "quiz_started", source: "quiz" });
+    }
     setAnswers((previous) => ({ ...previous, [current.id]: value }));
   }
 
@@ -42,13 +48,14 @@ export function QuizFlow({
       try {
         setError("");
         setResult(await recommend(answers as QuizAnswers));
+        trackPublicEvent({ name: "quiz_completed", source: "quiz" });
       } catch {
         setError("Não foi possível concluir a curadoria agora. Tente novamente em alguns instantes.");
       }
     });
   }
 
-  if (result) return <QuizResult result={result} answers={answers as Pick<QuizAnswers, "production" | "looks" | "investment">} leadAnswers={answers as QuizAnswers} captureLead={captureQuizLeadAction} onRestart={() => { setAnswers({}); setResult(null); setStep(0); }} />;
+  if (result) return <QuizResult result={result} answers={answers as Pick<QuizAnswers, "production" | "looks" | "investment">} leadAnswers={answers as QuizAnswers} captureLead={captureQuizLeadAction} onRestart={() => { setStarted(false); setAnswers({}); setResult(null); setStep(0); }} />;
 
   return (
     <section className={styles.flow} aria-live="polite">
