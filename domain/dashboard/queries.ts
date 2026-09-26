@@ -1,4 +1,4 @@
-import { and, eq, gte, lte, ne, inArray } from "drizzle-orm";
+import { and, eq, gte, lte, ne, inArray, isNull } from "drizzle-orm";
 import { db } from "@/db/client";
 import { shoots, payments, expenses, productionJobs } from "@/db/schema";
 import { getReferralMetrics, type ReferralMetrics } from "@/domain/referrals/queries";
@@ -30,7 +30,8 @@ export async function getDashboardData(range: { from: string; to: string }): Pro
     ? await db
         .select({ shootId: payments.shootId, amount: payments.amount, status: payments.status })
         .from(payments)
-        .where(inArray(payments.shootId, shootIds))
+        // Shoot money only: upsell receipts belong to their order (SCL-507).
+        .where(and(inArray(payments.shootId, shootIds), isNull(payments.upsellOrderId)))
     : [];
 
   const periodExpenses = await db

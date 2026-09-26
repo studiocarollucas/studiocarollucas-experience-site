@@ -173,9 +173,11 @@ export async function getShootDetail(id: string): Promise<ShootDetail | null> {
     clientId: row.clientId,
     packageName: row.packageName,
     payments: shootPayments,
+    // Every receipt is listed, but upsell receipts (SCL-507) pay their order,
+    // not the agreed price, so they stay out of the Shoot balance.
     balance: calculateBalance(
       row.shoot.agreedPrice,
-      shootPayments.map((p) => ({ amount: p.amount, status: p.status })),
+      shootPayments.filter((p) => !p.upsellOrderId).map((p) => ({ amount: p.amount, status: p.status })),
     ),
     productionJob: job ?? null,
     preparationTasks: prep,

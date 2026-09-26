@@ -55,4 +55,22 @@ describe("buildLedger", () => {
     expect(entries.every((e) => e.id)).toBeTruthy();
     expect(new Set(entries.map((e) => e.id)).size).toBe(entries.length);
   });
+
+  it("keeps upsell receipts in the ledger, labelled as upsell (SCL-507)", () => {
+    const { entries, summary } = buildLedger({
+      ...input,
+      payments: [
+        {
+          paidAt: "2026-09-21T10:00:00Z",
+          createdAt: "2026-09-21T10:00:00Z",
+          amount: "420.00",
+          status: "confirmado",
+          clientName: "Eva",
+          upsellOrderId: "00000000-0000-4000-8000-000000000901",
+        },
+      ],
+    });
+    expect(entries.find((e) => e.kind === "recebimento")?.description).toBe("Recebimento upsell — Eva");
+    expect(summary.received).toBe("420.00");
+  });
 });
