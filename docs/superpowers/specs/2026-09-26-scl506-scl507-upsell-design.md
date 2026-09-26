@@ -111,6 +111,6 @@ solicitado → confirmado → em_producao → entregue
 
 - `tests/db/upsell-migration.test.ts`: SQL, snapshot encadeado, journal (por tag).
 - `tests/domain/upsell-rules.test.ts`: cotação (preço do servidor, oferta/ativo, quantidades, duplicados), transições, saldo do pedido, sugestão por favoritos.
-- `tests/domain/upsell-{portal,orders,payments,catalog}.test.ts`: identidade/idempotência/autorização do pedido, transições auditadas, pagamento no Shoot do pedido sem tocar `shoots.payment_status`, catálogo e ofertas auditados.
+- `tests/domain/upsell-{portal,orders,catalog}.test.ts`: identidade/idempotência/autorização do pedido, transições auditadas, pagamento no Shoot do pedido sem tocar `shoots.payment_status` (em `upsell-orders`), catálogo e ofertas auditados; `tests/domain/finance-ledger.test.ts` cobre o rótulo de upsell no livro-caixa.
 - `tests/app/client-upsell-actions.test.ts`, `tests/components/client-upsell-offers.test.tsx`, `tests/app/admin-upsell-pages.test.tsx`; ajustes em `tests/app/client-gallery-page.test.tsx`, `tests/app/admin-gallery-page.test.tsx`, `tests/components/admin-nav.test.tsx`.
 - Integração opt-in (`RUN_LIVE_DB_TESTS=true`): `tests/domain/upsell.integration.test.ts` (constraints, trigger, FK composta, idempotência real).
