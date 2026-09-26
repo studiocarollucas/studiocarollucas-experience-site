@@ -4,6 +4,7 @@ import { boasVindasV2 } from "./boas-vindas.v2";
 import { galeriaPublicadaV1 } from "./galeria-publicada.v1";
 import { lembreteD1V1 } from "./lembrete-d1.v1";
 import { lembreteD7V1 } from "./lembrete-d7.v1";
+import { pedidoAvaliacaoV1 } from "./pedido-avaliacao.v1";
 
 /**
  * Every shipped template version stays registered for as long as a queued
@@ -15,6 +16,7 @@ export const emailTemplates: readonly RegisteredEmailTemplate[] = [
   lembreteD7V1,
   lembreteD1V1,
   galeriaPublicadaV1,
+  pedidoAvaliacaoV1,
 ];
 
 export class UnknownEmailTemplateError extends Error {

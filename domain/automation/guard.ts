@@ -2,13 +2,16 @@ import "server-only";
 
 import { eq } from "drizzle-orm";
 import { db } from "@/db/client";
-import { automationEvents, galleries, shoots } from "@/db/schema";
+import { automationEvents, galleries, reviews, shoots } from "@/db/schema";
+import { readGoogleReviewUrl } from "@/domain/reviews/config";
 import {
   decideGalleryPublishedDelivery,
+  decideReviewRequestDelivery,
   decideShootReminderDelivery,
   decideShootWelcomeDelivery,
   GALLERY_PUBLISHED_EVENT_TYPE,
   reminderKindForEventType,
+  REVIEW_REQUEST_EVENT_TYPE,
   SHOOT_WELCOME_EVENT_TYPE,
 } from "./flows/rules";
 import type { DeliveryGuard } from "./processor";
@@ -17,9 +20,10 @@ import { studioDate } from "./studio-time";
 type GuardDatabase = Pick<typeof db, "select">;
 
 /**
- * Send-time eligibility (SCL-701/702/703): reads the delivery's event and the
- * entity as it is *now*, so a reminder for a shoot cancelled or moved after it
- * was enqueued — or a Reveal whose gallery is no longer published — is
+ * Send-time eligibility (SCL-701/702/703/704): reads the delivery's event and
+ * the entity as it is *now*, so a reminder for a shoot cancelled or moved after
+ * it was enqueued, a Reveal whose gallery is no longer published or a review
+ * request already completed/cancelled (or without a configured link) is
  * cancelled instead of sent. Events without a rule are sent as before.
  */
 export function createAutomationDeliveryGuard(database: GuardDatabase = db): DeliveryGuard {
@@ -65,6 +69,18 @@ export function createAutomationDeliveryGuard(database: GuardDatabase = db): Del
         .where(eq(galleries.id, event.entityId))
         .limit(1);
       return decideGalleryPublishedDelivery(gallery ?? null);
+    }
+
+    if (event.eventType === REVIEW_REQUEST_EVENT_TYPE) {
+      const [review] = await database
+        .select({ status: reviews.status })
+        .from(reviews)
+        .where(eq(reviews.id, event.entityId))
+        .limit(1);
+      return decideReviewRequestDelivery({
+        review: review ?? null,
+        reviewUrlConfigured: readGoogleReviewUrl() !== null,
+      });
     }
 
     return { send: true };

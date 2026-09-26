@@ -1,9 +1,9 @@
 // @vitest-environment node
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@/db/client", () => ({ db: {} }));
 
-import { automationEvents, galleries, shoots } from "@/db/schema";
+import { automationEvents, galleries, reviews, shoots } from "@/db/schema";
 import { createAutomationDeliveryGuard } from "@/domain/automation/guard";
 import type { ClaimedDelivery } from "@/domain/automation/processor";
 
@@ -25,12 +25,21 @@ const delivery: ClaimedDelivery = {
 
 type Row = Record<string, unknown>;
 
-function fakeDatabase(rows: { event?: Row; shoot?: Row; gallery?: Row }) {
+function fakeDatabase(rows: { event?: Row; shoot?: Row; gallery?: Row; review?: Row }) {
   const tables: unknown[] = [];
   const select = vi.fn(() => ({
     from: (table: unknown) => {
       tables.push(table);
-      const row = table === automationEvents ? rows.event : table === shoots ? rows.shoot : table === galleries ? rows.gallery : undefined;
+      const row =
+        table === automationEvents
+          ? rows.event
+          : table === shoots
+            ? rows.shoot
+            : table === galleries
+              ? rows.gallery
+              : table === reviews
+                ? rows.review
+                : undefined;
       return { where: () => ({ limit: vi.fn().mockResolvedValue(row ? [row] : []) }) };
     },
   }));
@@ -98,5 +107,44 @@ describe("createAutomationDeliveryGuard", () => {
     await expect(createAutomationDeliveryGuard(other.database)(delivery, now)).resolves.toEqual({ send: true });
     expect(other.tables).toEqual([automationEvents]);
     await expect(createAutomationDeliveryGuard(orphan.database)(delivery, now)).resolves.toMatchObject({ send: false });
+  });
+
+  describe("review request (SCL-704)", () => {
+    const reviewId = "00000000-0000-4000-8000-00000000c501";
+    const event = { eventType: "review.requested", entityId: reviewId, payload: { reviewId, shootId, target: "google" } };
+
+    afterEach(() => {
+      vi.unstubAllEnvs();
+    });
+
+    it("sends while the Review is still requested and the link is configured", async () => {
+      vi.stubEnv("STUDIO_GOOGLE_REVIEW_URL", "https://g.page/r/studio-carol-lucas/review");
+      const { database, tables } = fakeDatabase({ event, review: { status: "solicitado" } });
+
+      await expect(createAutomationDeliveryGuard(database)(delivery, now)).resolves.toEqual({ send: true });
+      expect(tables).toEqual([automationEvents, reviews]);
+    });
+
+    it("cancels when the Review was completed, cancelled or removed meanwhile", async () => {
+      vi.stubEnv("STUDIO_GOOGLE_REVIEW_URL", "https://g.page/r/studio-carol-lucas/review");
+      for (const [review, reason] of [
+        [{ status: "concluido" }, "avaliação já concluída"],
+        [{ status: "cancelado" }, "pedido de avaliação cancelado"],
+        [undefined, "avaliação inexistente"],
+      ] as const) {
+        const { database } = fakeDatabase({ event, review });
+        await expect(createAutomationDeliveryGuard(database)(delivery, now)).resolves.toEqual({ send: false, reason });
+      }
+    });
+
+    it("cancels when the review link is no longer configured", async () => {
+      vi.stubEnv("STUDIO_GOOGLE_REVIEW_URL", "");
+      const { database } = fakeDatabase({ event, review: { status: "solicitado" } });
+
+      await expect(createAutomationDeliveryGuard(database)(delivery, now)).resolves.toEqual({
+        send: false,
+        reason: "link de avaliação não configurado",
+      });
+    });
   });
 });

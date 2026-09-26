@@ -10,7 +10,13 @@ const mocks = vi.hoisted(() => ({
 vi.mock("@/db/client", () => ({ db: { transaction: mocks.transaction, select: mocks.select } }));
 vi.mock("@/domain/audit/service", () => ({ recordAuditEvent: mocks.recordAuditEvent }));
 
-import { cancelReview, completeReview, requestReview, ReviewError } from "@/domain/reviews/service";
+import {
+  cancelReview,
+  completeReview,
+  requestReview,
+  requestReviewInTransaction,
+  ReviewError,
+} from "@/domain/reviews/service";
 
 const CLIENT_ID = "00000000-0000-4000-8000-000000000101";
 const OTHER_CLIENT_ID = "00000000-0000-4000-8000-000000000102";
@@ -136,6 +142,41 @@ describe("requestReview", () => {
       requestReview({ clientId: CLIENT_ID, shootId: SHOOT_ID, source: "automacao" }, ACTOR_ID),
     ).resolves.toEqual({ review: existing, created: false });
     expect(mocks.recordAuditEvent).not.toHaveBeenCalled();
+  });
+});
+
+describe("requestReviewInTransaction (SCL-704)", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    mocks.recordAuditEvent.mockResolvedValue({});
+  });
+
+  it("writes and audits with the caller's transaction without opening another one", async () => {
+    const created = review({ source: "automacao", targetUrl: "https://g.page/r/studio/review" });
+    const { tx, values } = makeTx([[{ id: CLIENT_ID }], [{ clientId: CLIENT_ID }]], [created]);
+
+    await expect(
+      requestReviewInTransaction(
+        tx as never,
+        {
+          clientId: CLIENT_ID,
+          shootId: SHOOT_ID,
+          source: "automacao",
+          target: "google",
+          targetUrl: "https://g.page/r/studio/review",
+        },
+        null,
+      ),
+    ).resolves.toEqual({ review: created, created: true });
+
+    expect(mocks.transaction).not.toHaveBeenCalled();
+    expect(values).toHaveBeenCalledWith(
+      expect.objectContaining({ source: "automacao", targetUrl: "https://g.page/r/studio/review" }),
+    );
+    expect(mocks.recordAuditEvent).toHaveBeenCalledWith(
+      expect.objectContaining({ actorUserId: null, action: "review.requested", entityId: REVIEW_ID }),
+      tx,
+    );
   });
 });
 

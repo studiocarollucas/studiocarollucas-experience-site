@@ -6,6 +6,7 @@ const mocks = vi.hoisted(() => ({
   readClientGallery: vi.fn(),
   listClientSelectedAssetIds: vi.fn(),
   setPhotoSelectionAction: vi.fn(),
+  getPortalReviewPrompt: vi.fn(),
 }));
 
 vi.mock("@/domain/portal/server", () => ({ getPortalRequestContext: mocks.getPortalRequestContext }));
@@ -13,6 +14,12 @@ vi.mock("@/domain/gallery/portal", () => ({ readClientGallery: mocks.readClientG
 vi.mock("@/domain/gallery/selections", () => ({ listClientSelectedAssetIds: mocks.listClientSelectedAssetIds }));
 vi.mock("@/app/(client)/minha-experiencia/galeria/actions", () => ({
   setPhotoSelectionAction: mocks.setPhotoSelectionAction,
+}));
+
+vi.mock("@/domain/reviews/portal-server", () => ({ getPortalReviewPrompt: mocks.getPortalReviewPrompt }));
+vi.mock("@/app/(client)/minha-experiencia/avaliacao/actions", () => ({
+  openReviewLinkAction: vi.fn(),
+  dismissReviewPromptAction: vi.fn(),
 }));
 
 import ClientGalleryPage from "@/app/(client)/minha-experiencia/galeria/page";
@@ -24,6 +31,7 @@ describe("ClientGalleryPage", () => {
   beforeEach(() => {
     vi.resetAllMocks();
     mocks.getPortalRequestContext.mockResolvedValue(context);
+    mocks.getPortalReviewPrompt.mockResolvedValue(null);
   });
 
   it("renders the favorites of the signed-in client without leaking storage paths", async () => {
@@ -73,5 +81,34 @@ describe("ClientGalleryPage", () => {
 
     expect(screen.getByText(/ficará disponível quando for publicada pelo estúdio/i)).toBeInTheDocument();
     expect(mocks.listClientSelectedAssetIds).not.toHaveBeenCalled();
+  });
+
+  it("shows the review card below the photos without gating favorites or downloads (SCL-721)", async () => {
+    mocks.readClientGallery.mockResolvedValue({
+      id: "gallery-1",
+      status: "published",
+      downloadsEnabled: true,
+      assets: [{ id: "asset-1", storagePath, signedUrl: "https://private.example.test/asset-1?signed=1" }],
+    });
+    mocks.listClientSelectedAssetIds.mockResolvedValue([]);
+    mocks.getPortalReviewPrompt.mockResolvedValue({
+      shootId: "shoot-1",
+      reviewUrl: "https://g.page/r/studio-carol-lucas/review",
+    });
+
+    render(await ClientGalleryPage());
+
+    expect(screen.getByRole("button", { name: "Favoritar foto 1" })).toBeEnabled();
+    expect(screen.getByRole("link", { name: "Baixar foto 1" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Avaliar no Google/ })).toBeInTheDocument();
+  });
+
+  it("does not look for the review card without a published gallery", async () => {
+    mocks.readClientGallery.mockResolvedValue(null);
+
+    render(await ClientGalleryPage());
+
+    expect(mocks.getPortalReviewPrompt).not.toHaveBeenCalled();
+    expect(screen.queryByRole("link", { name: /Avaliar no Google/ })).not.toBeInTheDocument();
   });
 });
