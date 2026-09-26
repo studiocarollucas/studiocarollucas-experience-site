@@ -25,4 +25,32 @@ describe("trackPublicEvent", () => {
 
     expect(window.gtag).toHaveBeenCalledWith("event", "paixao_clutch_home_clicked", { source: "home" });
   });
+
+  it("tracks experience WhatsApp clicks with origin and the public experience slug only", () => {
+    window.gtag = vi.fn();
+
+    trackPublicEvent({ name: "experience_whatsapp_clicked", source: "experience_detail", experience: "familia" });
+
+    expect(window.gtag).toHaveBeenCalledWith("event", "experience_whatsapp_clicked", {
+      source: "experience_detail",
+      experience: "familia",
+    });
+  });
+
+  it("omits the experience parameter for generic WhatsApp CTAs", () => {
+    window.gtag = vi.fn();
+
+    trackPublicEvent({ name: "experience_whatsapp_clicked", source: "home" });
+
+    expect(window.gtag).toHaveBeenCalledWith("event", "experience_whatsapp_clicked", { source: "home" });
+  });
+
+  it("does not forward unexpected fields smuggled into an event", () => {
+    window.gtag = vi.fn();
+    const event = { name: "quiz_completed", source: "quiz", email: "ana@example.com" } as const;
+
+    trackPublicEvent(event);
+
+    expect(window.gtag).toHaveBeenCalledWith("event", "quiz_completed", { source: "quiz" });
+  });
 });

@@ -2,9 +2,12 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { listPublicPaixaoClutches } from "@/domain/inventory/public-clutch";
+import { ExperienceWhatsAppLink } from "@/components/site/experience-whatsapp-link";
+import { JsonLd } from "@/components/site/json-ld";
 import { PaixaoClutchHomeLink } from "@/components/site/paixao-clutch-tracked-links";
 import { experiences } from "@/lib/site/experiences";
-import { contactUrl } from "@/lib/site/contact";
+import { contactUrl, studioWhatsAppLabel } from "@/lib/site/contact";
+import { studioJsonLd } from "@/lib/site/structured-data";
 import s from "./home.module.css";
 
 export const dynamic = "force-dynamic";
@@ -49,6 +52,7 @@ export default async function Home() {
 
   return (
     <div className={s.home}>
+      <JsonLd data={studioJsonLd()} />
       <a className={s.skip} href="#conteudo">
         Ir para o conteúdo
       </a>
@@ -249,10 +253,16 @@ export default async function Home() {
             </h2>
           </div>
           <div>
-            <a className={s.cta} href={contactUrl()} target="_blank" rel="noreferrer">
+            <ExperienceWhatsAppLink
+              className={s.cta}
+              href={contactUrl()}
+              target="_blank"
+              rel="noreferrer"
+              source="home"
+            >
               Vamos imaginar seu ensaio <Arrow />
-            </a>
-            <p className={s.contactCaption}>WhatsApp · (92) 98414-0492</p>
+            </ExperienceWhatsAppLink>
+            <p className={s.contactCaption}>WhatsApp · {studioWhatsAppLabel()}</p>
           </div>
         </section>
       </main>

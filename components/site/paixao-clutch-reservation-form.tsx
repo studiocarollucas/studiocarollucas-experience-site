@@ -3,7 +3,7 @@
 import { useActionState, useState } from "react";
 import { submitPublicClutchRentalReservationAction, type PublicClutchReservationActionState } from "@/app/(site)/paixao-clutch/[slug]/reservation-actions";
 import { studioDate } from "@/domain/portal/countdown";
-import { contactUrl } from "@/lib/site/contact";
+import { paixaoClutchContactUrl } from "@/lib/site/contact";
 import { PaixaoClutchWhatsAppLink } from "@/components/site/paixao-clutch-tracked-links";
 import s from "@/app/(site)/paixao-clutch/paixao-clutch.module.css";
 
@@ -134,7 +134,7 @@ export function PaixaoClutchReservationForm({ slug, name }: { slug: string; name
         {state && !state.ok && !state.fieldErrors ? <p role="alert" aria-live="assertive">{state.message}</p> : null}
         <button type="submit" disabled={pending}>{pending ? "Enviando pedido…" : "Enviar pedido de reserva"}</button>
       </form>
-      <PaixaoClutchWhatsAppLink href={contactUrl(`Paixão Clutch: ${name}`)} target="_blank" rel="noreferrer">
+      <PaixaoClutchWhatsAppLink href={paixaoClutchContactUrl({ name })} target="_blank" rel="noreferrer">
         Consultar pelo WhatsApp <span aria-hidden="true">↗</span>
       </PaixaoClutchWhatsAppLink>
     </section>

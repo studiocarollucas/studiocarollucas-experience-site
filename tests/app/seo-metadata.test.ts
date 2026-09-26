@@ -9,6 +9,7 @@ import { generateMetadata as generateExperienceMetadata } from "@/app/(site)/exp
 import { metadata as quizMetadata } from "@/app/(site)/quiz/page";
 import robots from "@/app/robots";
 import sitemap from "@/app/sitemap";
+import { siteVerification } from "@/lib/site/search-console";
 
 const sitemapMocks = vi.hoisted(() => ({
   list: vi.fn(),
@@ -43,11 +44,30 @@ describe("public SEO metadata", () => {
     expect(urls).toEqual([
       "https://studiocarollucas.com.br/",
       "https://studiocarollucas.com.br/experiencias",
+      "https://studiocarollucas.com.br/experiencias/15-anos",
+      "https://studiocarollucas.com.br/experiencias/aniversario-feminino",
+      "https://studiocarollucas.com.br/experiencias/gestante",
+      "https://studiocarollucas.com.br/experiencias/newborn",
+      "https://studiocarollucas.com.br/experiencias/familia",
       "https://studiocarollucas.com.br/paixao-clutch",
       "https://studiocarollucas.com.br/paixao-clutch/clutch-dourada-cl-001",
     ]);
     expect(urls).not.toContain(expect.stringContaining("/admin"));
     expect(urls).not.toContain(expect.stringContaining("/minha-experiencia"));
+    expect(urls).not.toContain(expect.stringContaining("/quiz"));
+  });
+
+  it("prepares Google Search Console verification only when a token is configured", async () => {
+    vi.stubEnv("NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION", "");
+    expect(siteVerification()).toBeUndefined();
+    expect(siteVerification("   ")).toBeUndefined();
+    expect(siteVerification(" google-token ")).toEqual({ google: "google-token" });
+    vi.stubEnv("NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION", "env-token");
+    expect(siteVerification()).toEqual({ google: "env-token" });
+    vi.unstubAllEnvs();
+
+    const rootLayout = await readFile(join(process.cwd(), "app/layout.tsx"), "utf8");
+    expect(rootLayout).toContain("siteVerification()");
   });
 
   it("disallows private route prefixes in robots", () => {

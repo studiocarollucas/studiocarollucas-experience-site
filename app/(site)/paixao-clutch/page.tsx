@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { listPublicPaixaoClutches } from "@/domain/inventory/public-clutch";
 import { PaixaoClutchCatalog } from "@/components/site/paixao-clutch-catalog";
 import { toPaixaoClutchCatalogItem } from "@/lib/site/paixao-clutch-catalog";
-import { contactUrl } from "@/lib/site/contact";
+import { paixaoClutchCollectionContactUrl } from "@/lib/site/contact";
 import { PaixaoClutchWhatsAppLink } from "@/components/site/paixao-clutch-tracked-links";
 import s from "../home.module.css";
 import p from "./paixao-clutch.module.css";
@@ -41,7 +41,7 @@ export default async function PaixaoClutchPage() {
           <p className={s.eyebrow}>Em breve</p>
           <h2 id="curadoria-em-breve">Nossa curadoria está ganhando forma.</h2>
           <p>Conte ao estúdio o que você imagina para a sua produção.</p>
-          <PaixaoClutchWhatsAppLink className={s.cta} href={contactUrl()} target="_blank" rel="noreferrer">
+          <PaixaoClutchWhatsAppLink className={s.cta} href={paixaoClutchCollectionContactUrl()} target="_blank" rel="noreferrer">
             Conversar sobre uma clutch <span aria-hidden="true">↗</span>
           </PaixaoClutchWhatsAppLink>
         </section>

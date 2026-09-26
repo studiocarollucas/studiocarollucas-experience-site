@@ -1,5 +1,6 @@
 import type { MetadataRoute } from "next";
 import { listPublicPaixaoClutches } from "@/domain/inventory/public-clutch";
+import { experiences } from "@/lib/site/experiences";
 
 const siteUrl = new URL(process.env.NEXT_PUBLIC_SITE_URL ?? "https://studiocarollucas.com.br");
 
@@ -7,7 +8,12 @@ export const dynamic = "force-dynamic";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const clutches = await listPublicPaixaoClutches();
-  const staticPaths = ["/", "/experiencias", "/paixao-clutch"];
+  const staticPaths = [
+    "/",
+    "/experiencias",
+    ...experiences.map(({ slug }) => `/experiencias/${slug}`),
+    "/paixao-clutch",
+  ];
 
   return [
     ...staticPaths.map((pathname) => ({
