@@ -96,12 +96,12 @@ Esta revisão preserva todas as tasks já concluídas e adiciona cobertura expl�
 | SCL-253 | Converter Lead → Client | P1 | admin/commercial | DONE | unassigned | SCL-100,SCL-101,SCL-252 |
 | SCL-254 | Converter Lead ganho → Shoot | P1 | admin/commercial | DONE | unassigned | SCL-103,SCL-211,SCL-253 |
 | SCL-306 | Timeline da experiência | P2 | client | BACKLOG | unassigned | SCL-302,SCL-303,SCL-304 |
-| SCL-405 | CTA WhatsApp contextual + tracking | P1 | site/commercial | IN_REVIEW | agent:claude-code | SCL-403,SCL-404 |
-| SCL-406 | SEO técnico + Analytics | P1 | site | IN_REVIEW | agent:claude-code | SCL-400,SCL-401,SCL-402 |
+| SCL-405 | CTA WhatsApp contextual + tracking | P1 | site/commercial | DONE | agent:claude-code | SCL-403,SCL-404 |
+| SCL-406 | SEO técnico + Analytics | P1 | site | DONE | agent:claude-code | SCL-400,SCL-401,SCL-402 |
 | SCL-501 | GalleryAsset + storage privado | P1 | gallery | DONE | unassigned | SCL-500 |
 | SCL-502 | Gestão/publicação da galeria | P1 | gallery/admin | DONE | unassigned | SCL-500,SCL-501,SCL-230 |
-| SCL-504 | Favoritos / PhotoSelection | P1 | gallery/client | BACKLOG | unassigned | SCL-500,SCL-503 |
-| SCL-505 | Downloads autorizados | P1 | gallery/client | BACKLOG | unassigned | SCL-501,SCL-503 |
+| SCL-504 | Favoritos / PhotoSelection | P1 | gallery/client | IN_REVIEW | agent:claude-code | SCL-500,SCL-503 |
+| SCL-505 | Downloads autorizados | P1 | gallery/client | IN_REVIEW | agent:claude-code | SCL-501,SCL-503 |
 | SCL-506 | Catálogo de produtos/upsells | P1 | gallery/commerce | BACKLOG | unassigned | SCL-500,SCL-503 |
 | SCL-507 | Pedido de upsell + Financeiro | P1 | gallery/finance | BACKLOG | unassigned | SCL-104,SCL-506 |
 | SCL-550 | Schema InventoryItem | P1 | inventory/db | DONE | unassigned | SCL-005 |
@@ -113,12 +113,12 @@ Esta revisão preserva todas as tasks já concluídas e adiciona cobertura expl�
 | SCL-556 | Curadoria Paixão Clutch no Admin | P1 | inventory/admin | DONE | unassigned | SCL-552 |
 | SCL-557 | Paixão Clutch pública | P1 | site/inventory | DONE | unassigned | SCL-551,SCL-556,SCL-400 |
 | SCL-558 | Aluguel avulso Paixão Clutch | P2 | inventory/commerce | DEFERRED | unassigned | SCL-553,SCL-557 |
-| SCL-700 | Infra eventos + Resend + templates | P1 | automation | BACKLOG | unassigned | SCL-008 |
+| SCL-700 | Infra eventos + Resend + templates | P1 | automation | IN_REVIEW | agent:claude-code | SCL-008 |
 | SCL-701 | Boas-vindas após reserva | P1 | automation | BACKLOG | unassigned | SCL-211,SCL-700 |
 | SCL-702 | Scheduler D-7 / D-1 | P1 | automation | BACKLOG | unassigned | SCL-700,SCL-103 |
 | SCL-703 | Notificações de Reveal/Galeria | P1 | automation/gallery | BACKLOG | unassigned | SCL-502,SCL-503,SCL-700 |
 | SCL-704 | Pedido de review pós-entrega | P1 | automation/growth | BACKLOG | unassigned | SCL-503,SCL-700,SCL-720 |
-| SCL-705 | Delivery log + retry + idempotência | P1 | automation | BACKLOG | unassigned | SCL-700 |
+| SCL-705 | Delivery log + retry + idempotência | P1 | automation | IN_REVIEW | agent:claude-code | SCL-700 |
 | SCL-720 | Schema/serviços Review + Referral | P1 | growth/db | BACKLOG | unassigned | SCL-100,SCL-103 |
 | SCL-721 | Fluxo de avaliação / Google | P1 | growth/client | BACKLOG | unassigned | SCL-704,SCL-720 |
 | SCL-722 | Tracking de indicação e conversão | P1 | growth/admin | BACKLOG | unassigned | SCL-720,SCL-253 |
@@ -1931,12 +1931,12 @@ Fazer o quiz gerar qualificação comercial persistível somente com consentimen
 
 ### SCL-405 — CTA WhatsApp contextual + tracking
 
-- Status: IN_REVIEW
+- Status: DONE
 - Priority: P1
 - Area: site/commercial
 - Owner: agent:claude-code
 - Branch: `claude/scl-405-406-launch-seo`
-- PR: —
+- PR: #1 (merge `4506cfc`)
 - Depends on: SCL-403, SCL-404
 - Blocks: none
 - Files/Scope: public CTAs, analytics events
@@ -1960,12 +1960,12 @@ Fazer o quiz gerar qualificação comercial persistível somente com consentimen
 
 ### SCL-406 — SEO técnico + Analytics
 
-- Status: IN_REVIEW
+- Status: DONE
 - Priority: P1
 - Area: site
 - Owner: agent:claude-code
 - Branch: `claude/scl-405-406-launch-seo`
-- PR: —
+- PR: #1 (merge `4506cfc`)
 - Depends on: SCL-400, SCL-401, SCL-402
 - Blocks: public launch gate
 - Files/Scope: metadata, sitemap, robots, structured data, analytics
@@ -2108,47 +2108,61 @@ SCL-504, SCL-505, SCL-506 e SCL-703 estão desbloqueadas, mas permanecem pendent
 
 ### SCL-504 — Favoritos / PhotoSelection
 
-- Status: BACKLOG
+- Status: IN_REVIEW
 - Priority: P1
 - Area: gallery/client
-- Owner: unassigned
-- Branch: —
+- Owner: agent:claude-code
+- Branch: claude/scl-504-505-gallery-selection
 - PR: —
 - Depends on: SCL-500,SCL-503
 - Blocks: SCL-506
-- Files/Scope: gallery selections domain/UI
-- Migration: yes
-- Updated at: 2026-09-07 America/Manaus
+- Files/Scope: `db/schema/galleries.ts`, `db/migrations/0050_gallery_selections_downloads.sql` (+ journal/snapshot), `domain/gallery/{selections,schema}.ts`, `app/(client)/minha-experiencia/galeria/{page,actions}.ts*`, `components/client/gallery-grid.tsx`, `app/admin/(protected)/galerias/[shootId]/*`, `components/admin/gallery-manager.tsx`
+- Migration: yes (`0050_gallery_selections_downloads`, empilhada sobre a `0049` de SCL-700)
+- Updated at: 2026-09-25 America/Manaus
 
 **Acceptance criteria**
 
-- [ ] cliente favorita/desfavorita somente assets da própria Gallery;
-- [ ] persistência única por cliente/gallery/asset;
-- [ ] contagem disponível para Admin e upsell;
-- [ ] concorrência/idempotência tratadas.
+- [x] cliente favorita/desfavorita somente assets da própria Gallery;
+- [x] persistência única por cliente/gallery/asset;
+- [x] contagem disponível para Admin e upsell;
+- [x] concorrência/idempotência tratadas.
+
+**Blocker/Hand-off notes**
+
+- concluído: tabela `photo_selections` (unique `client_id`+`gallery_id`+`asset_id`, FKs `cascade`, RLS com leitura só de staff e nenhum grant de escrita para `anon`/`authenticated`); a Server Action do portal resolve a cliente pela sessão e o domínio autoriza a foto por asset → gallery publicada → shoot da cliente; a ação recebe o estado desejado (`selected`), grava com `ON CONFLICT DO NOTHING` e remove pela chave; UI otimista com botão `aria-pressed`, contador `aria-live` e reversão em erro; Admin mostra favoritos por galeria e por foto; `getGallerySelectionSummary(galleryId)` pronta para SCL-506.
+- fora de escopo: limite de seleção pelo pacote, notificação de seleção e uso da contagem no upsell (SCL-506).
+- testes: `tests/db/gallery-selections-migration.test.ts`, `tests/domain/gallery-{schema,selections}.test.ts`, `tests/app/client-gallery-{page,actions}.test.ts*`, `tests/components/client-gallery-grid.test.tsx`, `tests/app/admin-gallery-page.test.tsx`; integração live opt-in em `tests/domain/gallery-selections.integration.test.ts`. Sem `node_modules` no ambiente desta task: lint/typecheck/test/build validados pelo CI do PR.
+- próximo passo: aplicar `0050` no Supabase depois da `0049` (branch empilhada sobre `claude/scl-700-705-email-foundation`; revisar/mergear aquela primeiro).
 
 ---
 
 ### SCL-505 — Downloads autorizados
 
-- Status: BACKLOG
+- Status: IN_REVIEW
 - Priority: P1
 - Area: gallery/client
-- Owner: unassigned
-- Branch: —
+- Owner: agent:claude-code
+- Branch: claude/scl-504-505-gallery-selection
 - PR: —
 - Depends on: SCL-501,SCL-503
 - Blocks: none
-- Files/Scope: download authorization, signed URLs
-- Migration: no
-- Updated at: 2026-09-07 America/Manaus
+- Files/Scope: `domain/gallery/{downloads,storage}.ts`, `app/(client)/minha-experiencia/galeria/fotos/[assetId]/download/route.ts`, `components/client/gallery-grid.tsx`, `app/admin/(protected)/galerias/[shootId]/*`, `components/admin/gallery-manager.tsx`
+- Migration: yes (coluna `galleries.downloads_enabled` na `0050_gallery_selections_downloads`, compartilhada com SCL-504)
+- Updated at: 2026-09-25 America/Manaus
 
 **Acceptance criteria**
 
-- [ ] download só de assets autorizados;
-- [ ] signed URL com expiração;
-- [ ] opção de bloquear originais/download por Gallery;
-- [ ] nenhuma chave privada no browser.
+- [x] download só de assets autorizados;
+- [x] signed URL com expiração;
+- [x] opção de bloquear originais/download por Gallery;
+- [x] nenhuma chave privada no browser.
+
+**Blocker/Hand-off notes**
+
+- concluído: `galleries.downloads_enabled boolean not null default false` (bloqueado por padrão, inclusive nas galerias já publicadas); o link da galeria aponta para `/minha-experiencia/galeria/fotos/[assetId]/download`, que resolve a cliente pela sessão, autoriza a foto (404 neutro para foto alheia/rascunho, 403 quando bloqueado) e redireciona (`307`, `no-store`) para URL assinada de 60 s com nome de arquivo neutro; a service role só existe no servidor; Admin libera/bloqueia por galeria via `defineAdminAction` (staff) com `gallery.downloads_updated` no `audit_log` na mesma transação, apenas quando o valor muda.
+- decisão: o modelo guarda um único arquivo por foto; "bloquear originais" = bloquear download da galeria. Quando SCL-501 introduzir variantes web, uma segunda coluna pode liberar apenas a variante sem mudar o endpoint.
+- fora de escopo: download em lote (.zip) e expiração/limite de downloads por cliente.
+- testes: `tests/domain/gallery-{downloads,storage}.test.ts`, `tests/app/client-gallery-download-route.test.ts`, `tests/components/client-gallery-grid.test.tsx`, `tests/app/admin-gallery-page.test.tsx`.
 
 ---
 
@@ -2456,26 +2470,33 @@ Evoluir a consulta pública para um fluxo completo de aluguel independente de en
 
 ### SCL-700 — Infra de eventos + Resend + templates
 
-- Status: BACKLOG
+- Status: IN_REVIEW
 - Priority: P1
 - Area: automation
-- Owner: unassigned
-- Branch: —
+- Owner: agent:claude-code
+- Branch: claude/scl-700-705-email-foundation
 - PR: —
 - Depends on: SCL-008
 - Blocks: SCL-701,SCL-702,SCL-703,SCL-704,SCL-705
-- Files/Scope: automation events/outbox, email provider, templates
-- Migration: yes
-- Updated at: 2026-09-07 America/Manaus
+- Files/Scope: `db/schema/automation.ts`, `db/migrations/0049_email_automation_outbox.sql` (+ journal/snapshot), `domain/automation/**`, `lib/email/**`, `lib/observability/report-error.ts`, `.env.example`
+- Migration: yes (`0049_email_automation_outbox`)
+- Updated at: 2026-09-25 America/Manaus
 
 **Acceptance criteria**
 
-- [ ] evento persistido/idempotente antes ou junto da ação relevante;
-- [ ] provider Resend encapsulado;
-- [ ] templates versionados;
-- [ ] nenhuma PII em logs desnecessários;
-- [ ] delivery status modelado;
-- [ ] ambiente dev/test não envia e-mail real por padrão.
+- [x] evento persistido/idempotente antes ou junto da ação relevante;
+- [x] provider Resend encapsulado;
+- [x] templates versionados;
+- [x] nenhuma PII em logs desnecessários;
+- [x] delivery status modelado;
+- [x] ambiente dev/test não envia e-mail real por padrão.
+
+**Blocker/Hand-off notes**
+
+- concluído: tabelas `automation_events`/`notification_deliveries` (server-only: RLS ligada, sem grants para `anon`/`authenticated`); `enqueueAutomationEvent(input, tx)` grava evento + entregas na transação do chamador, com replay idempotente por `idempotency_key`; `EmailProvider` com Resend via REST (`fetch`, `Idempotency-Key`) e provider de log; envio real só com `EMAIL_DELIVERY_ENABLED=true` (em `VERCEL_ENV=production`, desligado = 503); templates TypeScript versionados por `key`+`version`, versão fixada por entrega, com `boas-vindas` v1 genérico em pt-BR.
+- fora de escopo: nenhum fluxo de negócio enfileira e-mail ainda (SCL-701–704); webhooks do Resend; preferências/descadastro.
+- testes: `tests/db/email-automation-migration.test.ts`, `tests/domain/automation-{schema,templates,events}.test.ts`, `tests/lib/email-{resend,config}.test.ts`; integração live opt-in em `tests/domain/automation-outbox.integration.test.ts`. Sem `node_modules` no ambiente de desenvolvimento desta task: lint/typecheck/test/build validados pelo CI do PR.
+- próximo passo: aplicar `0049` no Supabase, configurar Resend/Vercel conforme `docs/runbooks/email-automation.md`; SCL-701 deve publicar a boas-vindas real como nova versão/template.
 
 ---
 
@@ -2573,25 +2594,32 @@ Evoluir a consulta pública para um fluxo completo de aluguel independente de en
 
 ### SCL-705 — Delivery log + retry + idempotência
 
-- Status: BACKLOG
+- Status: IN_REVIEW
 - Priority: P1
 - Area: automation
-- Owner: unassigned
-- Branch: —
+- Owner: agent:claude-code
+- Branch: claude/scl-700-705-email-foundation
 - PR: —
 - Depends on: SCL-700
 - Blocks: production reliability gate
-- Files/Scope: automation delivery workers/logging
-- Migration: evaluate
-- Updated at: 2026-09-07 America/Manaus
+- Files/Scope: `domain/automation/{processor,delivery-store,retry,sanitize,reprocess}.ts`, `app/api/cron/email-deliveries/route.ts`, `lib/auth/cron-secret.ts`, `docs/runbooks/email-automation.md`
+- Migration: yes (compartilhada com SCL-700: `0049_email_automation_outbox`)
+- Updated at: 2026-09-25 America/Manaus
 
 **Acceptance criteria**
 
-- [ ] chave idempotente por evento/template/destinatário;
-- [ ] estados pending/sent/failed/retry ou equivalentes;
-- [ ] retry com limite/backoff;
-- [ ] erro observável no Sentry/log estruturado;
-- [ ] reprocessamento manual seguro pelo Admin/runbook.
+- [x] chave idempotente por evento/template/destinatário;
+- [x] estados pending/sent/failed/retry ou equivalentes;
+- [x] retry com limite/backoff;
+- [x] erro observável no Sentry/log estruturado;
+- [x] reprocessamento manual seguro pelo Admin/runbook.
+
+**Blocker/Hand-off notes**
+
+- concluído: unique (`event_id`, `template_key`, `recipient`) + `Idempotency-Key: notification-delivery/<id>` estável no Resend; estados `pending`/`sending`/`retry`/`sent`/`failed`/`cancelled` com `attempt_count`, `max_attempts`, `next_attempt_at`, `locked_until`, `last_error` sanitizado; claim com `FOR UPDATE SKIP LOCKED` + lease de 5 min e marcações condicionadas ao claim; backoff 5→10→20→40 min (teto 6 h, 5 tentativas); falhas definitivas no Sentry e logs só com IDs; endpoint `/api/cron/email-deliveries` (GET/POST) protegido por `CRON_SECRET` em tempo constante; runbook com configuração, agendamento e SQL auditado de reprocessamento.
+- fora de escopo: tela de Admin do delivery log — `requeueFailedDelivery`/`cancelDelivery` (auditadas) ficam prontas para uma futura `defineAdminAction`; `vercel.json` com cron não versionado (Hobby só permite cron diário; ver runbook).
+- testes: `tests/domain/automation-{retry,processor,reprocess}.test.ts`, `tests/lib/cron-secret.test.ts`, `tests/app/email-deliveries-cron-route.test.ts`; validação final no CI do PR.
+- próximo passo: configurar o agendador (a cada 5 min) e `CRON_SECRET` em produção.
 
 ---
 

@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { defineAdminAction } from "@/lib/auth/admin-action";
 import { publishGallery, removeGalleryAsset, uploadGalleryAsset } from "@/domain/gallery/assets";
+import { setGalleryDownloadsEnabled } from "@/domain/gallery/downloads";
 
 const publishGalleryInput = z.object({
   galleryId: z.string().uuid(),
@@ -22,6 +23,15 @@ const uploadGalleryInput = z.preprocess(
 const removeGalleryAssetInput = z.preprocess(
   asObject,
   z.object({ galleryId: z.string().uuid(), shootId: z.string().uuid(), assetId: z.string().uuid() }),
+);
+
+const setGalleryDownloadsInput = z.preprocess(
+  asObject,
+  z.object({
+    galleryId: z.string().uuid(),
+    shootId: z.string().uuid(),
+    downloadsEnabled: z.union([z.boolean(), z.enum(["true", "false"]).transform((value) => value === "true")]),
+  }),
 );
 
 export const publishGalleryAction = defineAdminAction(
@@ -48,5 +58,18 @@ export const removeGalleryAssetAction = defineAdminAction(
     await removeGalleryAsset({ galleryId, assetId });
     revalidatePath(`/admin/galerias/${shootId}`);
     return { id: assetId };
+  },
+);
+
+export const setGalleryDownloadsAction = defineAdminAction(
+  { role: "staff", input: setGalleryDownloadsInput },
+  async ({ galleryId, shootId, downloadsEnabled }, { user }) => {
+    const result = await setGalleryDownloadsEnabled({
+      galleryId,
+      enabled: downloadsEnabled,
+      actorUserId: user.id,
+    });
+    revalidatePath(`/admin/galerias/${shootId}`);
+    return { id: galleryId, downloadsEnabled: result.downloadsEnabled };
   },
 );
