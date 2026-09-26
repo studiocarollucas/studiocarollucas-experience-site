@@ -118,9 +118,15 @@ describe("planReviewRequests (SCL-704)", () => {
   });
 });
 
+type SelectChain = {
+  innerJoin: () => SelectChain;
+  leftJoin: () => SelectChain;
+  where: () => Promise<ReviewRequestRow[]>;
+};
+
 function fakeDatabase(rows: ReviewRequestRow[]) {
   const tx = { kind: "tx" };
-  const chain = {
+  const chain: SelectChain = {
     innerJoin: vi.fn(() => chain),
     leftJoin: vi.fn(() => chain),
     where: vi.fn(() => Promise.resolve(rows)),
