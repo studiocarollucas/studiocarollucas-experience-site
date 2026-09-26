@@ -37,6 +37,9 @@ function auditView(review: Review) {
   };
 }
 
+/** The transaction of a caller that writes the Review with its own action (SCL-704/SCL-721). */
+export type ReviewWriter = Parameters<Parameters<typeof db.transaction>[0]>[0];
+
 /**
  * Records that a review was requested (PRD §7.10). Idempotent per Shoot and
  * destination: while a requested or completed review exists for that pair
@@ -49,68 +52,80 @@ export async function requestReview(
   actorUserId: string | null,
 ): Promise<{ review: Review; created: boolean }> {
   const parsed = requestReviewSchema.parse(input);
+  return db.transaction((tx) => requestReviewInTransaction(tx, parsed, actorUserId));
+}
 
-  return db.transaction(async (tx) => {
-    const [client] = await tx.select({ id: clients.id }).from(clients).where(eq(clients.id, parsed.clientId)).limit(1);
-    if (!client) throw new ReviewError("Cliente inexistente.");
+/**
+ * Same as requestReview, inside the caller's transaction: the post-delivery
+ * automation enqueues its email and the portal records the link open in the
+ * same commit as the Review.
+ */
+export async function requestReviewInTransaction(
+  tx: ReviewWriter,
+  input: RequestReviewInput,
+  actorUserId: string | null,
+): Promise<{ review: Review; created: boolean }> {
+  const parsed = requestReviewSchema.parse(input);
 
-    if (parsed.shootId) {
-      const [shoot] = await tx
-        .select({ clientId: shoots.clientId })
-        .from(shoots)
-        .where(eq(shoots.id, parsed.shootId))
-        .limit(1);
-      if (!shoot || shoot.clientId !== parsed.clientId) {
-        throw new ReviewError("O ensaio não pertence a esta cliente.");
-      }
+  const [client] = await tx.select({ id: clients.id }).from(clients).where(eq(clients.id, parsed.clientId)).limit(1);
+  if (!client) throw new ReviewError("Cliente inexistente.");
+
+  if (parsed.shootId) {
+    const [shoot] = await tx
+      .select({ clientId: shoots.clientId })
+      .from(shoots)
+      .where(eq(shoots.id, parsed.shootId))
+      .limit(1);
+    if (!shoot || shoot.clientId !== parsed.clientId) {
+      throw new ReviewError("O ensaio não pertence a esta cliente.");
     }
+  }
 
-    const [created] = await tx
-      .insert(reviews)
-      .values({
-        clientId: parsed.clientId,
-        shootId: parsed.shootId ?? null,
-        status: "solicitado",
-        source: parsed.source,
-        target: parsed.target,
-        targetUrl: parsed.targetUrl ?? null,
-        requestedAt: new Date(),
-      })
-      .onConflictDoNothing()
-      .returning();
+  const [created] = await tx
+    .insert(reviews)
+    .values({
+      clientId: parsed.clientId,
+      shootId: parsed.shootId ?? null,
+      status: "solicitado",
+      source: parsed.source,
+      target: parsed.target,
+      targetUrl: parsed.targetUrl ?? null,
+      requestedAt: new Date(),
+    })
+    .onConflictDoNothing()
+    .returning();
 
-    if (!created) {
-      // Only the partial unique index can conflict, and it only covers rows
-      // with a Shoot.
-      if (!parsed.shootId) throw new Error("Pedido de avaliação em conflito.");
-      const [existing] = await tx
-        .select()
-        .from(reviews)
-        .where(
-          and(
-            eq(reviews.shootId, parsed.shootId),
-            eq(reviews.target, parsed.target),
-            ne(reviews.status, "cancelado"),
-          ),
-        )
-        .limit(1);
-      if (!existing) throw new Error("Pedido de avaliação em conflito.");
-      return { review: existing, created: false };
-    }
+  if (!created) {
+    // Only the partial unique index can conflict, and it only covers rows
+    // with a Shoot.
+    if (!parsed.shootId) throw new Error("Pedido de avaliação em conflito.");
+    const [existing] = await tx
+      .select()
+      .from(reviews)
+      .where(
+        and(
+          eq(reviews.shootId, parsed.shootId),
+          eq(reviews.target, parsed.target),
+          ne(reviews.status, "cancelado"),
+        ),
+      )
+      .limit(1);
+    if (!existing) throw new Error("Pedido de avaliação em conflito.");
+    return { review: existing, created: false };
+  }
 
-    await recordAuditEvent(
-      {
-        actorUserId,
-        action: "review.requested",
-        entityType: "review",
-        entityId: created.id,
-        before: null,
-        after: auditView(created),
-      },
-      tx,
-    );
-    return { review: created, created: true };
-  });
+  await recordAuditEvent(
+    {
+      actorUserId,
+      action: "review.requested",
+      entityType: "review",
+      entityId: created.id,
+      before: null,
+      after: auditView(created),
+    },
+    tx,
+  );
+  return { review: created, created: true };
 }
 
 /**
