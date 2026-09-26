@@ -1,3 +1,5 @@
+export const INVENTORY_MEDIA_BUCKET = "inventory-media";
+
 const allowedExtensions = new Set(["jpg", "jpeg", "png", "webp"]);
 
 export function inventoryMediaPath(inventoryItemId: string, mediaId: string, extension: string): string {
