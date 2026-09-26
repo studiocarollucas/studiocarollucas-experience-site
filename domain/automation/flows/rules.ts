@@ -167,3 +167,75 @@ export function decideGalleryPublishedDelivery(gallery: { status: string } | nul
   if (gallery.status !== "published") return { send: false, reason: "galeria não publicada" };
   return SEND;
 }
+
+// ---------------------------------------------------------------------------
+// SCL-704 / SCL-721 — post-delivery review request (email + portal card)
+
+export const REVIEW_REQUEST_EVENT_TYPE = "review.requested";
+export const REVIEW_REQUEST_TEMPLATE_KEY = "pedido-avaliacao";
+/** PRD §7.10: Google Business Profile is the priority destination. */
+export const REVIEW_REQUEST_TARGET = "google" as const;
+
+/** Days after the real delivery date before the client is invited to review. */
+export const REVIEW_REQUEST_DELAY_DAYS = 3;
+/** Email only: older deliveries never get an automatic request (no backfill blast). */
+export const REVIEW_REQUEST_MAX_DAYS = 30;
+/** Earliest local send time of the review request email. */
+export const REVIEW_REQUEST_SEND_TIME = "10:00";
+
+export type ReviewRequestCandidate = {
+  shootStatus: string;
+  productionStatus: string | null;
+  /** production_jobs.delivery_at ("YYYY-MM-DD"). */
+  deliveryAt: string | null;
+  galleryStatus: string | null;
+};
+
+const civilDatePattern = /^\d{4}-\d{2}-\d{2}$/;
+
+/**
+ * "Delivered and revealed": the production job is `entregue` with a real
+ * delivery date, the Reveal gallery is published and the shoot was not
+ * cancelled. The shoot status itself only mirrors the delivery when its state
+ * machine allows the hop, so it is not the trigger. Returns the delivery date.
+ */
+function deliveredAndRevealedOn(candidate: ReviewRequestCandidate): string | null {
+  if (candidate.shootStatus === "cancelado") return null;
+  if (candidate.productionStatus !== "entregue") return null;
+  if (candidate.galleryStatus !== "published") return null;
+  if (typeof candidate.deliveryAt !== "string" || !civilDatePattern.test(candidate.deliveryAt)) return null;
+  return candidate.deliveryAt;
+}
+
+/** Portal card (SCL-721): from the delay on, with no ceiling (it is dismissible). */
+export function isReviewPromptDue(candidate: ReviewRequestCandidate, today: string): boolean {
+  const deliveredOn = deliveredAndRevealedOn(candidate);
+  return deliveredOn !== null && addCivilDays(deliveredOn, REVIEW_REQUEST_DELAY_DAYS) <= today;
+}
+
+/** Email (SCL-704): same rule, only inside [delay, max] days after the delivery. */
+export function isReviewRequestDue(candidate: ReviewRequestCandidate, today: string): boolean {
+  const deliveredOn = deliveredAndRevealedOn(candidate);
+  return (
+    deliveredOn !== null &&
+    addCivilDays(deliveredOn, REVIEW_REQUEST_DELAY_DAYS) <= today &&
+    today <= addCivilDays(deliveredOn, REVIEW_REQUEST_MAX_DAYS)
+  );
+}
+
+/** One request per shoot and destination, ever. */
+export function reviewRequestIdempotencyKey(shootId: string, target: string = REVIEW_REQUEST_TARGET): string {
+  return `${REVIEW_REQUEST_EVENT_TYPE}:${shootId.toLowerCase()}:${target}`;
+}
+
+/** Send-time rule: the Review must still be requested and the link configured. */
+export function decideReviewRequestDelivery(input: {
+  review: { status: string } | null;
+  reviewUrlConfigured: boolean;
+}): GuardDecision {
+  if (!input.review) return { send: false, reason: "avaliação inexistente" };
+  if (input.review.status === "concluido") return { send: false, reason: "avaliação já concluída" };
+  if (input.review.status !== "solicitado") return { send: false, reason: "pedido de avaliação cancelado" };
+  if (!input.reviewUrlConfigured) return { send: false, reason: "link de avaliação não configurado" };
+  return SEND;
+}

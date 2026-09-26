@@ -6,6 +6,7 @@ const mocks = vi.hoisted(() => ({
   readClientGallery: vi.fn(),
   listClientSelectedAssetIds: vi.fn(),
   setPhotoSelectionAction: vi.fn(),
+  getPortalReviewPrompt: vi.fn(),
   listClientGalleryOffers: vi.fn(),
   listClientUpsellOrders: vi.fn(),
   newUpsellRequestKey: vi.fn(),
@@ -27,6 +28,12 @@ vi.mock("@/app/(client)/minha-experiencia/galeria/upsell-actions", () => ({
   requestUpsellOrderAction: mocks.requestUpsellOrderAction,
 }));
 
+vi.mock("@/domain/reviews/portal-server", () => ({ getPortalReviewPrompt: mocks.getPortalReviewPrompt }));
+vi.mock("@/app/(client)/minha-experiencia/avaliacao/actions", () => ({
+  openReviewLinkAction: vi.fn(),
+  dismissReviewPromptAction: vi.fn(),
+}));
+
 import ClientGalleryPage from "@/app/(client)/minha-experiencia/galeria/page";
 
 const context = { client: { id: "client-1", name: "Mariana" }, viewerAuthUserId: "auth-1", shoot: null };
@@ -36,6 +43,7 @@ describe("ClientGalleryPage", () => {
   beforeEach(() => {
     vi.resetAllMocks();
     mocks.getPortalRequestContext.mockResolvedValue(context);
+    mocks.getPortalReviewPrompt.mockResolvedValue(null);
     mocks.listClientGalleryOffers.mockResolvedValue({ offers: [], includedPhotos: 20 });
     mocks.listClientUpsellOrders.mockResolvedValue([]);
     mocks.newUpsellRequestKey.mockReturnValue("00000000-0000-4000-8000-000000000b01");
@@ -132,5 +140,34 @@ describe("ClientGalleryPage", () => {
     expect(screen.getByRole("heading", { name: "Seus pedidos" })).toBeInTheDocument();
     expect(screen.getByText("Confirmado")).toBeInTheDocument();
     expect(screen.getByText("1 × Álbum 20x30")).toBeInTheDocument();
+  });
+
+  it("shows the review card below the photos without gating favorites or downloads (SCL-721)", async () => {
+    mocks.readClientGallery.mockResolvedValue({
+      id: "gallery-1",
+      status: "published",
+      downloadsEnabled: true,
+      assets: [{ id: "asset-1", storagePath, signedUrl: "https://private.example.test/asset-1?signed=1" }],
+    });
+    mocks.listClientSelectedAssetIds.mockResolvedValue([]);
+    mocks.getPortalReviewPrompt.mockResolvedValue({
+      shootId: "shoot-1",
+      reviewUrl: "https://g.page/r/studio-carol-lucas/review",
+    });
+
+    render(await ClientGalleryPage());
+
+    expect(screen.getByRole("button", { name: "Favoritar foto 1" })).toBeEnabled();
+    expect(screen.getByRole("link", { name: "Baixar foto 1" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Avaliar no Google/ })).toBeInTheDocument();
+  });
+
+  it("does not look for the review card without a published gallery", async () => {
+    mocks.readClientGallery.mockResolvedValue(null);
+
+    render(await ClientGalleryPage());
+
+    expect(mocks.getPortalReviewPrompt).not.toHaveBeenCalled();
+    expect(screen.queryByRole("link", { name: /Avaliar no Google/ })).not.toBeInTheDocument();
   });
 });

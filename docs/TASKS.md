@@ -117,10 +117,10 @@ Esta revisão preserva todas as tasks já concluídas e adiciona cobertura expl�
 | SCL-701 | Boas-vindas após reserva | P1 | automation | DONE | agent:claude-code | SCL-211,SCL-700 |
 | SCL-702 | Scheduler D-7 / D-1 | P1 | automation | DONE | agent:claude-code | SCL-700,SCL-103 |
 | SCL-703 | Notificações de Reveal/Galeria | P1 | automation/gallery | DONE | agent:claude-code | SCL-502,SCL-503,SCL-700 |
-| SCL-704 | Pedido de review pós-entrega | P1 | automation/growth | BACKLOG | unassigned | SCL-503,SCL-700,SCL-720 |
+| SCL-704 | Pedido de review pós-entrega | P1 | automation/growth | DONE | agent:claude-code | SCL-503,SCL-700,SCL-720 |
 | SCL-705 | Delivery log + retry + idempotência | P1 | automation | DONE | agent:claude-code | SCL-700 |
 | SCL-720 | Schema/serviços Review + Referral | P1 | growth/db | DONE | agent:claude-code | SCL-100,SCL-103 |
-| SCL-721 | Fluxo de avaliação / Google | P1 | growth/client | BACKLOG | unassigned | SCL-704,SCL-720 |
+| SCL-721 | Fluxo de avaliação / Google | P1 | growth/client | DONE | agent:claude-code | SCL-704,SCL-720 |
 | SCL-722 | Tracking de indicação e conversão | P1 | growth/admin | DONE | agent:claude-code | SCL-720,SCL-253 |
 | SCL-723 | Oportunidades de recorrência no CRM | P2 | growth/admin | BACKLOG | unassigned | SCL-203,SCL-720 |
 | SCL-800 | Virtual Try-On / Prévia de Styling | P3 | client/ai | DEFERRED | unassigned | SCL-554 |
@@ -2612,24 +2612,31 @@ Evoluir a consulta pública para um fluxo completo de aluguel independente de en
 
 ### SCL-704 — Pedido de review pós-entrega
 
-- Status: BACKLOG
+- Status: DONE
 - Priority: P1
 - Area: automation/growth
-- Owner: unassigned
-- Branch: —
-- PR: —
+- Owner: agent:claude-code
+- Branch: claude/scl-704-721-review-flow
+- PR: #8 (merge `24680b5`)
 - Depends on: SCL-503,SCL-700,SCL-720
 - Blocks: SCL-721
-- Files/Scope: post-delivery review automation
+- Files/Scope: `domain/automation/flows/{rules,review-requests}.ts`, `domain/automation/guard.ts`, `domain/automation/templates/{pedido-avaliacao.v1,registry}.ts`, `domain/reviews/{config,service}.ts`, `app/api/cron/review-requests/route.ts`, `.env.example`, `docs/runbooks/email-automation.md`
 - Migration: no
-- Updated at: 2026-09-07 America/Manaus
+- Updated at: 2026-09-26 America/Manaus
 
 **Acceptance criteria**
 
-- [ ] só dispara após entrega/reveal conforme regra definida;
-- [ ] não dispara novamente se review concluído;
-- [ ] CTA configurável para Google;
-- [ ] status registrado no Review.
+- [x] só dispara após entrega/reveal conforme regra definida;
+- [x] não dispara novamente se review concluído;
+- [x] CTA configurável para Google;
+- [x] status registrado no Review.
+
+**Blocker/Hand-off notes**
+
+- regra: job de produção `entregue` com `delivery_at` + galeria `published` + ensaio não `cancelado` + ≥ 3 dias desde `delivery_at` (Manaus); e-mail só até 30 dias após a entrega (sem disparo em massa para o histórico). Decisão em `docs/DECISIONS.md` (2026-09-26) e spec `docs/superpowers/specs/2026-09-26-scl704-scl721-review-flow-design.md`.
+- concluído: `scheduleReviewRequests` (rota protegida `/api/cron/review-requests`, contrato `CRON_SECRET`) cria o Review (`automacao`/`google`/`target_url`/`requested_at`, auditado) via `requestReviewInTransaction` e enfileira `review.requested` (chave `review.requested:<shootId>:google`, template `pedido-avaliacao` v1, envio a partir das 10:00 de Manaus) na mesma transação; ensaios com qualquer Review do Google não são selecionados e `created: false` não enfileira; a guarda de envio cancela se o Review foi concluído/cancelado ou o link sumiu. Link em `STUDIO_GOOGLE_REVIEW_URL` (server-only, https); ausente → nada é criado/enviado e um aviso por execução.
+- operação: configurar `STUDIO_GOOGLE_REVIEW_URL` e agendar `/api/cron/review-requests` diariamente (runbook §3).
+- testes: `tests/domain/automation-{review-rules,review-requests,guard,templates}.test.ts`, `tests/domain/reviews-{config,service}.test.ts`, `tests/app/review-requests-cron-route.test.ts`; validação final no CI do PR (sem `node_modules` neste ambiente).
 
 ---
 
@@ -2698,24 +2705,31 @@ Evoluir a consulta pública para um fluxo completo de aluguel independente de en
 
 ### SCL-721 — Fluxo de avaliação / Google
 
-- Status: BACKLOG
+- Status: DONE
 - Priority: P1
 - Area: growth/client
-- Owner: unassigned
-- Branch: —
-- PR: —
+- Owner: agent:claude-code
+- Branch: claude/scl-704-721-review-flow
+- PR: #8 (merge `24680b5`)
 - Depends on: SCL-704,SCL-720
 - Blocks: none
-- Files/Scope: client review CTA/admin tracking
+- Files/Scope: `domain/reviews/{portal,portal-server,queries}.ts`, `app/(client)/minha-experiencia/{page.tsx,galeria/page.tsx,avaliacao/actions.ts}`, `components/client/review-prompt.tsx`, `app/admin/(protected)/agenda/[id]/{page.tsx,review-actions.ts}`, `components/admin/shoot-review.tsx`
 - Migration: no
-- Updated at: 2026-09-07 America/Manaus
+- Updated at: 2026-09-26 America/Manaus
 
 **Acceptance criteria**
 
-- [ ] CTA de avaliação aparece no momento pós-entrega correto;
-- [ ] link externo configurável;
-- [ ] pedido/conclusão rastreáveis;
-- [ ] sem dark patterns ou bloqueio de uso do portal.
+- [x] CTA de avaliação aparece no momento pós-entrega correto;
+- [x] link externo configurável;
+- [x] pedido/conclusão rastreáveis;
+- [x] sem dark patterns ou bloqueio de uso do portal.
+
+**Blocker/Hand-off notes**
+
+- concluído: card "Conte como foi a sua experiência" no início de Minha Experiência e abaixo da galeria, com a regra de SCL-704 (sem o teto de 30 dias) para o ensaio entregue mais recente da cliente da sessão, enquanto o Review do Google não estiver concluído/cancelado; inline (não modal), "Avaliar no Google" abre o link configurado em nova aba e "Agora não" dispensa por cookie por ensaio; falha de leitura esconde o card sem derrubar a página; galeria, favoritos e downloads independem dele. O clique (`openReviewLinkAction`, sem payload) registra `review.link_opened` na auditoria com a cliente como ator, criando o Review com `source = 'portal'` quando o e-mail ainda não saiu.
+- Admin: seção **Avaliação** na ficha do ensaio (status, origem, pedido, "cliente abriu o link", conclusão) com **Marcar como concluída**/**Cancelar pedido** via `defineAdminAction` (staff, ator da sessão, auditado por `completeReview`/`cancelReview`).
+- fora de escopo: verificar a avaliação no Google automaticamente; registrar no Admin avaliação espontânea sem pedido; outros destinos.
+- testes: `tests/domain/reviews-portal{,-server}.test.ts`, `tests/app/client-review-actions.test.ts`, `tests/components/client-review-prompt.test.tsx`, `tests/app/client-{home,gallery}-page.test.tsx`, `tests/app/admin-shoot-review.test.tsx`, `tests/app/admin-styling-page.test.tsx`; validação final no CI do PR.
 
 ---
 

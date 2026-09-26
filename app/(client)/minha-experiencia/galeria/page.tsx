@@ -1,8 +1,10 @@
 import { ClientGalleryGrid } from "@/components/client/gallery-grid";
+import { ReviewPrompt } from "@/components/client/review-prompt";
 import { ClientUpsellOffers } from "@/components/client/upsell-offers";
 import { readClientGallery } from "@/domain/gallery/portal";
 import { listClientSelectedAssetIds } from "@/domain/gallery/selections";
 import { getPortalRequestContext } from "@/domain/portal/server";
+import { getPortalReviewPrompt } from "@/domain/reviews/portal-server";
 import { upsellOrderStatusLabels } from "@/domain/upsell/labels";
 import {
   listClientGalleryOffers,
@@ -52,7 +54,12 @@ function ClientUpsellOrders({ orders }: { orders: ClientUpsellOrder[] }) {
 export default async function ClientGalleryPage() {
   const context = await getPortalRequestContext();
   const gallery = await readClientGallery(context);
-  const selectedAssetIds = gallery ? await listClientSelectedAssetIds(context.client.id, gallery.id) : [];
+  // The review card (SCL-721) only sits below a published gallery and never
+  // gates it: favorites and downloads work the same with or without it.
+  const [selectedAssetIds, reviewPrompt] = await Promise.all([
+    gallery ? listClientSelectedAssetIds(context.client.id, gallery.id) : Promise.resolve<string[]>([]),
+    gallery ? getPortalReviewPrompt() : Promise.resolve(null),
+  ]);
   // SCL-506/507: active offers of this Gallery and the client's own orders,
   // read server-side for the session's client only.
   let upsell: ClientGalleryOffers = { offers: [], includedPhotos: null };
@@ -90,6 +97,7 @@ export default async function ClientGalleryPage() {
             />
           ) : null}
           {orders.length > 0 ? <ClientUpsellOrders orders={orders} /> : null}
+          {reviewPrompt ? <ReviewPrompt reviewUrl={reviewPrompt.reviewUrl} /> : null}
         </>
       ) : (
         <p className="mt-8 border-l-2 border-ink py-3 pl-5 font-sans text-sm leading-6 text-muted">

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { getShootDetail } from "@/domain/shoots/queries";
 import { listContractsForShoot } from "@/domain/contracts/queries";
+import { getShootReviewPanel } from "@/domain/reviews/queries";
 import { readStylingReferences } from "@/domain/styling/read";
 import { PageHeader } from "@/components/ui/page-header";
 import { Badge } from "@/components/ui/badge";
@@ -9,6 +10,7 @@ import { DataTable, type Column } from "@/components/ui/data-table";
 import { EmptyState } from "@/components/ui/empty-state";
 import { DetailSection, DetailRow } from "@/components/admin/detail-section";
 import { ContractsList } from "@/components/admin/contracts-list";
+import { ShootReview } from "@/components/admin/shoot-review";
 import { StylingManager } from "@/components/admin/styling-manager";
 import { EditShootPanel } from "./edit-shoot-panel";
 import { ShootStatusControl } from "./shoot-status-control";
@@ -65,10 +67,11 @@ export default async function ShootDetailPage({ params }: { params: Params }) {
   }
 
   const { id } = await params;
-  const [detail, stylingReferences, contracts] = await Promise.all([
+  const [detail, stylingReferences, contracts, reviewPanel] = await Promise.all([
     getShootDetail(id),
     readStylingReferences(supabase, id),
     listContractsForShoot(id),
+    getShootReviewPanel(id),
   ]);
   if (!detail) notFound();
 
@@ -214,6 +217,10 @@ export default async function ShootDetailPage({ params }: { params: Params }) {
             }}
           />
         ) : null}
+      </DetailSection>
+
+      <DetailSection title="Avaliação">
+        <ShootReview shootId={id} panel={reviewPanel} />
       </DetailSection>
 
       <DetailSection title="Styling e referências">
