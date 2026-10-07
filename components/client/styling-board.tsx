@@ -1,7 +1,7 @@
 "use client";
 
 import * as Sentry from "@sentry/nextjs";
-import { useMemo, useRef, useState, type FormEvent } from "react";
+import { useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import type { PortalReference } from "@/domain/portal/types";
 import {
@@ -48,12 +48,14 @@ export function StylingBoard({
   references,
   origin = "client",
   canDeleteAll = false,
+  renderInventoryLink,
 }: {
   shootId: string;
   viewerAuthUserId: string;
   references: PortalReference[];
   origin?: "client" | "studio";
   canDeleteAll?: boolean;
+  renderInventoryLink?: (reference: PortalReference) => ReactNode;
 }) {
   const router = useRouter();
   const client = useMemo(
@@ -274,6 +276,14 @@ export function StylingBoard({
                     </button>
                   ) : null}
                 </div>
+                {reference.inventoryLink ? (
+                  <div className="mt-2 border-l-2 border-line pl-3 font-sans text-xs leading-5 text-ink">
+                    <p>Inspiração ligada a: {reference.inventoryLink.itemName}</p>
+                    <p className="text-muted">{reference.inventoryLink.reservationState === "confirmed"
+                      ? "Reserva confirmada" : "Aguardando confirmação do estúdio"}</p>
+                  </div>
+                ) : null}
+                {renderInventoryLink?.(reference)}
               </li>
             );
           })}

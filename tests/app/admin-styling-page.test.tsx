@@ -9,6 +9,7 @@ const mocks = vi.hoisted(() => ({
   getCurrentUser: vi.fn(),
   hasMinimumRole: vi.fn(),
   readStylingReferences: vi.fn(),
+  readStylingInventoryLinks: vi.fn(),
   getShootReviewPanel: vi.fn(),
   redirect: vi.fn((path: string) => {
     throw new Error(`REDIRECT:${path}`);
@@ -39,6 +40,11 @@ vi.mock("@/lib/auth/session", () => ({ getCurrentUser: mocks.getCurrentUser }));
 vi.mock("@/lib/auth/rbac", () => ({ hasMinimumRole: mocks.hasMinimumRole }));
 vi.mock("@/domain/styling/read", () => ({
   readStylingReferences: mocks.readStylingReferences,
+}));
+vi.mock("@/domain/styling/inventory-links", () => ({
+  readStylingInventoryLinks: mocks.readStylingInventoryLinks,
+  linkStylingReferenceToInventoryItem: vi.fn(),
+  StylingInventoryLinkError: class StylingInventoryLinkError extends Error {},
 }));
 vi.mock("@/domain/reviews/queries", () => ({ getShootReviewPanel: mocks.getShootReviewPanel }));
 
@@ -87,6 +93,7 @@ describe("ShootDetailPage styling management", () => {
     mocks.getShootDetail.mockResolvedValue(shootDetail);
     mocks.listContractsForShoot.mockResolvedValue([]);
     mocks.readStylingReferences.mockResolvedValue([]);
+    mocks.readStylingInventoryLinks.mockImplementation(async (_shootId, references) => references);
     mocks.getShootReviewPanel.mockResolvedValue({ review: null, linkOpenedAt: null });
   });
 
@@ -99,6 +106,30 @@ describe("ShootDetailPage styling management", () => {
     expect(mocks.getCurrentUser).toHaveBeenCalledWith(serverClient);
     expect(mocks.authGetUser).not.toHaveBeenCalled();
     expect(mocks.readStylingReferences).toHaveBeenCalledWith(serverClient, "shoot-1");
+  });
+
+  it("offers only active shoot pieces for linking an authorized reference", async () => {
+    mocks.readStylingReferences.mockResolvedValueOnce([{
+      id: "ref-1", shootId: "shoot-1", caption: "Luz suave", origin: "client",
+      signedUrl: "https://private.test/one", storagePath: "private/one", createdAt: "2026-10-07", uploadedByAuthUserId: "client-1",
+    }]);
+    mocks.getShootDetail.mockResolvedValueOnce({ ...shootDetail, inventoryReservations: [
+      { id: "r1", inventoryItemId: "i1", itemName: "Vestido rosé", status: "confirmed", purpose: "shoot" },
+      { id: "r2", inventoryItemId: "i2", itemName: "Peça cancelada", status: "cancelled", purpose: "shoot" },
+      { id: "r3", inventoryItemId: "i3", itemName: "Aluguel avulso", status: "confirmed", purpose: "rental" },
+    ] });
+    render(await ShootDetailPage({ params: Promise.resolve({ id: "shoot-1" }) }));
+    expect(screen.getByRole("combobox", { name: /Peça ligada a Luz suave/ })).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: /Vestido rosé/ })).toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: /cancelada|avulso/ })).not.toBeInTheDocument();
+    expect(mocks.readStylingInventoryLinks).toHaveBeenCalledWith("shoot-1", expect.arrayContaining([expect.objectContaining({ id: "ref-1" })]));
+  });
+
+  it("preserves the board and warns when inventory links cannot be read", async () => {
+    mocks.readStylingInventoryLinks.mockRejectedValueOnce(new Error("database unavailable"));
+    render(await ShootDetailPage({ params: Promise.resolve({ id: "shoot-1" }) }));
+    expect(screen.getByText(/Não foi possível carregar os vínculos/)).toBeInTheDocument();
+    expect(screen.getByText(/seu olhar começa aqui/i)).toBeInTheDocument();
   });
 
   it("fails closed before data reads when the cookie session has no user", async () => {

@@ -11,6 +11,7 @@
     "start": "next start",
     "lint": "eslint",
     "check:admin-auth": "node scripts/check-admin-auth.mjs",
+    "check:launch-readiness": "node --env-file-if-exists=.env.local scripts/check-launch-readiness.mjs",
     "typecheck": "tsc --noEmit",
     "test": "node --env-file-if-exists=.env.local node_modules/vitest/vitest.mjs run",
     "db:generate": "node --env-file-if-exists=.env.local node_modules/drizzle-kit/bin.cjs generate",

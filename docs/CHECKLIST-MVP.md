@@ -1,6 +1,6 @@
 # Checklist de cobertura — Stúdio Carol Lucas MVP
 
-**Referência:** PRD v1.1 + TASKS v2.0 · reconciliado com `main` em 25/09/2026
+**Referência:** PRD v1.1 + TASKS v2.0 · reconciliado em 07/10/2026 com `main` (`9a52a16`) e desenvolvimento local de SCL-555
 
 ## Já implementado
 
@@ -15,16 +15,26 @@
 - [x] Gallery: schema, assets privados, publicação no Admin, Reveal no portal (SCL-500–503)
 - [x] Acervo físico: InventoryItem, mídia, CRUD/importação XLSX, reservas com conflito (SCL-550–553)
 - [x] Paixão Clutch: curadoria Admin, mídia pública, vitrine/catálogo e pedido público de locação (SCL-556–557)
+- [x] WhatsApp contextual e eventos de clique (SCL-405)
+- [x] SEO, JSON-LD, verificação Search Console e eventos do quiz (SCL-406; ativação depende da configuração)
+- [x] Galeria: favoritos, downloads autorizados, catálogo/pedido de upsell e recebimentos no financeiro (SCL-504–507; PR #9 integrado)
+- [x] Seleção de peças do acervo pela cliente (SCL-554)
+- [x] Infra e fluxos Resend: boas-vindas, D-7/D-1, Reveal, review, delivery log/retry/idempotência (SCL-700–705)
+- [x] Reviews e indicação com tracking de conversão (SCL-720–722)
 
-## Falta para o MVP funcional completo
+## Implementação local, antes de integrar
 
-- [ ] WhatsApp contextual em todos os CTAs + evento de clique (restante de SCL-405)
-- [ ] SEO/Analytics de lançamento: JSON-LD LocalBusiness, Search Console, eventos quiz started/completed (restante de SCL-406)
+- [ ] Integrar SCL-555: inspiração ligada a preferência/reserva ativa do mesmo ensaio, edição staff no Admin e indicador no portal. Código e migration `0053` disponíveis na branch `codex/scl-555-styling-inventory`; DONE somente após merge.
+
+## Falta para lançamento validado
+
+- [ ] Identificar o ambiente do banco e aplicar migrations `0049`–`0053` em ordem no destino adequado; a consulta somente de leitura de 07/10 confirmou hashes ausentes no banco configurado localmente.
+- [ ] Validar RLS e fluxos completos em ambiente atualizado: preferência/reserva/styling, favoritos/downloads, upsell/pagamentos, reviews/indicações.
+- [ ] Conferir configuração de produção: domínio/WhatsApp, GA, Search Console, Resend/remetente, segredo e agenda do cron, review Google. O `.env.local` não possui essas flags e tem envio de e-mail desabilitado; produção ainda não foi auditada.
+- [ ] Validar entrega de e-mails no ambiente apropriado e somente então ativar os disparos de produção.
 - [ ] Assets definitivos da vertical Família (SCL-402)
-- [ ] Galeria: favoritos, downloads autorizados, upsell + pedido/financeiro (SCL-504–507)
-- [ ] Acervo no portal: seleção de figurinos/clutches pela cliente e styling ↔ itens reservados (SCL-554–555)
-- [ ] Automações Resend: infra, boas-vindas, D-7, D-1, Reveal, review, delivery log (SCL-700–705)
-- [ ] Reviews e indicações (SCL-720–722)
+
+Auditoria repetível e sem escrita: `npm run check:launch-readiness`. O comando mostra apenas presença de configuração e hashes aplicados, sem valores de segredos.
 
 ## Pós-MVP
 

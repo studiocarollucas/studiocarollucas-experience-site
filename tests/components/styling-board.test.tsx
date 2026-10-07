@@ -46,6 +46,19 @@ const studioReference: PortalReference = {
 };
 
 describe("StylingBoard", () => {
+  it.each([
+    ["pending", "Aguardando confirmação do estúdio"],
+    ["confirmed", "Reserva confirmada"],
+  ] as const)("shows the linked piece and its %s state", (reservationState, message) => {
+    const linkedReference = { ...ownReference, inventoryLink: {
+      inventoryItemId: "piece-1", itemName: "Vestido rosé", reservationState,
+    } };
+    render(<StylingBoard shootId={SHOOT_ID} viewerAuthUserId={VIEWER_ID} references={[linkedReference]} />);
+    expect(screen.getByText(/Inspiração ligada a: Vestido rosé/)).toBeInTheDocument();
+    expect(screen.getByText(message)).toBeInTheDocument();
+    expect(screen.queryByRole("combobox")).not.toBeInTheDocument();
+  });
+
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.uploadStylingReference.mockResolvedValue({ id: ownReference.id });

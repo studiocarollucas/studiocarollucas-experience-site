@@ -108,6 +108,8 @@ export type ShootDetail = {
   preparationTasks: PreparationTask[];
   inventoryReservations: Array<{
     id: string;
+    inventoryItemId: string;
+    purpose: string;
     itemName: string;
     itemCode: string;
     itemType: string;
@@ -154,6 +156,8 @@ export async function getShootDetail(id: string): Promise<ShootDetail | null> {
   const reservations = await db
     .select({
       id: inventoryReservations.id,
+      inventoryItemId: inventoryReservations.inventoryItemId,
+      purpose: inventoryReservations.purpose,
       itemName: inventoryItems.name,
       itemCode: inventoryItems.code,
       itemType: inventoryItems.type,

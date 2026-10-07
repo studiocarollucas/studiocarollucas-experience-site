@@ -54,4 +54,9 @@ export type PortalReference = {
   origin: "client" | "studio";
   uploadedByAuthUserId: string | null;
   createdAt: string;
+  inventoryLink?: {
+    inventoryItemId: string;
+    itemName: string;
+    reservationState: "pending" | "confirmed";
+  } | null;
 };

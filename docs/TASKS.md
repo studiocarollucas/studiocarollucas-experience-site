@@ -102,14 +102,14 @@ Esta revisão preserva todas as tasks já concluídas e adiciona cobertura expl�
 | SCL-502 | Gestão/publicação da galeria | P1 | gallery/admin | DONE | unassigned | SCL-500,SCL-501,SCL-230 |
 | SCL-504 | Favoritos / PhotoSelection | P1 | gallery/client | DONE | agent:claude-code | SCL-500,SCL-503 |
 | SCL-505 | Downloads autorizados | P1 | gallery/client | DONE | agent:claude-code | SCL-501,SCL-503 |
-| SCL-506 | Catálogo de produtos/upsells | P1 | gallery/commerce | IN_REVIEW | agent:claude-code | SCL-500,SCL-503 |
-| SCL-507 | Pedido de upsell + Financeiro | P1 | gallery/finance | IN_REVIEW | agent:claude-code | SCL-104,SCL-506 |
+| SCL-506 | Catálogo de produtos/upsells | P1 | gallery/commerce | DONE | agent:claude-code | SCL-500,SCL-503 |
+| SCL-507 | Pedido de upsell + Financeiro | P1 | gallery/finance | DONE | agent:claude-code | SCL-104,SCL-506 |
 | SCL-550 | Schema InventoryItem | P1 | inventory/db | DONE | unassigned | SCL-005 |
 | SCL-551 | Mídia dos itens de acervo | P1 | inventory/storage | DONE | unassigned | SCL-550 |
 | SCL-552 | CRUD Admin do Acervo | P1 | inventory/admin | DONE | unassigned | SCL-550,SCL-551,SCL-200 |
 | SCL-553 | InventoryReservation + conflitos | P1 | inventory/db | DONE (742f545) | unassigned | SCL-103,SCL-550 |
 | SCL-554 | Seleção de figurinos/clutches pela cliente | P1 | inventory/client | DONE | agent:claude-code | SCL-305,SCL-553 |
-| SCL-555 | Styling ↔ itens reais reservados | P1 | inventory/client/admin | BACKLOG | unassigned | SCL-305,SCL-553 |
+| SCL-555 | Styling ↔ itens reais reservados | P1 | inventory/client/admin | IN_PROGRESS | agent:codex | SCL-305,SCL-553 |
 | SCL-556 | Curadoria Paixão Clutch no Admin | P1 | inventory/admin | DONE | unassigned | SCL-552 |
 | SCL-557 | Paixão Clutch pública | P1 | site/inventory | DONE | unassigned | SCL-551,SCL-556,SCL-400 |
 | SCL-558 | Aluguel avulso Paixão Clutch | P2 | inventory/commerce | DEFERRED | unassigned | SCL-553,SCL-557 |
@@ -2168,12 +2168,12 @@ SCL-504, SCL-505, SCL-506 e SCL-703 estão desbloqueadas, mas permanecem pendent
 
 ### SCL-506 — Catálogo de produtos/upsells
 
-- Status: IN_REVIEW
+- Status: DONE
 - Priority: P1
 - Area: gallery/commerce
 - Owner: agent:claude-code
 - Branch: claude/scl-506-507-upsell
-- PR: —
+- PR: #9 (merge `9a52a16`)
 - Depends on: SCL-500,SCL-503
 - Blocks: SCL-507
 - Files/Scope: `db/schema/upsell.ts`, `db/migrations/0052_upsell_catalog_orders.sql` (+ journal/snapshot), `domain/upsell/{schema,rules,labels,errors,catalog,actions}.ts`, `app/admin/(protected)/upsells/{page,novo,[id]}`, `components/admin/upsell/{product-form,delete-product-button,gallery-offers-panel}.tsx`, `app/admin/(protected)/galerias/[shootId]/page.tsx`, `components/admin/admin-nav.tsx`, `domain/upsell/portal.ts`, `components/client/upsell-offers.tsx`, `app/(client)/minha-experiencia/galeria/page.tsx`
@@ -2198,12 +2198,12 @@ SCL-504, SCL-505, SCL-506 e SCL-703 estão desbloqueadas, mas permanecem pendent
 
 ### SCL-507 — Pedido de upsell + Financeiro
 
-- Status: IN_REVIEW
+- Status: DONE
 - Priority: P1
 - Area: gallery/finance
 - Owner: agent:claude-code
 - Branch: claude/scl-506-507-upsell
-- PR: —
+- PR: #9 (merge `9a52a16`)
 - Depends on: SCL-104,SCL-506
 - Blocks: none
 - Files/Scope: `db/schema/{upsell,payments}.ts`, `db/migrations/0052_upsell_catalog_orders.sql` (+ journal/snapshot), `domain/upsell/{portal,orders,payments,actions}.ts`, `app/(client)/minha-experiencia/galeria/{page,upsell-actions}.ts*`, `app/admin/(protected)/upsells/pedidos/**`, `components/admin/upsell/{order-status-control,order-payment-form}.tsx`, `domain/payments/register-payment.ts`, `domain/{shoots,clients,dashboard,contracts,finance}/queries.ts`, `domain/finance/ledger.ts`, `app/admin/(protected)/agenda/[id]/page.tsx`
@@ -2377,24 +2377,31 @@ Criar fonte de verdade para o acervo físico do estúdio, incluindo Paixão Clut
 
 ### SCL-555 — Styling ↔ itens reais reservados
 
-- Status: BACKLOG
+- Status: IN_PROGRESS
 - Priority: P1
 - Area: inventory/client/admin
-- Owner: unassigned
-- Branch: —
+- Owner: agent:codex
+- Branch: codex/scl-555-styling-inventory
 - PR: —
 - Depends on: SCL-305,SCL-553
 - Blocks: none
-- Files/Scope: styling/inventory integration
-- Migration: evaluate
-- Updated at: 2026-09-07 America/Manaus
+- Files/Scope: styling/inventory domain, migration 0053, Admin/portal UI and tests
+- Migration: yes (`0053_styling_inventory_links`, não aplicada)
+- Updated at: 2026-10-07 America/Manaus
 
 **Acceptance criteria**
 
-- [ ] moodboard continua aceitando referências livres;
-- [ ] item real do acervo é exibido com identidade própria;
-- [ ] portal mostra o que é inspiração vs. reservado;
-- [ ] Admin consegue relacionar referência a item quando útil.
+- [x] moodboard continua aceitando referências livres;
+- [x] item real do acervo é exibido com identidade própria;
+- [x] portal mostra o que é inspiração vs. reservado;
+- [x] Admin consegue relacionar referência a item quando útil.
+
+**Blocker/Hand-off notes**
+
+- Implementação local na branch acima: formulário por referência no Admin, vínculo/desvínculo apenas por staff, preferência/reserva ativa do mesmo ensaio e purpose `shoot`, auditoria transacional e DTO mínimo para o portal. Reservas canceladas não aparecem; falha da leitura complementar preserva o moodboard.
+- Migration `0053` gerada com FK nullable `ON DELETE SET NULL`, índice e proteção SQL de INSERT/UPDATE do campo, preservando os grants existentes das referências. Não aplicada; testes live de RLS pendem de ambiente identificado e atualizado.
+- Plano e evidências: `docs/superpowers/plans/2026-10-07-scl555-styling-inventory.md`. Status segue IN_PROGRESS até abertura de PR; DONE somente após merge.
+- Validação local: 1.362 testes aprovados e 9 ignorados (vmForks, código 0), lint sem erros, typecheck, autorização do Admin, journal e build aprovados. Build executado com o mesmo código/dependências na cópia do disco D por restrições de junction no checkout. Revisão independente sem findings acionáveis; integração live/CI e implantação pendentes.
 
 ---
 
@@ -2874,6 +2881,9 @@ Avaliar e, somente após aprovação de qualidade/custo/LGPD, integrar API espec
 
 ## Hand-off global atual
 
+- Retomada 07/10/2026: checkout sincronizado por fast-forward de `c684254` para `9a52a16` (84 commits). SCL-405/406, 504/505, 554, 700–705 e 720–722 já integradas; SCL-506/507 reconciliadas como DONE pelo merge #9. SCL-555 implementada localmente, aguardando integração e implantação.
+- Próximo passo atual: identificar o ambiente do banco configurado, revisar/aplicar migrations `0049`–`0053` no ambiente apropriado e validar RLS/fluxos integrados; configurar lançamento e conferir produção separadamente. Substituir fotos temporárias de Família. E-mail real depende de configuração e validação do rollout, não apenas de código.
+- Auditoria `npm run check:launch-readiness` (somente leitura, 07/10): banco acessível, hashes das migrations `0049`–`0053` ausentes; URL pública, WhatsApp, GA, Search Console, Resend/remetente, cron e review Google ausentes no `.env.local`, envio desabilitado. Isso não comprova configuração de produção. Nenhuma migration ou mensagem real disparada nesta retomada.
 - PRD: concluído.
 - Protótipo de referência: V2.3 Studio OS.
 - Modelo de dados: V2.3 disponível.

@@ -4,6 +4,9 @@ import { getShootDetail } from "@/domain/shoots/queries";
 import { listContractsForShoot } from "@/domain/contracts/queries";
 import { getShootReviewPanel } from "@/domain/reviews/queries";
 import { readStylingReferences } from "@/domain/styling/read";
+import { readStylingInventoryLinks } from "@/domain/styling/inventory-links";
+import { logger } from "@/lib/observability/logger";
+import type { StylingInventoryOption } from "@/components/admin/styling-inventory-link";
 import { PageHeader } from "@/components/ui/page-header";
 import { Badge } from "@/components/ui/badge";
 import { DataTable, type Column } from "@/components/ui/data-table";
@@ -74,6 +77,26 @@ export default async function ShootDetailPage({ params }: { params: Params }) {
     getShootReviewPanel(id),
   ]);
   if (!detail) notFound();
+
+  let linkedReferences = stylingReferences;
+  let inventoryLinksAvailable = true;
+  try {
+    linkedReferences = await readStylingInventoryLinks(id, stylingReferences);
+  } catch {
+    inventoryLinksAvailable = false;
+    logger.error("admin styling inventory links unavailable", { shootId: id });
+  }
+  const inventoryOptions = new Map<string, StylingInventoryOption>();
+  for (const reservation of detail.inventoryReservations ?? []) {
+    if (reservation.purpose !== "shoot" || !reservation.inventoryItemId ||
+        (reservation.status !== "pending" && reservation.status !== "confirmed")) continue;
+    const previous = inventoryOptions.get(reservation.inventoryItemId);
+    if (previous?.reservationState === "confirmed") continue;
+    inventoryOptions.set(reservation.inventoryItemId, {
+      inventoryItemId: reservation.inventoryItemId, itemName: reservation.itemName,
+      reservationState: reservation.status,
+    });
+  }
 
   const {
     shoot,
@@ -224,10 +247,15 @@ export default async function ShootDetailPage({ params }: { params: Params }) {
       </DetailSection>
 
       <DetailSection title="Styling e referências">
+        {!inventoryLinksAvailable ? <p role="status" className="mb-4 font-sans text-sm text-muted">
+          Não foi possível carregar os vínculos com o acervo agora. Tente novamente em instantes.
+        </p> : null}
         <StylingManager
           shootId={id}
           viewerAuthUserId={currentUser.id}
-          references={stylingReferences}
+          references={linkedReferences}
+          inventoryItems={[...inventoryOptions.values()]}
+          inventoryLinksAvailable={inventoryLinksAvailable}
         />
       </DetailSection>
 

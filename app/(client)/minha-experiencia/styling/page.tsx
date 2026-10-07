@@ -5,6 +5,17 @@ import type { PortalInventorySelection } from "@/domain/inventory/portal-selecti
 import type { PortalContext } from "@/domain/portal/read";
 import { getPortalStylingSnapshot } from "@/domain/portal/server";
 import { logger } from "@/lib/observability/logger";
+import { readStylingInventoryLinks } from "@/domain/styling/inventory-links";
+import type { PortalReference } from "@/domain/portal/types";
+
+async function loadInventoryLinks(shootId: string, references: PortalReference[]) {
+  try {
+    return { references: await readStylingInventoryLinks(shootId, references), available: true };
+  } catch {
+    logger.error("portal styling inventory links unavailable", { shootId });
+    return { references: references.map((reference) => ({ ...reference, inventoryLink: null })), available: false };
+  }
+}
 
 // The inventory section fails on its own: an acervo/storage outage must not
 // take the moodboard down with it.
@@ -23,7 +34,9 @@ async function loadInventorySelection(
 
 export default async function ClientStylingPage() {
   const snapshot = await getPortalStylingSnapshot();
-  const inventory = snapshot.shoot ? await loadInventorySelection(snapshot) : null;
+  const [inventory, inventoryLinks] = snapshot.shoot ? await Promise.all([
+    loadInventorySelection(snapshot), loadInventoryLinks(snapshot.shoot.id, snapshot.references),
+  ]) : [null, null];
 
   return (
     <section className="flex flex-col gap-6" aria-labelledby="styling-title">
@@ -48,6 +61,9 @@ export default async function ClientStylingPage() {
           ) : null}
 
           <section aria-labelledby="moodboard-title" className="flex flex-col gap-4">
+            {inventoryLinks && !inventoryLinks.available ? <p role="status" className="font-sans text-sm text-muted">
+              Não foi possível carregar os vínculos com o acervo agora. Tente novamente em instantes.
+            </p> : null}
             <div className="border-b border-line pb-4">
               <p className="font-sans text-[10px] uppercase tracking-[0.18em] text-muted">
                 Inspiração · não é reserva
@@ -62,7 +78,7 @@ export default async function ClientStylingPage() {
             <StylingBoard
               shootId={snapshot.shoot.id}
               viewerAuthUserId={snapshot.viewerAuthUserId}
-              references={snapshot.references}
+              references={inventoryLinks?.references ?? snapshot.references}
             />
           </section>
         </>

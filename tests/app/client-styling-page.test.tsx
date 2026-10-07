@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({
   getPortalStylingSnapshot: vi.fn(),
   readPortalInventorySelection: vi.fn(),
+  readStylingInventoryLinks: vi.fn(),
 }));
 
 vi.mock("@sentry/nextjs", () => ({ captureException: vi.fn() }));
@@ -16,6 +17,9 @@ vi.mock("@/domain/portal/server", () => ({
   getPortalRequestContext: vi.fn(),
 }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
+vi.mock("@/domain/styling/inventory-links", () => ({
+  readStylingInventoryLinks: mocks.readStylingInventoryLinks,
+}));
 vi.mock("@/domain/inventory/portal-selection", () => ({
   readPortalInventorySelection: mocks.readPortalInventorySelection,
   setClientInventoryPreference: vi.fn(),
@@ -38,6 +42,7 @@ describe("ClientStylingPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.readPortalInventorySelection.mockResolvedValue(null);
+    mocks.readStylingInventoryLinks.mockImplementation(async (_shootId, references) => references);
     vi.spyOn(console, "error").mockImplementation(() => {});
   });
 
@@ -108,5 +113,24 @@ describe("ClientStylingPage", () => {
 
     expect(screen.getByText(/Não foi possível carregar as peças do acervo/)).toBeInTheDocument();
     expect(screen.getByText(/seu olhar começa aqui/i)).toBeInTheDocument();
+  });
+
+  it("enriches only the authenticated shoot's references with piece identities", async () => {
+    const reference = { id: "ref-1", shootId: "shoot-1", caption: "Luz suave", origin: "client", signedUrl: "https://private.test/one", storagePath: "private/one", createdAt: "2026-10-07", uploadedByAuthUserId: "auth-1" };
+    mocks.getPortalStylingSnapshot.mockResolvedValueOnce({ ...snapshotWithShoot, references: [reference] });
+    mocks.readStylingInventoryLinks.mockResolvedValueOnce([{ ...reference, inventoryLink: { inventoryItemId: "i1", itemName: "Vestido rosé", reservationState: "confirmed" } }]);
+    render(await ClientStylingPage());
+    expect(mocks.readStylingInventoryLinks).toHaveBeenCalledWith("shoot-1", [reference]);
+    expect(screen.getByText(/Inspiração ligada a: Vestido rosé/)).toBeInTheDocument();
+    expect(screen.queryByRole("combobox")).not.toBeInTheDocument();
+  });
+
+  it("keeps references usable when the complementary link query fails", async () => {
+    mocks.getPortalStylingSnapshot.mockResolvedValueOnce(snapshotWithShoot);
+    mocks.readStylingInventoryLinks.mockRejectedValueOnce(new Error("private database error"));
+    render(await ClientStylingPage());
+    expect(screen.getByText(/Não foi possível carregar os vínculos/)).toBeInTheDocument();
+    expect(screen.getByText(/seu olhar começa aqui/i)).toBeInTheDocument();
+    expect(screen.queryByText(/private database/)).not.toBeInTheDocument();
   });
 });
