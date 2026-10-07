@@ -1,6 +1,6 @@
 # Checklist de cobertura — Stúdio Carol Lucas MVP
 
-**Referência:** PRD v1.1 + TASKS v2.0 · reconciliado em 07/10/2026 com `main` (`9a52a16`) e desenvolvimento local de SCL-555
+**Referência:** PRD v1.1 + TASKS v2.0 · reconciliado em 07/10/2026 com `main` e SCL-555 integrada (`56e6607`)
 
 ## Já implementado
 
@@ -22,9 +22,9 @@
 - [x] Infra e fluxos Resend: boas-vindas, D-7/D-1, Reveal, review, delivery log/retry/idempotência (SCL-700–705)
 - [x] Reviews e indicação com tracking de conversão (SCL-720–722)
 
-## Implementação local, antes de integrar
+## Integração de código
 
-- [ ] Integrar SCL-555: inspiração ligada a preferência/reserva ativa do mesmo ensaio, edição staff no Admin e indicador no portal. Código e migration `0053` disponíveis na branch `codex/scl-555-styling-inventory`; DONE somente após merge.
+- [x] SCL-555 integrada em `main` (`56e6607`): inspiração ligada a preferência/reserva ativa do mesmo ensaio, edição staff no Admin e indicador no portal. Migration `0053` incluída; aplicação no banco permanece pendente.
 
 ## Falta para lançamento validado
 

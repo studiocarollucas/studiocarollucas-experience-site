@@ -59,3 +59,10 @@ Files: `app/admin/(protected)/agenda/[id]/styling-actions.ts`, `components/admin
 - Revisão independente: sem findings acionáveis na feature, migration ou correção SEO. SQL revisado por contrato/estaticamente; RLS live pendente do banco identificado e atualizado.
 - Build: `npm run build` na cópia `D:\CodexCaches\studio-carollucas-runtime-20261007` — código 0, compilação Turbopack, TypeScript e geração de páginas aprovadas. Código copiado do checkout, dependências exatas do lockfile no mesmo disco. Tentativas no checkout original encontraram limitações de symlink/caminhos entre discos; o runbook registra a execução local suportada.
 - Auditoria de lançamento: somente leitura; migrations `0049`–`0053` pendentes no banco configurado, flags locais ausentes e envio desabilitado. Nenhuma escrita live, e-mail real, push ou publicação nesta etapa.
+
+## Integração em main — 07/10/2026
+
+- Usuário autorizou commit e envio para `main` após a validação acima.
+- Remoto atualizado por fetch: `origin/main` permaneceu em `9a52a16`, sem commits concorrentes.
+- Integração por fast-forward para `56e6607`: árvore de código idêntica à feature validada, acompanhada da correção SEO `6b40bb5`; nenhuma mudança de código ou conflito durante a integração.
+- TASKS/CHECKLIST reconciliados após o merge. A integração do código não aplica migrations nem configura o ambiente de produção.

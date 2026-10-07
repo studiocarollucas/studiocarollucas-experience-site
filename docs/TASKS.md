@@ -109,7 +109,7 @@ Esta revisão preserva todas as tasks já concluídas e adiciona cobertura expl�
 | SCL-552 | CRUD Admin do Acervo | P1 | inventory/admin | DONE | unassigned | SCL-550,SCL-551,SCL-200 |
 | SCL-553 | InventoryReservation + conflitos | P1 | inventory/db | DONE (742f545) | unassigned | SCL-103,SCL-550 |
 | SCL-554 | Seleção de figurinos/clutches pela cliente | P1 | inventory/client | DONE | agent:claude-code | SCL-305,SCL-553 |
-| SCL-555 | Styling ↔ itens reais reservados | P1 | inventory/client/admin | IN_PROGRESS | agent:codex | SCL-305,SCL-553 |
+| SCL-555 | Styling ↔ itens reais reservados | P1 | inventory/client/admin | DONE | agent:codex | SCL-305,SCL-553 |
 | SCL-556 | Curadoria Paixão Clutch no Admin | P1 | inventory/admin | DONE | unassigned | SCL-552 |
 | SCL-557 | Paixão Clutch pública | P1 | site/inventory | DONE | unassigned | SCL-551,SCL-556,SCL-400 |
 | SCL-558 | Aluguel avulso Paixão Clutch | P2 | inventory/commerce | DEFERRED | unassigned | SCL-553,SCL-557 |
@@ -2377,7 +2377,7 @@ Criar fonte de verdade para o acervo físico do estúdio, incluindo Paixão Clut
 
 ### SCL-555 — Styling ↔ itens reais reservados
 
-- Status: IN_PROGRESS
+- Status: DONE
 - Priority: P1
 - Area: inventory/client/admin
 - Owner: agent:codex
@@ -2400,7 +2400,7 @@ Criar fonte de verdade para o acervo físico do estúdio, incluindo Paixão Clut
 
 - Implementação local na branch acima: formulário por referência no Admin, vínculo/desvínculo apenas por staff, preferência/reserva ativa do mesmo ensaio e purpose `shoot`, auditoria transacional e DTO mínimo para o portal. Reservas canceladas não aparecem; falha da leitura complementar preserva o moodboard.
 - Migration `0053` gerada com FK nullable `ON DELETE SET NULL`, índice e proteção SQL de INSERT/UPDATE do campo, preservando os grants existentes das referências. Não aplicada; testes live de RLS pendem de ambiente identificado e atualizado.
-- Plano e evidências: `docs/superpowers/plans/2026-10-07-scl555-styling-inventory.md`. Status segue IN_PROGRESS até abertura de PR; DONE somente após merge.
+- Plano e evidências: `docs/superpowers/plans/2026-10-07-scl555-styling-inventory.md`. Integrada diretamente em `main` por fast-forward em 07/10/2026, a pedido do usuário: commit `56e6607`, acompanhado da correção SEO `6b40bb5`. Migration e implantação seguem pendentes.
 - Validação local: 1.362 testes aprovados e 9 ignorados (vmForks, código 0), lint sem erros, typecheck, autorização do Admin, journal e build aprovados. Build executado com o mesmo código/dependências na cópia do disco D por restrições de junction no checkout. Revisão independente sem findings acionáveis; integração live/CI e implantação pendentes.
 
 ---
@@ -2881,7 +2881,7 @@ Avaliar e, somente após aprovação de qualidade/custo/LGPD, integrar API espec
 
 ## Hand-off global atual
 
-- Retomada 07/10/2026: checkout sincronizado por fast-forward de `c684254` para `9a52a16` (84 commits). SCL-405/406, 504/505, 554, 700–705 e 720–722 já integradas; SCL-506/507 reconciliadas como DONE pelo merge #9. SCL-555 implementada localmente, aguardando integração e implantação.
+- Retomada 07/10/2026: checkout sincronizado por fast-forward de `c684254` para `9a52a16` (84 commits). SCL-405/406, 504/505, 554, 700–705 e 720–722 já integradas; SCL-506/507 reconciliadas como DONE pelo merge #9. SCL-555 integrada em `main` (`56e6607`), com migration e implantação pendentes.
 - Próximo passo atual: identificar o ambiente do banco configurado, revisar/aplicar migrations `0049`–`0053` no ambiente apropriado e validar RLS/fluxos integrados; configurar lançamento e conferir produção separadamente. Substituir fotos temporárias de Família. E-mail real depende de configuração e validação do rollout, não apenas de código.
 - Auditoria `npm run check:launch-readiness` (somente leitura, 07/10): banco acessível, hashes das migrations `0049`–`0053` ausentes; URL pública, WhatsApp, GA, Search Console, Resend/remetente, cron e review Google ausentes no `.env.local`, envio desabilitado. Isso não comprova configuração de produção. Nenhuma migration ou mensagem real disparada nesta retomada.
 - PRD: concluído.
