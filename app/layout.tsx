@@ -3,7 +3,7 @@ import { Cormorant_Garamond, Jost } from "next/font/google";
 import { siteVerification } from "@/lib/site/search-console";
 import "./globals.css";
 
-const siteUrl = new URL(process.env.NEXT_PUBLIC_SITE_URL ?? "https://studiocarollucas.com.br");
+const siteUrl = new URL(process.env.NEXT_PUBLIC_SITE_URL?.trim() || "https://studiocarollucas.com.br");
 const verification = siteVerification();
 
 const cormorant = Cormorant_Garamond({

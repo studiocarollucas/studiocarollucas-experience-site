@@ -2,7 +2,7 @@ import type { MetadataRoute } from "next";
 import { listPublicPaixaoClutches } from "@/domain/inventory/public-clutch";
 import { experiences } from "@/lib/site/experiences";
 
-const siteUrl = new URL(process.env.NEXT_PUBLIC_SITE_URL ?? "https://studiocarollucas.com.br");
+const siteUrl = new URL(process.env.NEXT_PUBLIC_SITE_URL?.trim() || "https://studiocarollucas.com.br");
 
 export const dynamic = "force-dynamic";
 
