@@ -285,7 +285,9 @@ describeIfLiveDb("styling references (live RLS and Storage integration)", () => 
       join pg_catalog.pg_namespace n on n.oid = c.relnamespace
       where n.nspname = 'public' and c.relname = 'styling_references'
     `);
-    expect(relation[0]).toMatchObject({ relrowsecurity: true, column_count: 7 });
+    // 8 since migration 0053 added inventory_item_id (SCL-555). The count is a
+    // guard against a column slipping in unnoticed, so it moves with a migration.
+    expect(relation[0]).toMatchObject({ relrowsecurity: true, column_count: 8 });
 
     const constraints = await db.execute(sql`
       select array_agg(con.conname order by con.conname) as names
@@ -296,6 +298,7 @@ describeIfLiveDb("styling references (live RLS and Storage integration)", () => 
     `);
     expect(constraints[0]?.names).toEqual([
       "styling_references_caption_length",
+      "styling_references_inventory_item_id_inventory_items_id_fk",
       "styling_references_pkey",
       "styling_references_shoot_id_fkey",
       "styling_references_storage_path_unique",
