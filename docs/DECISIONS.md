@@ -233,3 +233,57 @@ Cada aresta acima alcança código executável e ao menos uma asserção automat
 **Motivo:** o estúdio precisa validar produção/prazo antes de cobrar; preço vindo do browser nunca é confiável; duplo clique ou retry não pode gerar dois pedidos.
 
 **Catálogo (SCL-506):** produtos são dados (`upsell_products`), com `kind` só para rótulo e regra (`colecao_completa` = quantidade 1); preço em `numeric(10,2)` como o resto do dinheiro do schema (não em centavos); `internal_notes` nunca vai ao portal. Ofertas são por Gallery (`gallery_upsell_offers`), que é 1:1 com o Shoot. Itens do pedido guardam snapshot (tipo, nome, descrição, preço, quantidade, subtotal), então editar ou excluir um produto não muda pedidos. Tudo staff-only pela Data API (RLS + policies `*_staff_access`); o portal lê e grava só pelo domínio server-side. Detalhes em `docs/superpowers/specs/2026-09-26-scl506-scl507-upsell-design.md`.
+
+## 2026-11-06 — Agendamento dos crons em cron-job.org, não em Vercel Cron
+
+**Decisão:** os três agendadores (`/api/cron/email-deliveries` a cada 5 min, `/api/cron/shoot-reminders` de hora em hora, `/api/cron/review-requests` uma vez por dia) são disparados por **cron-job.org** (plano gratuito), com `POST` e header `Authorization: Bearer <CRON_SECRET>`, jobs configurados em fuso **UTC**. O `vercel.json` continua **não versionado**.
+
+**Premissa confirmada (06/11/2026):** o projeto é `studiocarollucas-experience-site`, na conta Vercel `studiocarollucas-9883`, e o badge da conta diz **Hobby**. A decisão se sustenta. A primeira leitura desta sessão olhou a conta errada (`hudsong4-6370`, que é Pro mas não hospeda este projeto) — não inferir plano, backup ou env var a partir dela.
+
+**Motivo (sob a premissa acima):** o plano Hobby da Vercel só aceita cron diário e **rejeita o deploy** com frequência maior — versionar um `vercel.json` com `*/5 * * * *` quebraria o deploy inteiro, não apenas o cron. As entregas de e-mail precisam de minutos, não de um disparo diário: o D-1 não é recuperado no próprio dia e a fila acumularia por 24 h. cron-job.org cobre intervalo de minutos sem custo e mantém o segredo no cofre dela.
+
+**Alternativas consideradas:** (a) Vercel Pro — resolve de forma nativa e com o header injetado automaticamente, mas é custo recorrente para três jobs; (b) GitHub Actions `schedule` — gratuito, porém o agendamento é best-effort sob carga da plataforma e atrasa justamente nos horários cheios, o que afeta o D-1; (c) só o cron diário do Hobby — descartado, inviabiliza as entregas.
+
+**Consequência operacional:** o agendamento vive fora do repositório, então um deploy novo não o recria. Trocar de domínio ou rotacionar o `CRON_SECRET` exige atualizar os três jobs na cron-job.org. Tabela de URLs, expressões e leitura dos códigos de resposta em `docs/runbooks/email-automation.md`, seção 3.
+
+## 2026-11-06 — Guard de contrato de schema em teste live move com a migration, não é afrouxado
+
+**Decisão:** `tests/domain/styling-rls.integration.test.ts` afirma a contagem exata de colunas e a lista exata de constraints de `styling_references`. Com a `0053` (SCL-555) a contagem foi de 7 para 8 e a FK `styling_references_inventory_item_id_inventory_items_id_fk` entrou na lista; as duas asserções foram **atualizadas**, não relaxadas para "pelo menos N".
+
+**Motivo:** a asserção exata existe para que uma coluna ou constraint nova em `styling_references` não passe sem revisão — a tabela guarda referências de styling da cliente e tem policies por coluna. Trocar por comparação frouxa mataria o guard justamente onde ele serve. O custo é que toda migration que toque a tabela atualiza o teste, e isso é intencional.
+
+**Como o erro apareceu:** a suíte live é opt-in (`RUN_LIVE_DB_TESTS=true`) e não roda no CI, então a asserção ficou obsoleta desde a integração da SCL-555 em 07/10 e só falhou em 06/11, na primeira execução contra um banco com a `0053` aplicada. Rodar a suíte live faz parte de validar uma leva de migrations, não é passo opcional.
+
+## 2026-11-06 — Exceção explícita: suíte live rodada contra o banco de produção
+
+**Contexto:** a decisão de 2026-09 sobre `RUN_LIVE_DB_TESTS` diz que a suíte live roda "contra um projeto de dev/staging". Em 06/11/2026 ela foi rodada contra o banco de **produção**, por autorização explícita do dono do projeto, porque a aplicação ainda não atende usuários e não existe projeto de dev separado. O banco tinha 1 cliente, 1 ensaio e 1 pagamento — nada de volume real.
+
+**O que isso custou:** os testes limpam seus próprios fixtures `@example.com`, inclusive usuários `auth`, e as escritas de upsell rodam em transação revertida — a verificação pós-execução não achou fixture nenhum. Mas ficaram **1 `automation_events` + 1 `notification_deliveries`** (`boas-vindas`, `pending`, destinatário `@example.com`) apontando para um ensaio já removido: o outbox é tabela de auditoria e **não cascateia** quando o ensaio é apagado, então o cleanup dos testes não o alcança. Com `next_attempt_at` já vencido, o primeiro ciclo do cron teria tentado enviar. As duas linhas foram removidas à mão, com guarda de contagem.
+
+**Regra que fica:** rodar a suíte live contra um banco que vá receber tráfego exige, depois da execução, conferir `automation_events` e `notification_deliveries` e remover o que aponte para entidade inexistente — antes de ligar `EMAIL_DELIVERY_ENABLED`. A decisão original volta a valer assim que existir um projeto Supabase de dev: é ele que o Preview da Vercel deve usar, conforme `runbooks/deploy.md`.
+
+## 2026-11-06 — Correção de vulnerabilidades: bump mínimo, e `npm audit fix --force` proibido
+
+**Decisão:** `next` e `eslint-config-next` subiram de `16.3.4` para `16.4.5` (pin exato, como o repo já fazia — sem caret), e `npm audit fix` sem `--force` levou `@sentry/nextjs` a 10.78.0, `zod` a 4.6.7, `vite` a 8.3.6 e `undici` a 7.30.2. Resultado: de **27 vulnerabilidades (2 críticas, 6 altas) para 17 (16 moderadas, 1 alta)**, nenhuma crítica.
+
+**Motivo do `next`:** a 16.3.4 acumulava RCE não autenticado na Image Optimization API com SVG, RCE em `next/og` `ImageResponse`, RCE em funções `use cache` que retornam typed arrays, envenenamento de cache em SSG/ISR com substituição de conteúdo entre usuários, e SSRF na otimização de imagem. É um site público com otimização de imagem ligada; o fix é minor, não major, e React 19.2.8 já satisfaz o peer `^19.0.0`.
+
+**`--force` é proibido aqui:** os "fixes" que o npm marca como major são **downgrades**. Ele sugere `drizzle-kit@0.18.1` (o projeto está em 0.31.10) e `eslint-config-next@15.5.29` (está em 16.4.5). Rodar `--force` rebaixaria o CLI de migrations treze minors e o lint config um major inteiro, para resolver avisos de cadeia de build. Nunca rodar `--force` neste repo sem ler o que ele propõe.
+
+**O que fica em aberto, e por quê é aceitável:** as 17 restantes são todas de ferramenta de build/dev — `drizzle-kit` e seu `esbuild`/`@esbuild-kit`, a cadeia `@typescript-eslint`, os plugins de bundler do Sentry, e `glob`/`minimatch`/`brace-expansion` (DoS por expansão quadrática de padrão). Nenhuma está no caminho de requisição em produção. Reavaliar quando `drizzle-kit` e `eslint-config-next` publicarem versões que resolvam sem regressão.
+
+**Verificação:** `npm run typecheck`, `npm run lint` (0 erros), `npm run check:admin-auth`, `npm test` (1362 aprovados, 9 ignorados) e `npm run build` — todos exit 0 depois do bump, sem novo aviso de deprecação no build.
+
+## 2026-11-06 — GA4: comandos vão no objeto `arguments`, nunca num array
+
+**Defeito:** `components/site/google-analytics.tsx` definia `window.gtag` com rest parameter — `(...arguments_) => window.dataLayer?.push(arguments_)` — o que empilha um **array real**. O `gtag.js` só processa entradas na forma do objeto `arguments` e descarta as demais **sem erro**: o script carregava com 200, o console ficava limpo e nenhuma requisição de `collect` era criada. O GA4 reportava "No data received from your website yet". `lib/site/analytics.ts` ainda tipava `dataLayer?: unknown[][]`, consagrando o formato errado.
+
+**Alcance:** não era só o `page_view`. `trackPublicEvent()` chama o mesmo `window.gtag`, então todos os eventos públicos de SCL-405/406 — `quiz_started`, `quiz_completed`, `quiz_lead_created`, `quiz_whatsapp_clicked`, `experience_whatsapp_clicked`, `paixao_clutch_home_clicked`, `paixao_clutch_whatsapp_clicked` — eram descartados. Estavam marcados como entregues e nunca mediram nada. Até 06/11/2026 isso não era visível porque `NEXT_PUBLIC_GA_MEASUREMENT_ID` sequer existia em produção; configurar a variável foi o que expôs o defeito.
+
+**Decisão:** `window.gtag` é uma `function` nomeada que empilha `arguments` (arrow function não tem `arguments`), com `// eslint-disable-next-line prefer-rest-params` e comentário explicando por quê. `Window["dataLayer"]` passa a ser `IArguments[]`.
+
+**Diagnóstico, para repetir:** o sintoma é silencioso, então não basta ver a tag no HTML. Confirmar que existe requisição para `google-analytics.com/g/collect` com o `tid` certo; se o `gtag.js` carrega e nenhum `collect` aparece, inspecionar `window.dataLayer.map(e => Object.prototype.toString.call(e))` — as entradas do app têm que ser `[object Arguments]`, como as que o próprio `gtag.js` empilha.
+
+**Cobertura:** `tests/components/google-analytics.test.tsx` passou a afirmar a forma (`[object Arguments]`) além do conteúdo. A asserção anterior comparava com arrays, ou seja, **fixava o bug no teste** — foi reescrita para comparar o conteúdo via `Array.from`, independente da forma.
+
+**Alternativa considerada:** `GoogleAnalytics` de `@next/third-parties/google`, que é o caminho recomendado pelo guia do Next (`02-guides/third-party-libraries.md`) e elimina a classe inteira do problema. Não aplicada junto do hotfix: adiciona dependência e muda o contrato do componente, que hoje recebe `measurementId` opcional e é montado só em `app/(site)/layout.tsx` para manter admin e portal fora do rastreio. Vale reavaliar depois do lançamento.
