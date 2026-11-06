@@ -15,8 +15,7 @@ const configuration = Object.fromEntries(variables.map((key) => [key, Boolean(pr
 configuration.EMAIL_DELIVERY_ENABLED = process.env.EMAIL_DELIVERY_ENABLED === "true";
 configuration.CRON_SECRET_MIN_LENGTH = (process.env.CRON_SECRET?.length ?? 0) >= 32;
 const journal = JSON.parse(readFileSync(join(root, "db/migrations/meta/_journal.json"), "utf8"));
-const launchMigrations = journal.entries.filter((entry) => entry.idx >= 49);
-const result = { environment: process.env.VERCEL_ENV || "local", configuration, migrations: [], database: "not_configured" };
+const result = { environment: process.env.VERCEL_ENV || "local", configuration, migrations: null, database: "not_configured" };
 
 if (process.env.DATABASE_URL) {
   let sql;
@@ -28,10 +27,19 @@ if (process.env.DATABASE_URL) {
       return tx`select hash from drizzle.__drizzle_migrations`;
     });
     const applied = new Set(rows.map((row) => row.hash));
-    result.migrations = launchMigrations.map((entry) => {
+    // Compares the whole journal. A window starting at a fixed index hid an older
+    // gap: 0048 was missing while the audit reported only 0049 onward as pending.
+    const entries = journal.entries.map((entry) => {
       const bytes = readFileSync(join(root, "db/migrations", `${entry.tag}.sql`));
       return { tag: entry.tag, applied: applied.has(createHash("sha256").update(bytes).digest("hex")) };
     });
+    const firstGap = entries.findIndex((entry) => !entry.applied);
+    result.migrations = {
+      journalEntries: entries.length,
+      appliedRows: rows.length,
+      lastAppliedInOrder: firstGap === 0 ? null : entries[(firstGap === -1 ? entries.length : firstGap) - 1].tag,
+      pending: entries.filter((entry) => !entry.applied).map((entry) => entry.tag),
+    };
     result.database = "read_only_check_completed";
   } catch (error) {
     result.database = "unavailable";

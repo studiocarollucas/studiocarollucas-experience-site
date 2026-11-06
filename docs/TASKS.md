@@ -2882,8 +2882,8 @@ Avaliar e, somente após aprovação de qualidade/custo/LGPD, integrar API espec
 ## Hand-off global atual
 
 - Retomada 07/10/2026: checkout sincronizado por fast-forward de `c684254` para `9a52a16` (84 commits). SCL-405/406, 504/505, 554, 700–705 e 720–722 já integradas; SCL-506/507 reconciliadas como DONE pelo merge #9. SCL-555 integrada em `main` (`56e6607`), com migration e implantação pendentes.
-- Próximo passo atual: identificar o ambiente do banco configurado, revisar/aplicar migrations `0049`–`0053` no ambiente apropriado e validar RLS/fluxos integrados; configurar lançamento e conferir produção separadamente. Substituir fotos temporárias de Família. E-mail real depende de configuração e validação do rollout, não apenas de código.
-- Auditoria `npm run check:launch-readiness` (somente leitura, 07/10): banco acessível, hashes das migrations `0049`–`0053` ausentes; URL pública, WhatsApp, GA, Search Console, Resend/remetente, cron e review Google ausentes no `.env.local`, envio desabilitado. Isso não comprova configuração de produção. Nenhuma migration ou mensagem real disparada nesta retomada.
+- Próximo passo atual: identificar o ambiente do banco configurado, revisar/aplicar migrations `0048`–`0053` no ambiente apropriado e validar RLS/fluxos integrados; configurar lançamento e conferir produção separadamente. Substituir fotos temporárias de Família. E-mail real depende de configuração e validação do rollout, não apenas de código.
+- Auditoria `npm run check:launch-readiness` (somente leitura, 07/10): banco acessível, última aplicada em ordem `0047`, hashes de `0048`–`0053` ausentes (a `0048` estava escondida pelo filtro do audit, corrigido em 06/11); URL pública, WhatsApp, GA, Search Console, Resend/remetente, cron e review Google ausentes no `.env.local`, envio desabilitado. Isso não comprova configuração de produção. Nenhuma migration ou mensagem real disparada nesta retomada.
 - PRD: concluído.
 - Protótipo de referência: V2.3 Studio OS.
 - Modelo de dados: V2.3 disponível.

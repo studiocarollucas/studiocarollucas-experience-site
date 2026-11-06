@@ -92,6 +92,33 @@ curl -sS -X POST "https://studiocarollucas.com.br/api/cron/review-requests" \
 
 `configured: false` = `STUDIO_GOOGLE_REVIEW_URL` ausente/inválida (nada foi lido nem gravado; log `review requests skipped: …`). `alreadyRequested` conta ensaios cujo Review foi criado por outra execução ou pelo clique no portal no mesmo instante. `errors > 0` vai ao Sentry (`reason: review-request-schedule`) com o `shootId`.
 
+### Agendamento escolhido: cron-job.org (decidido em 06/11/2026)
+
+O plano Vercel segue Hobby, que só aceita cron diário — frequência maior faz o deploy ser rejeitado. Por isso **não existe `vercel.json` versionado** e o agendamento fica em **cron-job.org** (gratuito, aceita intervalo de minutos). Os três jobs usam o mesmo contrato: `POST` com `Authorization: Bearer <CRON_SECRET>`.
+
+Configurar cada job com **fuso UTC** na própria cron-job.org — as expressões abaixo são UTC. Manaus é UTC−4 e não tem horário de verão.
+
+| Job | URL | Cron (UTC) | Equivalente em Manaus | Depende de |
+| --- | --- | --- | --- | --- |
+| Entregas de e-mail | `https://studiocarollucas.com.br/api/cron/email-deliveries` | `*/5 * * * *` | a cada 5 min | `EMAIL_DELIVERY_ENABLED=true`, `RESEND_API_KEY`, `EMAIL_FROM` |
+| Lembretes D-7/D-1 | `https://studiocarollucas.com.br/api/cron/shoot-reminders` | `0 * * * *` | de hora em hora | nada além de `CRON_SECRET` |
+| Pedidos de avaliação | `https://studiocarollucas.com.br/api/cron/review-requests` | `0 12 * * *` | 08:00 | `STUDIO_GOOGLE_REVIEW_URL` |
+
+Passos na cron-job.org:
+
+1. Criar o job com a URL acima e método **POST**.
+2. Em *Headers*, adicionar `Authorization` com valor `Bearer <CRON_SECRET>` — o mesmo valor configurado em Production na Vercel. O segredo fica no cofre da ferramenta; não versionar.
+3. Em *Schedule*, escolher **UTC** e colar a expressão da tabela.
+4. Ligar notificação de falha por e-mail: a cron-job.org avisa quando a resposta não é 2xx.
+
+Leitura das respostas, para diagnosticar pelo histórico da ferramenta:
+
+- **200** com `{ "ok": true, ... }` — normal, mesmo com `enqueued: 0`.
+- **401** — `CRON_SECRET` do header diverge do configurado na Vercel.
+- **503** — `CRON_SECRET` ausente ou com menos de 32 caracteres no projeto; em produção, `/api/cron/email-deliveries` também responde 503 quando `EMAIL_DELIVERY_ENABLED` não é `true`.
+
+Execuções simultâneas ou repetidas são seguras: as entregas são reivindicadas com `FOR UPDATE SKIP LOCKED` e os dois agendadores são idempotentes. Gerar o segredo com `openssl rand -hex 32` e rotacioná-lo pela seção 8.
+
 ## 4. Chamada manual e leitura da resposta
 
 ```bash

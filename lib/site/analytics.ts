@@ -36,7 +36,8 @@ type Gtag = {
 
 declare global {
   interface Window {
-    dataLayer?: unknown[][];
+    /** gtag.js reads each entry as the `arguments` object of a gtag() call. */
+    dataLayer?: IArguments[];
     gtag?: Gtag;
   }
 }
