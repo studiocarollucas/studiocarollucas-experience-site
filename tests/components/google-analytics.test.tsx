@@ -28,9 +28,21 @@ describe("GoogleAnalytics", () => {
 
     fireEvent.click(screen.getByTestId("ga-script"));
 
-    expect(window.dataLayer).toEqual([
+    expect((window.dataLayer ?? []).map((entry) => Array.from(entry))).toEqual([
       ["js", expect.any(Date)],
       ["config", "G-TEST123"],
     ]);
+  });
+
+  // gtag.js only honours commands pushed as the `arguments` object. A real
+  // array is silently ignored: no hit is ever sent and GA4 stays empty.
+  it("pushes commands as arguments objects, not arrays", () => {
+    render(<GoogleAnalytics measurementId="G-TEST123" />);
+    fireEvent.click(screen.getByTestId("ga-script"));
+
+    const shapes = (window.dataLayer ?? []).map((entry) =>
+      Object.prototype.toString.call(entry),
+    );
+    expect(shapes).toEqual(["[object Arguments]", "[object Arguments]"]);
   });
 });
